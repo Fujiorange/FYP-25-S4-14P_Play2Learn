@@ -7,14 +7,10 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: '',
-    confirmPassword: '',
-    contact: '',
     gender: '',
-    organizationName: '',
-    organizationType: '',
-    businessRegistrationNumber: '',
-    role: ''
+    dateOfBirth: '',
+    password: '',
+    confirmPassword: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -30,38 +26,69 @@ export default function RegisterPage() {
       ...prev,
       [name]: value
     }));
-    // Clear error when user starts typing
     if (error) setError('');
+  };
+
+  const calculateAge = (dob) => {
+    const today = new Date();
+    const birthDate = new Date(dob);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   const handleSubmit = async () => {
     setError('');
     setSuccess(false);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match!');
+    // Validation
+    if (!formData.name || !formData.email || !formData.gender || !formData.dateOfBirth || !formData.password) {
+      setError('Please fill in all required fields');
       return;
     }
 
-    // Students and parents don't need business registration numbers
-    // (Teachers and admins are created by the system, not through registration)
-    
-    if (!formData.name || !formData.email || !formData.password || !formData.contact || 
-        !formData.gender || !formData.organizationName || !formData.organizationType || !formData.role) {
-      setError('Please fill in all required fields');
+    // Age validation
+    const age = calculateAge(formData.dateOfBirth);
+    if (age < 6 || age > 100) {
+      setError('Please enter a valid date of birth');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long');
       return;
     }
 
     setLoading(true);
 
     try {
-      const result = await authService.register(formData);
+      // Prepare registration data with defaults for trial users
+      const registrationData = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        gender: formData.gender,
+        dateOfBirth: formData.dateOfBirth,
+        role: 'student', // Default trial role
+        gradeLevel: 'Not Set', // Will be determined later
+        organizationName: 'Trial User',
+        organizationType: 'individual',
+        contact: '',
+        businessRegistrationNumber: ''
+      };
+
+      const result = await authService.register(registrationData);
 
       if (result.success) {
-        // Don't auto-login, just show success message
         setSuccess(true);
-        
-        // Redirect to login page after 2 seconds
         setTimeout(() => {
           navigate('/login');
         }, 2000);
@@ -103,8 +130,6 @@ export default function RegisterPage() {
       flex: '1',
       padding: '60px 50px',
       maxWidth: '500px',
-      overflowY: 'auto',
-      maxHeight: '90vh',
     },
     logo: {
       display: 'flex',
@@ -142,6 +167,20 @@ export default function RegisterPage() {
       marginBottom: '40px',
       lineHeight: '1.5',
     },
+    trialBadge: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '6px',
+      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      color: 'white',
+      padding: '6px 14px',
+      borderRadius: '20px',
+      fontSize: '11px',
+      fontWeight: '700',
+      marginBottom: '20px',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+    },
     formGroup: {
       marginBottom: '20px',
     },
@@ -151,6 +190,10 @@ export default function RegisterPage() {
       fontWeight: '600',
       color: '#374151',
       marginBottom: '8px',
+    },
+    required: {
+      color: '#ef4444',
+      marginLeft: '3px',
     },
     input: {
       width: '100%',
@@ -230,23 +273,23 @@ export default function RegisterPage() {
       marginTop: '15px',
       padding: '12px 16px',
       background: '#f0fdf4',
-      border: '2px solid #86efac',
+      border: '2px solid #bbf7d0',
       borderRadius: '10px',
-      color: '#166534',
+      color: '#16a34a',
       fontSize: '14px',
       fontWeight: '500',
     },
     loginLink: {
-      marginTop: '20px',
+      textAlign: 'center',
+      marginTop: '25px',
       fontSize: '14px',
       color: '#6b7280',
-      textAlign: 'center',
     },
     link: {
       color: '#10b981',
-      fontWeight: '600',
       textDecoration: 'none',
-      cursor: 'pointer',
+      fontWeight: '600',
+      transition: 'color 0.3s',
     },
     infoSection: {
       flex: '1',
@@ -260,9 +303,6 @@ export default function RegisterPage() {
       fontSize: '28px',
       color: '#1f2937',
       marginBottom: '30px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
       fontWeight: '700',
       margin: '0 0 30px 0',
     },
@@ -288,17 +328,23 @@ export default function RegisterPage() {
         <div style={styles.registerSection}>
           <div style={styles.logo}>
             <div style={styles.logoIcon}>P</div>
-            <div style={styles.logoText}>Play2Learn</div>
+            <span style={styles.logoText}>Play2Learn</span>
           </div>
 
-          <h1 style={styles.title}>Create Account</h1>
+          <div style={styles.trialBadge}>
+            ✨ FREE TRIAL
+          </div>
+
+          <h1 style={styles.title}>Start Your Journey!</h1>
           <p style={styles.subtitle}>
-            Join Play2Learn and start your learning adventure today!
+            Create your free account in seconds. No credit card required.
           </p>
 
           <div>
             <div style={styles.formGroup}>
-              <label style={styles.label}>Full Name</label>
+              <label style={styles.label}>
+                Full Name<span style={styles.required}>*</span>
+              </label>
               <input
                 type="text"
                 name="name"
@@ -307,7 +353,7 @@ export default function RegisterPage() {
                 onKeyPress={handleKeyPress}
                 onFocus={() => setFocusedField('name')}
                 onBlur={() => setFocusedField('')}
-                placeholder="E.g., John Smith"
+                placeholder="Enter your full name"
                 disabled={loading}
                 style={{
                   ...styles.input,
@@ -317,7 +363,9 @@ export default function RegisterPage() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Email</label>
+              <label style={styles.label}>
+                Email Address<span style={styles.required}>*</span>
+              </label>
               <input
                 type="email"
                 name="email"
@@ -336,26 +384,9 @@ export default function RegisterPage() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Contact Number</label>
-              <input
-                type="tel"
-                name="contact"
-                value={formData.contact}
-                onChange={handleChange}
-                onKeyPress={handleKeyPress}
-                onFocus={() => setFocusedField('contact')}
-                onBlur={() => setFocusedField('')}
-                placeholder="E.g., +65 9123 4567"
-                disabled={loading}
-                style={{
-                  ...styles.input,
-                  ...(focusedField === 'contact' ? styles.inputFocus : {}),
-                }}
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Gender</label>
+              <label style={styles.label}>
+                Gender<span style={styles.required}>*</span>
+              </label>
               <select
                 name="gender"
                 value={formData.gender}
@@ -368,7 +399,7 @@ export default function RegisterPage() {
                   ...(focusedField === 'gender' ? styles.inputFocus : {}),
                 }}
               >
-                <option value="">Select gender</option>
+                <option value="">Select your gender</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
@@ -377,69 +408,29 @@ export default function RegisterPage() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Organization / School Name</label>
+              <label style={styles.label}>
+                Date of Birth<span style={styles.required}>*</span>
+              </label>
               <input
-                type="text"
-                name="organizationName"
-                value={formData.organizationName}
+                type="date"
+                name="dateOfBirth"
+                value={formData.dateOfBirth}
                 onChange={handleChange}
-                onKeyPress={handleKeyPress}
-                onFocus={() => setFocusedField('organizationName')}
+                onFocus={() => setFocusedField('dateOfBirth')}
                 onBlur={() => setFocusedField('')}
-                placeholder="E.g., ABC Tuition Center, XYZ Primary School"
+                max={new Date().toISOString().split('T')[0]}
                 disabled={loading}
                 style={{
                   ...styles.input,
-                  ...(focusedField === 'organizationName' ? styles.inputFocus : {}),
+                  ...(focusedField === 'dateOfBirth' ? styles.inputFocus : {}),
                 }}
               />
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Organization Type</label>
-              <select
-                name="organizationType"
-                value={formData.organizationType}
-                onChange={handleChange}
-                onFocus={() => setFocusedField('organizationType')}
-                onBlur={() => setFocusedField('')}
-                disabled={loading}
-                style={{
-                  ...styles.select,
-                  ...(focusedField === 'organizationType' ? styles.inputFocus : {}),
-                }}
-              >
-                <option value="">Select organization type</option>
-                <option value="tuition-center">Tuition Center</option>
-                <option value="government-school">Government School</option>
-                <option value="private-school">Private School</option>
-                <option value="business">Other Business</option>
-                <option value="individual">Individual</option>
-              </select>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Your Role</label>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                onFocus={() => setFocusedField('role')}
-                onBlur={() => setFocusedField('')}
-                disabled={loading}
-                style={{
-                  ...styles.select,
-                  ...(focusedField === 'role' ? styles.inputFocus : {}),
-                }}
-              >
-                <option value="">Select your role</option>
-                <option value="student">Student</option>
-                <option value="parent">Parent</option>
-              </select>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Password</label>
+              <label style={styles.label}>
+                Password<span style={styles.required}>*</span>
+              </label>
               <div style={styles.passwordWrapper}>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -449,7 +440,7 @@ export default function RegisterPage() {
                   onKeyPress={handleKeyPress}
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField('')}
-                  placeholder="Create a password"
+                  placeholder="Min. 8 characters"
                   disabled={loading}
                   style={{
                     ...styles.input,
@@ -479,7 +470,9 @@ export default function RegisterPage() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Confirm Password</label>
+              <label style={styles.label}>
+                Confirm Password<span style={styles.required}>*</span>
+              </label>
               <div style={styles.passwordWrapper}>
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
@@ -489,7 +482,7 @@ export default function RegisterPage() {
                   onKeyPress={handleKeyPress}
                   onFocus={() => setFocusedField('confirmPassword')}
                   onBlur={() => setFocusedField('')}
-                  placeholder="Confirm your password"
+                  placeholder="Re-enter password"
                   disabled={loading}
                   style={{
                     ...styles.input,
@@ -535,7 +528,7 @@ export default function RegisterPage() {
 
             {success && (
               <div style={styles.successMessage}>
-                ✅ Account created successfully! Redirecting to login page...
+                ✅ Account created successfully! Redirecting to login...
               </div>
             )}
 
@@ -547,35 +540,47 @@ export default function RegisterPage() {
 
             <p style={styles.loginLink}>
               Already have an account?{' '}
-              <Link to="/login" style={styles.link}>Log in</Link>
+              <Link 
+                to="/login" 
+                style={styles.link}
+                onMouseEnter={(e) => e.target.style.color = '#059669'}
+                onMouseLeave={(e) => e.target.style.color = '#10b981'}
+              >
+                Log in
+              </Link>
             </p>
           </div>
         </div>
 
         <div style={styles.infoSection}>
           <h2 style={styles.infoTitle}>
-            Join our community 🌟
+            Level up your learning 🎓
           </h2>
 
           <div>
             <div style={styles.feature}>
               <span style={styles.star}>⭐</span>
-              <span>Access thousands of interactive lessons</span>
+              <span>Track progress in real time</span>
             </div>
 
             <div style={styles.feature}>
               <span style={styles.star}>⭐</span>
-              <span>Personalized learning paths for every student</span>
+              <span>Gamified quests for English, Math & Science</span>
             </div>
 
             <div style={styles.feature}>
               <span style={styles.star}>⭐</span>
-              <span>Track progress and earn rewards</span>
+              <span>Rewards that keep you motivated</span>
             </div>
 
             <div style={styles.feature}>
               <span style={styles.star}>⭐</span>
-              <span>Connect with teachers and parents seamlessly</span>
+              <span>Join a community of learners</span>
+            </div>
+
+            <div style={styles.feature}>
+              <span style={styles.star}>⭐</span>
+              <span>100% free trial - no credit card required</span>
             </div>
           </div>
         </div>
