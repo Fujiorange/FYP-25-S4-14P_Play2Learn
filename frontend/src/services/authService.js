@@ -1,13 +1,16 @@
 // src/services/authService.js
-// Real API authentication service for Play2Learn
+// Real API authentication service for Play2Learn - MONGODB VERSION
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 class AuthService {
-  // Register new user
+  // Register new user - MONGODB
   async register(userData) {
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
+      console.log('📤 Sending registration to:', `${API_URL}/mongo/auth/register`);
+      console.log('📦 Data:', userData);
+
+      const response = await fetch(`${API_URL}/mongo/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -18,6 +21,7 @@ class AuthService {
           password: userData.password,
           contact: userData.contact,
           gender: userData.gender,
+          dateOfBirth: userData.dateOfBirth, // ✅ This matches backend
           organizationName: userData.organizationName,
           organizationType: userData.organizationType,
           businessRegistrationNumber: userData.businessRegistrationNumber,
@@ -26,16 +30,16 @@ class AuthService {
       });
 
       const data = await response.json();
+      console.log('📥 Registration response:', data);
 
       if (data.success) {
         // Don't store token - user needs to login manually
-        // Just return success
-        return { success: true, message: 'Account created successfully' };
+        return { success: true, message: data.message || 'Account created successfully' };
       } else {
         return { success: false, error: data.error };
       }
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('❌ Registration error:', error);
       return { 
         success: false, 
         error: 'Network error. Please check your connection and try again.' 
@@ -43,10 +47,13 @@ class AuthService {
     }
   }
 
-  // Login user
+  // Login user - MONGODB
   async login(email, password, role) {
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
+      console.log('📤 Sending login to:', `${API_URL}/mongo/auth/login`);
+      console.log('📦 Data:', { email, role });
+
+      const response = await fetch(`${API_URL}/mongo/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,17 +62,20 @@ class AuthService {
       });
 
       const data = await response.json();
+      console.log('📥 Login response:', data);
 
       if (data.success) {
         // Store token and user data in localStorage
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        console.log('✅ Login successful, token stored');
         return { success: true, user: data.user };
       } else {
+        console.log('❌ Login failed:', data.error);
         return { success: false, error: data.error };
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       return { 
         success: false, 
         error: 'Network error. Please check your connection and try again.' 
@@ -79,7 +89,7 @@ class AuthService {
       const token = this.getToken();
       
       if (token) {
-        await fetch(`${API_URL}/auth/logout`, {
+        await fetch(`${API_URL}/mongo/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -130,7 +140,7 @@ class AuthService {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const response = await fetch(`${API_URL}/auth/me`, {
+      const response = await fetch(`${API_URL}/mongo/auth/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -163,7 +173,7 @@ class AuthService {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const response = await fetch(`${API_URL}/dashboard`, {
+      const response = await fetch(`${API_URL}/mongo/dashboard`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
