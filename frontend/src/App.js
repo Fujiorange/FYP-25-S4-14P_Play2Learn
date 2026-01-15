@@ -68,6 +68,16 @@ import ParentWriteTestimonial from './components/Parents/WriteTestimonial';
 import ParentCreateSupportTicket from './components/Parents/CreateSupportTicket';
 import ParentTrackSupportTicket from './components/Parents/TrackSupportTicket';
 
+// SchoolAdmin Components
+import SchoolAdminDashboard from './components/SchoolAdmin/SchoolAdminDashboard';
+import ManualAddUser from './components/SchoolAdmin/ManualAddUser';
+import RemoveUser from './components/SchoolAdmin/RemoveUser';
+import BulkUploadCSV from './components/SchoolAdmin/BulkUploadCSV';
+import ManageClasses from './components/SchoolAdmin/ManageClasses';
+import ProvidePermission from './components/SchoolAdmin/ProvidePermission';
+import ResetPassword from './components/SchoolAdmin/ResetPassword';
+import DisableUser from './components/SchoolAdmin/DisableUser';
+
 function App() {
   return (
     <Router>
@@ -142,6 +152,18 @@ function App() {
           <Route path="/parent/testimonial" element={<ParentWriteTestimonial />} />
           <Route path="/parent/support/create" element={<ParentCreateSupportTicket />} />
           <Route path="/parent/support/track" element={<ParentTrackSupportTicket />} />
+        
+          {/* ========== SCHOOL ADMIN ROUTES ========== */}
+          <Route path="/school-admin" element={<SchoolAdminDashboard />} />
+          <Route path="/school-admin/users/manual-add" element={<ManualAddUser />} />
+          <Route path="/school-admin/users/remove" element={<RemoveUser />} />
+          <Route path="/school-admin/users/bulk-upload" element={<BulkUploadCSV />} />
+          <Route path="/school-admin/classes/manage" element={<ManageClasses />} />
+          <Route path="/school-admin/users/permissions" element={<ProvidePermission />} />
+          <Route path="/school-admin/users/reset-password" element={<ResetPassword />} />
+          <Route path="/school-admin/users/disable" element={<DisableUser />} />
+
+          
         </Routes>
       </div>
     </Router>
