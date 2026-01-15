@@ -1,13 +1,13 @@
 // src/services/authService.js
-// Real API authentication service for Play2Learn
+// MongoDB Authentication Service for Play2Learn
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 class AuthService {
-  // Register new user
+  // Register new user (MongoDB)
   async register(userData) {
     try {
-      const response = await fetch(`${API_URL}/auth/register`, {
+      const response = await fetch(`${API_URL}/mongo/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -28,9 +28,10 @@ class AuthService {
       const data = await response.json();
 
       if (data.success) {
-        // Don't store token - user needs to login manually
-        // Just return success
-        return { success: true, message: 'Account created successfully' };
+        // Store token and user data
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        return { success: true, message: 'Account created successfully', user: data.user };
       } else {
         return { success: false, error: data.error };
       }
@@ -43,10 +44,10 @@ class AuthService {
     }
   }
 
-  // Login user
+  // Login user (MongoDB)
   async login(email, password, role) {
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}/mongo/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,12 +80,8 @@ class AuthService {
       const token = this.getToken();
       
       if (token) {
-        await fetch(`${API_URL}/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        // Optional: call logout endpoint if you add one
+        // await fetch(`${API_URL}/mongo/auth/logout`, {...});
       }
     } catch (error) {
       console.error('Logout error:', error);
@@ -130,23 +127,13 @@ class AuthService {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const response = await fetch(`${API_URL}/auth/me`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        // Update stored user data
-        localStorage.setItem('user', JSON.stringify(data.user));
-        return { success: true, user: data.user };
+      // This would need a corresponding MongoDB endpoint
+      // For now, return stored user
+      const user = this.getCurrentUser();
+      if (user) {
+        return { success: true, user: user };
       } else {
-        // Token might be invalid, clear auth
-        this.logout();
-        return { success: false, error: data.error };
+        return { success: false, error: 'No user found' };
       }
     } catch (error) {
       console.error('Get current user error:', error);
@@ -154,7 +141,7 @@ class AuthService {
     }
   }
 
-  // Get dashboard data
+  // Get dashboard data (MongoDB)
   async getDashboardData() {
     try {
       const token = this.getToken();
@@ -163,15 +150,33 @@ class AuthService {
         return { success: false, error: 'Not authenticated' };
       }
 
-      const response = await fetch(`${API_URL}/dashboard`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      // For now, return success with stored user data
+      // You can add MongoDB dashboard endpoint later
+      const user = this.getCurrentUser();
+      
+      if (user) {
+        // Return mock dashboard data based on role
+        let dashboardData = {};
+        
+        if (user.role === 'student') {
+          dashboardData = {
+            points: 0,
+            level: 1,
+            total_courses: 0
+          };
+        } else if (user.role === 'teacher') {
+          dashboardData = {
+            total_courses: 0
+          };
+        }
 
-      const data = await response.json();
-      return data;
+        return { 
+          success: true, 
+          data: dashboardData 
+        };
+      }
+
+      return { success: false, error: 'No user data' };
     } catch (error) {
       console.error('Dashboard error:', error);
       return { success: false, error: 'Failed to load dashboard data' };

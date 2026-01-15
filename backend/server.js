@@ -1,6 +1,6 @@
-// server.js - Backend Server for Play2Learn
+// server.js - Play2Learn Backend (MongoDB Only)
 const express = require('express');
-const mysql = require('mysql2/promise');
+const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
@@ -12,343 +12,81 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Database connection pool
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'play2learn',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
-
-// JWT Secret (in production, use environment variable)
+// JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
-// Test database connection
-pool.getConnection()
-  .then(connection => {
-    console.log('✅ Connected to MySQL database');
-    connection.release();
+// ==================== MONGODB CONNECTION ====================
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('✅ Connected to MongoDB Atlas');
+    console.log('📦 Database:', mongoose.connection.name);
   })
   .catch(err => {
-    console.error('❌ Database connection failed:', err);
+    console.error('❌ MongoDB connection failed:', err.message);
+    process.exit(1);
   });
 
-// ==================== AUTHENTICATION ROUTES ====================
+// ==================== MONGODB AUTH ROUTES ====================
+const mongoAuthRoutes = require('./routes/mongoAuthRoutes');
+app.use('/api/mongo/auth', mongoAuthRoutes);
 
-// Register endpoint
-app.post('/api/auth/register', async (req, res) => {
-  const {
-    name,
-    email,
-    password,
-    contact,
-    gender,
-    organizationName,
-    organizationType,
-    businessRegistrationNumber,
-    role
-  } = req.body;
+// ==================== MONGODB ITEM ROUTES (Your test routes) ====================
 
-  let connection;
-  
+// Create item
+app.post('/api/mongo/items', authenticateToken, async (req, res) => {
   try {
-    // Validation
-    if (!name || !email || !password || !organizationName || !organizationType || !role) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'All required fields must be filled' 
-      });
-    }
+    const db = mongoose.connection.db;
+    const collection = db.collection('items');
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid email format' 
-      });
-    }
+    const item = {
+      title: req.body.title,
+      description: req.body.description,
+      created_by: req.user.email,
+      created_at: new Date()
+    };
 
-    connection = await pool.getConnection();
-
-    // Check if email already exists
-    const [existingUsers] = await connection.query(
-      'SELECT email FROM users WHERE email = ?',
-      [email]
-    );
-
-    if (existingUsers.length > 0) {
-      return res.status(409).json({ 
-        success: false, 
-        error: 'Email already registered' 
-      });
-    }
-
-    // Hash password
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // Insert user into database
-    const [result] = await connection.query(
-      `INSERT INTO users (
-        name, email, password_hash, contact, gender,
-        organization_name, organization_type, business_registration_number,
-        role, approval_status, is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', TRUE)`,
-      [
-        name,
-        email,
-        passwordHash,
-        contact,
-        gender,
-        organizationName,
-        organizationType,
-        businessRegistrationNumber || null,
-        role
-      ]
-    );
-
-    const userId = result.insertId;
-
-    // Create role-specific entry
-    await createRoleSpecificEntry(connection, userId, role);
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId, email, role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    // Get complete user data
-    const [userData] = await connection.query(
-      `SELECT user_id, name, email, role, organization_name, organization_type, 
-              contact, gender, is_active, approval_status, created_at
-       FROM users WHERE user_id = ?`,
-      [userId]
-    );
+    const result = await collection.insertOne(item);
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
-      token,
-      user: userData[0]
+      message: 'Item created',
+      item: { ...item, _id: result.insertedId }
     });
-
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Registration failed. Please try again.' 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
-  } finally {
-    if (connection) connection.release();
   }
 });
 
-// Login endpoint
-app.post('/api/auth/login', async (req, res) => {
-  const { email, password, role } = req.body;
-
-  let connection;
-
+// Get all items
+app.get('/api/mongo/items', authenticateToken, async (req, res) => {
   try {
-    // Validation
-    if (!email || !password || !role) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Email, password, and role are required' 
-      });
-    }
+    const db = mongoose.connection.db;
+    const collection = db.collection('items');
 
-    connection = await pool.getConnection();
-
-    // Get user from database
-    const [users] = await connection.query(
-      `SELECT user_id, name, email, password_hash, role, organization_name, 
-              organization_type, contact, gender, is_active, approval_status
-       FROM users 
-       WHERE email = ? AND role = ?`,
-      [email, role]
-    );
-
-    if (users.length === 0) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Invalid email, password, or role' 
-      });
-    }
-
-    const user = users[0];
-
-    // Check if account is active
-    if (!user.is_active) {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'Account is deactivated. Please contact support.' 
-      });
-    }
-
-    // Check approval status
-    if (user.approval_status === 'pending') {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'Account is pending approval' 
-      });
-    }
-
-    if (user.approval_status === 'rejected') {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'Account has been rejected' 
-      });
-    }
-
-    // Verify password
-    const passwordMatch = await bcrypt.compare(password, user.password_hash);
-
-    if (!passwordMatch) {
-      return res.status(401).json({ 
-        success: false, 
-        error: 'Invalid email, password, or role' 
-      });
-    }
-
-    // Update last login
-    await connection.query(
-      'UPDATE users SET last_login = NOW() WHERE user_id = ?',
-      [user.user_id]
-    );
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.user_id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    // Remove password hash from response
-    delete user.password_hash;
+    const items = await collection.find({}).toArray();
 
     res.json({
       success: true,
-      message: 'Login successful',
-      token,
-      user
+      count: items.length,
+      items: items
     });
-
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Login failed. Please try again.' 
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
-  } finally {
-    if (connection) connection.release();
   }
-});
-
-// Get current user (protected route)
-app.get('/api/auth/me', authenticateToken, async (req, res) => {
-  let connection;
-
-  try {
-    connection = await pool.getConnection();
-
-    const [users] = await connection.query(
-      `SELECT user_id, name, email, role, organization_name, organization_type,
-              contact, gender, is_active, approval_status, created_at, last_login
-       FROM users 
-       WHERE user_id = ?`,
-      [req.user.userId]
-    );
-
-    if (users.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'User not found' 
-      });
-    }
-
-    res.json({
-      success: true,
-      user: users[0]
-    });
-
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to get user data' 
-    });
-  } finally {
-    if (connection) connection.release();
-  }
-});
-
-// Logout endpoint (optional - mainly for token invalidation in future)
-app.post('/api/auth/logout', authenticateToken, (req, res) => {
-  // In a production app, you might want to blacklist the token
-  res.json({
-    success: true,
-    message: 'Logout successful'
-  });
 });
 
 // ==================== HELPER FUNCTIONS ====================
 
-// Create role-specific table entries
-async function createRoleSpecificEntry(connection, userId, role) {
-  try {
-    switch (role) {
-      case 'student':
-        await connection.query(
-          'INSERT INTO students (user_id, grade_level, points, level) VALUES (?, ?, ?, ?)',
-          [userId, 'Not Set', 0, 1]
-        );
-        break;
-      
-      case 'teacher':
-        await connection.query(
-          'INSERT INTO teachers (user_id) VALUES (?)',
-          [userId]
-        );
-        break;
-      
-      case 'parent':
-        await connection.query(
-          'INSERT INTO parents (user_id) VALUES (?)',
-          [userId]
-        );
-        break;
-      
-      case 'school-admin':
-        await connection.query(
-          'INSERT INTO school_admins (user_id) VALUES (?)',
-          [userId]
-        );
-        break;
-      
-      case 'platform-admin':
-        await connection.query(
-          'INSERT INTO platform_admins (user_id, admin_level) VALUES (?, ?)',
-          [userId, 'moderator']
-        );
-        break;
-    }
-  } catch (error) {
-    console.error('Error creating role-specific entry:', error);
-    throw error;
-  }
-}
-
 // JWT authentication middleware
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ 
@@ -369,89 +107,14 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// ==================== ADDITIONAL ROUTES ====================
-
-// Get user dashboard data based on role
-app.get('/api/dashboard', authenticateToken, async (req, res) => {
-  let connection;
-
-  try {
-    connection = await pool.getConnection();
-    const { userId, role } = req.user;
-
-    let dashboardData = {};
-
-    switch (role) {
-      case 'student':
-        const [studentData] = await connection.query(
-          `SELECT s.*, u.name, u.email, u.organization_name
-           FROM students s
-           JOIN users u ON s.user_id = u.user_id
-           WHERE s.user_id = ?`,
-          [userId]
-        );
-        
-        const [enrollments] = await connection.query(
-          `SELECT COUNT(*) as total_courses FROM enrollments WHERE student_id = ?`,
-          [studentData[0].student_id]
-        );
-
-        dashboardData = {
-          ...studentData[0],
-          total_courses: enrollments[0].total_courses
-        };
-        break;
-
-      case 'teacher':
-        const [teacherData] = await connection.query(
-          `SELECT t.*, u.name, u.email, u.organization_name
-           FROM teachers t
-           JOIN users u ON t.user_id = u.user_id
-           WHERE t.user_id = ?`,
-          [userId]
-        );
-
-        const [courses] = await connection.query(
-          `SELECT COUNT(*) as total_courses FROM courses WHERE teacher_id = ?`,
-          [teacherData[0].teacher_id]
-        );
-
-        dashboardData = {
-          ...teacherData[0],
-          total_courses: courses[0].total_courses
-        };
-        break;
-
-      case 'parent':
-      case 'school-admin':
-      case 'platform-admin':
-        // Add specific queries for other roles
-        dashboardData = { message: 'Dashboard data for ' + role };
-        break;
-    }
-
-    res.json({
-      success: true,
-      data: dashboardData
-    });
-
-  } catch (error) {
-    console.error('Dashboard error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to load dashboard data' 
-    });
-  } finally {
-    if (connection) connection.release();
-  }
-});
-
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
     success: true, 
     message: 'Server is running',
-    timestamp: new Date().toISOString()
+    database: 'MongoDB',
+    timestamp: new Date().toISOString(),
+    mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
   });
 });
 
@@ -461,12 +124,12 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`
-╔════════════════════════════════════════╗
+╔═══════════════════════════════════════╗
 ║   🚀 Play2Learn Server Running        ║
 ║   📍 Port: ${PORT}                        ║
 ║   🌐 http://localhost:${PORT}            ║
-║   💾 Database: MySQL                   ║
-╚════════════════════════════════════════╝
+║   🍃 Database: MongoDB Atlas          ║
+╚═══════════════════════════════════════╝
   `);
 });
 
