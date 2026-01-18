@@ -322,7 +322,9 @@ async function createRoleSpecificEntry(db, userId, role, name, email) {
           grade_level: 'Primary 1',
           points: 0,
           level: 1,
-          current_profile: 1,
+          current_profile: null, // ✅ NULL until placement quiz completed
+          consecutive_fails: 0,   // ✅ ADDED - Track consecutive fails
+          placement_completed: false, // ✅ ADDED - Track if placement quiz done
           streak: 0,
           total_quizzes: 0,
           created_at: timestamp,

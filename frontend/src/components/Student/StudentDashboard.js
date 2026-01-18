@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import studentService from '../../services/studentService';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -29,13 +30,46 @@ export default function StudentDashboard() {
           setUser(result.user);
         }
 
-        // Load dashboard data
-        const dashData = await authService.getDashboardData();
+        // ✅ FIXED: Load dashboard data from MongoDB
+        const dashData = await studentService.getDashboard();
+        console.log('📊 Dashboard data loaded:', dashData);
+
         if (dashData.success) {
-          setDashboardData(dashData.data);
+          setDashboardData({
+            points: dashData.totalPoints || 0,
+            level: dashData.currentLevel || 1,
+            levelProgress: ((dashData.totalPoints % 500) / 500) * 100,
+            achievements: 0, // Not yet implemented
+            rank: dashData.classRank || '#-',
+            completedQuizzes: dashData.completedQuizzes || 0,
+            grade_level: 'Primary 1'
+          });
+          console.log('✅ Dashboard data set successfully');
+        } else {
+          console.error('❌ Failed to load dashboard:', dashData.error);
+          // Set default values
+          setDashboardData({
+            points: 0,
+            level: 1,
+            levelProgress: 0,
+            achievements: 0,
+            rank: '#-',
+            completedQuizzes: 0,
+            grade_level: 'Primary 1'
+          });
         }
       } catch (error) {
         console.error('Error loading user data:', error);
+        // Set default values on error
+        setDashboardData({
+          points: 0,
+          level: 1,
+          levelProgress: 0,
+          achievements: 0,
+          rank: '#-',
+          completedQuizzes: 0,
+          grade_level: 'Primary 1'
+        });
       } finally {
         setLoading(false);
       }
@@ -303,8 +337,6 @@ export default function StudentDashboard() {
           navigate('/student/quiz/attempt');
         } else if (item === 'attempt-assignment') {
           navigate('/student/assignment/attempt');
-        } else if (item === 'view-result') {
-          navigate('/student/results');
         } else if (item === 'history') {
           navigate('/student/results/history');
         }
@@ -325,7 +357,7 @@ export default function StudentDashboard() {
         break;
       
       default:
-        console.log('No route defined for:', section, item);
+        console.log('Unknown section or item');
     }
   };
 
@@ -340,18 +372,14 @@ export default function StudentDashboard() {
           </div>
           <div style={styles.headerRight}>
             <div style={styles.userInfo}>
-              <p style={styles.userName}>{user.name || 'Student'}</p>
-              <p style={styles.userRole}>
-                {dashboardData?.grade_level && dashboardData.grade_level !== 'Not Set' 
-                  ? dashboardData.grade_level 
-                  : 'Student'}
-              </p>
+              <p style={styles.userName}>{user.name}</p>
+              <p style={styles.userRole}>Student</p>
             </div>
             <button
               style={styles.logoutBtn}
               onClick={handleLogout}
-              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+              onMouseEnter={(e) => e.target.style.opacity = '0.9'}
+              onMouseLeave={(e) => e.target.style.opacity = '1'}
             >
               Logout
             </button>
@@ -363,14 +391,16 @@ export default function StudentDashboard() {
       <main style={styles.main}>
         {/* Welcome Section */}
         <div style={styles.welcomeSection}>
-          <h1 style={styles.welcomeTitle}>Welcome back, {user.name?.split(' ')[0] || 'Student'}! 🎮</h1>
+          <h1 style={styles.welcomeTitle}>Welcome back, {user.name}! 🎮</h1>
           <p style={styles.welcomeSubtitle}>
-            Ready to level up your skills? Let's continue your learning adventure!
+            {dashboardData?.grade_level && dashboardData.grade_level !== 'Not Set' 
+              ? dashboardData.grade_level 
+              : 'Ready to continue your learning adventure?'}
           </p>
           <div style={styles.progressBar}>
             <div style={{...styles.progressFill, width: `${dashboardData?.levelProgress || 0}%`}}></div>
           </div>
-          <p style={{fontSize: '12px', marginTop: '8px', opacity: 0.9}}>
+          <p style={{ fontSize: '14px', marginTop: '8px', opacity: 0.9 }}>
             Level {dashboardData?.level || 1} - {dashboardData?.levelProgress || 0}% to Level {(dashboardData?.level || 1) + 1}
           </p>
         </div>

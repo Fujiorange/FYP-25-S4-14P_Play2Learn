@@ -1,4 +1,4 @@
-// TrackProgress.js - Math-Focused Progress Tracking
+// TrackProgress.js 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
@@ -179,37 +179,6 @@ export default function TrackProgress() {
           </div>
         </div>
 
-        {/* Profile History */}
-        <div style={styles.historyCard}>
-          <h2 style={styles.cardTitle}>Profile Change History</h2>
-          {progressData?.profileHistory && progressData.profileHistory.length > 0 ? (
-            <div style={styles.historyTimeline}>
-              {progressData.profileHistory.map((change, idx) => (
-                <div key={idx} style={styles.timelineItem}>
-                  {idx < progressData.profileHistory.length - 1 && <div style={styles.timelineLine} />}
-                  <div style={{
-                    ...styles.timelineDot, 
-                    background: getProfileColor(change.newProfile),
-                    boxShadow: `0 0 0 3px ${getProfileColor(change.newProfile)}30`
-                  }} />
-                  <div style={styles.timelineContent}>
-                    <div style={styles.timelineDate}>{change.date}</div>
-                    <div style={styles.timelineText}>
-                      {change.type === 'advance' && `⬆️ Advanced from Profile ${change.oldProfile} to Profile ${change.newProfile}`}
-                      {change.type === 'demote' && `⬇️ Moved from Profile ${change.oldProfile} to Profile ${change.newProfile}`}
-                      {change.type === 'initial' && `🎯 Started at Profile ${change.newProfile}`}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={styles.emptyState}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📊</div>
-              <p>No profile changes yet</p>
-            </div>
-          )}
-        </div>
 
         {/* Recent Quizzes */}
         <div style={styles.quizzesCard}>

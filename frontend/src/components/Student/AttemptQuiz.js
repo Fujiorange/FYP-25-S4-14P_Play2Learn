@@ -1,4 +1,4 @@
-// AttemptQuiz.js - FULLY DYNAMIC
+// AttemptQuiz.js - FINAL VERSION with Real Navigation
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
@@ -8,6 +8,7 @@ export default function AttemptQuiz() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
+  const [requiresPlacement, setRequiresPlacement] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -18,16 +19,23 @@ export default function AttemptQuiz() {
       }
 
       try {
-        // DYNAMIC: Get profile data from database
+        console.log('📡 Fetching math profile...');
         const result = await studentService.getMathProfile();
+        console.log('📥 Profile result:', result);
 
         if (result.success) {
-          setProfileData(result.profile);
+          if (result.requiresPlacement) {
+            setRequiresPlacement(true);
+            setProfileData(null);
+          } else {
+            setProfileData(result.profile);
+            setRequiresPlacement(false);
+          }
         } else {
           setError('Failed to load quiz data');
         }
       } catch (error) {
-        console.error('Load quiz data error:', error);
+        console.error('❌ Load quiz data error:', error);
         setError('Failed to load quiz data');
       } finally {
         setLoading(false);
@@ -50,14 +58,20 @@ export default function AttemptQuiz() {
     return operations.map(op => opSymbols[op] || op).join(', ');
   };
 
-  const canTakeQuiz = profileData && profileData.attemptsToday < 2;
+  const canTakeQuiz = profileData && profileData.attemptsRemaining > 0;
 
   const handleStartQuiz = () => {
     if (!canTakeQuiz) {
-      alert('You have used all 2 attempts for today. Come back tomorrow!');
+      alert('You have used all 2 attempts for today. Come back tomorrow at 12:00 AM SGT!');
       return;
     }
+    // ✅ Navigate to actual quiz page
     navigate('/student/quiz/take');
+  };
+
+  const handleStartPlacement = () => {
+    // ✅ Navigate to placement quiz page
+    navigate('/student/quiz/placement');
   };
 
   const styles = {
@@ -67,6 +81,13 @@ export default function AttemptQuiz() {
     title: { fontSize: '28px', fontWeight: '700', color: '#1f2937', margin: 0 },
     backButton: { padding: '10px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s' },
     errorMessage: { padding: '12px 16px', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '16px', fontSize: '14px', width: '100%' },
+    
+    placementCard: { background: 'white', borderRadius: '16px', padding: '48px 32px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', textAlign: 'center' },
+    placementIcon: { fontSize: '64px', marginBottom: '24px' },
+    placementTitle: { fontSize: '28px', fontWeight: '700', color: '#1f2937', marginBottom: '16px' },
+    placementText: { fontSize: '16px', color: '#6b7280', lineHeight: '1.6', marginBottom: '32px', maxWidth: '600px', margin: '0 auto 32px' },
+    placementButton: { padding: '16px 48px', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '18px', fontWeight: '700', cursor: 'pointer', transition: 'all 0.3s' },
+    
     profileCard: { background: 'white', borderRadius: '16px', padding: '32px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
     profileBadge: { display: 'inline-block', padding: '12px 24px', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: 'white', borderRadius: '12px', fontSize: '24px', fontWeight: '700', marginBottom: '24px' },
     infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' },
@@ -75,6 +96,7 @@ export default function AttemptQuiz() {
     infoValue: { fontSize: '20px', color: '#1f2937', fontWeight: '700' },
     attemptsBox: { padding: '20px', borderRadius: '12px', marginBottom: '24px', border: '2px solid' },
     attemptsText: { fontSize: '18px', fontWeight: '600', textAlign: 'center' },
+    
     quizCard: { background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', textAlign: 'center' },
     quizTitle: { fontSize: '24px', fontWeight: '700', color: '#1f2937', marginBottom: '16px' },
     quizDetails: { fontSize: '16px', color: '#6b7280', marginBottom: '24px', lineHeight: '1.6' },
@@ -82,13 +104,12 @@ export default function AttemptQuiz() {
     disabledButton: { cursor: 'not-allowed', opacity: 0.5 },
     lastScoreBox: { marginTop: '24px', padding: '16px', background: '#f0f9ff', borderRadius: '12px', border: '2px solid #3b82f6' },
     lastScoreText: { fontSize: '16px', color: '#1e40af', fontWeight: '600' },
+    
     loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
     loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
   };
 
-  if (loading) return (<div style={styles.loadingContainer}><div style={styles.loadingText}>Loading...</div></div>);
-
-  const attemptsToday = profileData?.attemptsToday || 0;
+  if (loading) return (<div style={styles.loadingContainer}><div style={styles.loadingText}>Loading quiz data...</div></div>);
 
   return (
     <div style={styles.container}>
@@ -110,9 +131,29 @@ export default function AttemptQuiz() {
           )}
         </div>
 
-        {profileData && (
+        {/* PLACEMENT REQUIRED */}
+        {requiresPlacement && (
+          <div style={styles.placementCard}>
+            <div style={styles.placementIcon}>🎯</div>
+            <h2 style={styles.placementTitle}>Complete Your Placement Quiz First!</h2>
+            <p style={styles.placementText}>
+              Welcome to Play2Learn! Before you can start taking regular quizzes, you need to complete a placement quiz. 
+              This 15-question assessment will help us understand your current math level and place you in the right profile (1-10).
+            </p>
+            <button
+              style={styles.placementButton}
+              onClick={handleStartPlacement}
+              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              🚀 Start Placement Quiz
+            </button>
+          </div>
+        )}
+
+        {/* REGULAR QUIZ (After Placement) */}
+        {!requiresPlacement && profileData && (
           <>
-            {/* Profile Info Card - ALL DYNAMIC */}
             <div style={styles.profileCard}>
               <div style={styles.profileBadge}>
                 🎯 {profileData.profile_name || `Profile ${profileData.current_profile}`}
@@ -141,23 +182,21 @@ export default function AttemptQuiz() {
                 </div>
               </div>
 
-              {/* Attempts Counter - DYNAMIC */}
               <div style={{
                 ...styles.attemptsBox,
-                background: attemptsToday >= 2 ? '#fee2e2' : '#d1fae5',
-                borderColor: attemptsToday >= 2 ? '#f87171' : '#34d399'
+                background: profileData.attemptsRemaining === 0 ? '#fee2e2' : '#d1fae5',
+                borderColor: profileData.attemptsRemaining === 0 ? '#f87171' : '#34d399'
               }}>
                 <div style={{
                   ...styles.attemptsText,
-                  color: attemptsToday >= 2 ? '#991b1b' : '#065f46'
+                  color: profileData.attemptsRemaining === 0 ? '#991b1b' : '#065f46'
                 }}>
-                  {attemptsToday === 0 && '🎮 2 quiz attempts available today!'}
-                  {attemptsToday === 1 && '🎮 1 quiz attempt remaining today!'}
-                  {attemptsToday >= 2 && '⏰ No attempts left today. Come back tomorrow!'}
+                  {profileData.attemptsRemaining === 2 && '🎮 2 quiz attempts available today!'}
+                  {profileData.attemptsRemaining === 1 && '🎮 1 quiz attempt remaining today!'}
+                  {profileData.attemptsRemaining === 0 && '⏰ No attempts left today. Come back tomorrow at 12:00 AM SGT!'}
                 </div>
               </div>
 
-              {/* Last Score - DYNAMIC */}
               {profileData.lastScore && (
                 <div style={styles.lastScoreBox}>
                   <div style={styles.lastScoreText}>
@@ -168,7 +207,6 @@ export default function AttemptQuiz() {
               )}
             </div>
 
-            {/* Quiz Start Card - DYNAMIC */}
             <div style={styles.quizCard}>
               <div style={styles.quizTitle}>🚀 Ready to Take the Quiz?</div>
               <div style={styles.quizDetails}>

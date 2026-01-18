@@ -1,4 +1,4 @@
-// DisplaySkillMatrix.js - 4 Math Skills Only (Addition, Subtraction, Multiplication, Division)
+// DisplaySkillMatrix.js - 4 Math Skills (Skill Matrix) for Students
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
@@ -19,7 +19,6 @@ export default function DisplaySkillMatrix() {
       }
 
       try {
-        // REAL API CALL - Get math skills from database
         const result = await studentService.getMathSkills();
 
         if (result.success) {
@@ -27,12 +26,11 @@ export default function DisplaySkillMatrix() {
           setCurrentProfile(result.currentProfile || 1);
         } else {
           setError('Failed to load skill matrix');
-          // Set default 4 math skills
           setSkills([
-            { skill_name: 'Addition', current_level: 0, max_level: 5, unlocked: true },
-            { skill_name: 'Subtraction', current_level: 0, max_level: 5, unlocked: true },
-            { skill_name: 'Multiplication', current_level: 0, max_level: 5, unlocked: false },
-            { skill_name: 'Division', current_level: 0, max_level: 5, unlocked: false },
+            { skill_name: 'Addition', current_level: 0, xp: 0, max_level: 5, unlocked: true },
+            { skill_name: 'Subtraction', current_level: 0, xp: 0, max_level: 5, unlocked: true },
+            { skill_name: 'Multiplication', current_level: 0, xp: 0, max_level: 5, unlocked: false },
+            { skill_name: 'Division', current_level: 0, xp: 0, max_level: 5, unlocked: false },
           ]);
         }
       } catch (error) {
@@ -63,12 +61,14 @@ export default function DisplaySkillMatrix() {
     return '📊';
   };
 
-  const getSkillLevel = (percentage) => {
-    if (percentage >= 80) return { label: '🏆 Master', color: '#10b981' };
-    if (percentage >= 60) return { label: '⭐ Advanced', color: '#f59e0b' };
-    if (percentage >= 40) return { label: '📈 Intermediate', color: '#3b82f6' };
-    if (percentage >= 20) return { label: '🌟 Beginner', color: '#a855f7' };
-    return { label: '🌱 Novice', color: '#ef4444' };
+  // ⭐ FIXED: Badge based on LEVEL, not percentage
+  const getSkillLevel = (level) => {
+    if (level >= 5) return { label: '🏆 Master', color: '#10b981' };
+    if (level >= 4) return { label: '⭐ Advanced', color: '#f59e0b' };
+    if (level >= 3) return { label: '📈 Intermediate', color: '#3b82f6' };
+    if (level >= 2) return { label: '🌟 Beginner', color: '#a855f7' };
+    if (level >= 1) return { label: '🌱 Learning', color: '#8b5cf6' };
+    return { label: '✨ Novice', color: '#ef4444' };
   };
 
   const styles = {
@@ -95,6 +95,7 @@ export default function DisplaySkillMatrix() {
     progressFill: { height: '100%', borderRadius: '6px', transition: 'width 0.5s ease' },
     progressText: { display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#6b7280' },
     levelBadge: { display: 'inline-block', padding: '6px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: '700', marginTop: '12px', color: 'white' },
+    xpInfo: { fontSize: '12px', color: '#6b7280', marginTop: '8px' },
     emptyState: { textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: '16px', color: '#6b7280' },
     emptyIcon: { fontSize: '48px', marginBottom: '16px' },
     loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
@@ -140,10 +141,34 @@ export default function DisplaySkillMatrix() {
         {skills.length > 0 ? (
           <div style={styles.skillsGrid}>
             {skills.map((skill, idx) => {
-              const percentage = (skill.current_level / skill.max_level) * 100;
+              // Calculate percentage from XP within current level
+              let percentage = skill.percentage || 0;
+              
+              if (!skill.percentage && skill.xp !== undefined) {
+                const levelThresholds = [0, 50, 100, 150, 200, 250];
+                const currentLevel = skill.current_level || 0;
+                const currentXP = skill.xp || 0;
+                
+                if (currentLevel >= 5) {
+                  percentage = 100;
+                } else {
+                  const currentThreshold = levelThresholds[currentLevel];
+                  const nextThreshold = levelThresholds[currentLevel + 1];
+                  const xpInLevel = currentXP - currentThreshold;
+                  const xpNeeded = nextThreshold - currentThreshold;
+                  percentage = Math.round((xpInLevel / xpNeeded) * 100);
+                }
+              }
+              
               const color = getSkillColor(skill.current_level, skill.max_level);
-              const levelInfo = getSkillLevel(percentage);
+              // ⭐ FIXED: Badge based on LEVEL, not percentage
+              const levelInfo = getSkillLevel(skill.current_level);
               const isLocked = !skill.unlocked && currentProfile < 6;
+              
+              // Calculate XP needed for next level
+              const levelThresholds = [0, 50, 100, 150, 200, 250];
+              const nextLevelXP = skill.current_level < 5 ? levelThresholds[skill.current_level + 1] : 250;
+              const xpNeeded = nextLevelXP - (skill.xp || 0);
               
               return (
                 <div key={idx} style={styles.skillCard}>
@@ -170,6 +195,11 @@ export default function DisplaySkillMatrix() {
                       <span>Level {skill.current_level} / {skill.max_level}</span>
                       <span>{Math.round(percentage)}%</span>
                     </div>
+                    {!isLocked && (
+                      <div style={styles.xpInfo}>
+                        {skill.xp || 0} XP {skill.current_level < 5 ? `• ${xpNeeded} XP to Level ${skill.current_level + 1}` : '• MAX LEVEL!'}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{...styles.levelBadge, background: levelInfo.color}}>

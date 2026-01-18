@@ -1,5 +1,5 @@
 // src/services/studentService.js
-// Student Service for MongoDB Operations - FULLY DYNAMIC VERSION
+// Student Service for MongoDB Operations - WITH QUIZ SYSTEM & Fully Dynamic
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -15,6 +15,126 @@ const studentService = {
       return { success: true, user: user };
     } catch (error) {
       return { success: false, error: 'Failed to load profile' };
+    }
+  },
+
+  // ==================== PLACEMENT QUIZ ====================
+
+  async generatePlacementQuiz() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/student/placement-quiz/generate`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate placement quiz');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('generatePlacementQuiz error:', error);
+      return { success: false, error: error.message || 'Failed to generate placement quiz' };
+    }
+  },
+
+  async submitPlacementQuiz(quizId, answers) {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/student/placement-quiz/submit`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          quiz_id: quizId,
+          answers: answers
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to submit placement quiz');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('submitPlacementQuiz error:', error);
+      return { success: false, error: error.message || 'Failed to submit placement quiz' };
+    }
+  },
+
+  // ==================== REGULAR QUIZ ====================
+
+  async generateQuiz() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/student/quiz/generate`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate quiz');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('generateQuiz error:', error);
+      return { success: false, error: error.message || 'Failed to generate quiz' };
+    }
+  },
+
+  async submitQuiz(quizId, answers) {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/student/quiz/submit`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          quiz_id: quizId,
+          answers: answers
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to submit quiz');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('submitQuiz error:', error);
+      return { success: false, error: error.message || 'Failed to submit quiz' };
     }
   },
 

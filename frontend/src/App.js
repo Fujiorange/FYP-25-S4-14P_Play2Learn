@@ -48,6 +48,9 @@ import ViewLeaderboard from './components/Student/ViewLeaderboard';
 import DisplaySkillMatrix from './components/Student/DisplaySkillMatrix';
 import ViewDetailedSubjectInfo from './components/Student/ViewDetailedSubjectInfo';
 import AttemptQuiz from './components/Student/AttemptQuiz';
+import PlacementQuiz from './components/Student/PlacementQuiz'; // ✅ NEW
+import TakeQuiz from './components/Student/TakeQuiz'; // ✅ NEW
+import QuizResult from './components/Student/QuizResult'; // ✅ NEW
 import AttemptAssignment from './components/Student/AttemptAssignment';
 import ViewResultHistory from './components/Student/ViewResultHistory';
 import StudentWriteTestimonial from './components/Student/WriteTestimonial';
@@ -132,7 +135,13 @@ function App() {
           <Route path="/student/leaderboard" element={<ViewLeaderboard />} />
           <Route path="/student/skills" element={<DisplaySkillMatrix />} />
           <Route path="/student/subjects" element={<ViewDetailedSubjectInfo />} />
+          
+          {/* ========== QUIZ ROUTES (NEW) ========== */}
           <Route path="/student/quiz/attempt" element={<AttemptQuiz />} />
+          <Route path="/student/quiz/placement" element={<PlacementQuiz />} /> {/* ✅ NEW */}
+          <Route path="/student/quiz/take" element={<TakeQuiz />} /> {/* ✅ NEW */}
+          <Route path="/student/quiz/result" element={<QuizResult />} /> {/* ✅ NEW */}
+          
           <Route path="/student/assignment/attempt" element={<AttemptAssignment />} />
           <Route path="/student/results/history" element={<ViewResultHistory />} />
           <Route path="/student/testimonial" element={<StudentWriteTestimonial />} />
