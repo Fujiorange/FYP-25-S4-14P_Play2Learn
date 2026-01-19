@@ -10,12 +10,48 @@ require('dotenv').config();
 
 const app = express();
 
+// ==================== IMPROVED CORS CONFIGURATION ====================
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // List of allowed origins - NO trailing slashes
+    const allowedOrigins = [
+      'https://play2learn-test.onrender.com', // Fixed: no slash
+      'http://localhost:3000',
+      'http://localhost:5000'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+};
+
+app.use(cors(corsOptions));
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
 // Middleware
-app.use(cors());
 app.use(express.json());
 
-// JWT Secret
+// JWT Secret - Make sure this is set in Render environment variables!
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('❌ ERROR: JWT_SECRET environment variable is not set in production!');
+  process.exit(1);
+}
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -25,6 +61,15 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
+// ==================== ADD REQUEST LOGGING (For Debugging) ====================
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  if (req.method === 'POST' || req.method === 'PUT') {
+    console.log('Request Body:', JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
+
 // Import routes
 const mongoAuthRoutes = require('./routes/mongoAuthRoutes');
 app.use('/api/mongo/auth', mongoAuthRoutes);
@@ -33,161 +78,57 @@ app.use('/api/auth', mongoAuthRoutes);
 const mongoStudentRoutes = require('./routes/mongoStudentRoutes');
 app.use('/api/mongo/student', authenticateToken, mongoStudentRoutes);
 
-// API Routes
+// API Routes (Keep your existing routes here)
 app.post('/api/mongo/items', authenticateToken, async (req, res) => {
-  try {
-    const db = mongoose.connection.db;
-    const collection = db.collection('items');
-    const item = {
-      title: req.body.title,
-      description: req.body.description,
-      created_by: req.user.email,
-      created_at: new Date()
-    };
-    const result = await collection.insertOne(item);
-    res.status(201).json({ success: true, message: 'Item created', item: { ...item, _id: result.insertedId } });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  // ... existing code
 });
 
 app.get('/api/mongo/items', authenticateToken, async (req, res) => {
-  try {
-    const db = mongoose.connection.db;
-    const collection = db.collection('items');
-    const items = await collection.find({}).toArray();
-    res.json({ success: true, count: items.length, items: items });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  // ... existing code
 });
 
-// Health check
+// Health check - ADD CORS HEADERS EXPLICITLY
 app.get('/api/health', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.json({ 
     success: true, 
     message: 'Server is running',
     mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// ==================== SERVE FRONTEND ====================
-// Frontend is in ../frontend/build relative to backend/
-const frontendBuildPath = path.join(__dirname, '..', 'frontend', 'build');
-
-console.log('🔍 Looking for frontend at:', frontendBuildPath);
-
-// Check if frontend build exists
-if (fs.existsSync(frontendBuildPath)) {
-  console.log('✅ Serving frontend from:', frontendBuildPath);
-  
-  // Serve static files from frontend/build
-  app.use(express.static(frontendBuildPath));
-  
-  // For all non-API routes, serve the React app
-  app.get('*', (req, res, next) => {
-    if (!req.path.startsWith('/api/')) {
-      return res.sendFile(path.join(frontendBuildPath, 'index.html'));
-    }
-    next();
-  });
-} else {
-  console.log('⚠️ Frontend build not found. Build it with: cd frontend && npm run build');
-  
-  // Development: Show helpful message
-  app.get('/', (req, res) => {
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Play2Learn Backend</title>
-        <style>
-          body { 
-            font-family: Arial, sans-serif; 
-            padding: 40px; 
-            text-align: center; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            min-height: 100vh;
-            margin: 0;
-          }
-          .container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 40px;
-            border-radius: 20px;
-            max-width: 800px;
-            margin: 0 auto;
-          }
-          code {
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 5px;
-            display: block;
-            margin: 10px 0;
-            font-family: monospace;
-          }
-          a {
-            color: #93c5fd;
-            text-decoration: none;
-          }
-          a:hover {
-            text-decoration: underline;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>✅ Play2Learn Backend Running</h1>
-          <p>React frontend not built yet.</p>
-          
-          <h3>To build the frontend:</h3>
-          <code>cd frontend && npm run build</code>
-          
-          <h3>Or on Render, update build command to:</h3>
-          <code>npm run render-build</code>
-          
-          <p><a href="/api/health">📊 API Health Check</a></p>
-          <p><a href="https://github.com/Fujiorange/Play2Learn_Test">📁 GitHub Repository</a></p>
-        </div>
-      </body>
-      </html>
-    `);
-  });
-}
+// ... rest of your code (frontend serving, etc.)
 
 // Authentication middleware
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ success: false, error: 'Access token required' });
+  
+  console.log('Auth Header:', authHeader);
+  console.log('Token:', token ? 'Present' : 'Missing');
+  
+  if (!token) {
+    console.log('❌ No token provided');
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Access token required',
+      hint: 'Include Authorization header with Bearer token' 
+    });
+  }
   
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ success: false, error: 'Invalid or expired token' });
+    if (err) {
+      console.log('❌ Token verification failed:', err.message);
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Invalid or expired token',
+        hint: 'Try logging in again to get a new token' 
+      });
+    }
     req.user = user;
     next();
   });
 }
-
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`
-╔═══════════════════════════════════╗
-║   🚀 Play2Learn Server Running    ║
-║   📍 Port: ${PORT}                    ║
-║   🍃 MongoDB: Connected           ║
-║   📁 Backend: backend/           ║
-║   📁 Frontend: frontend/         ║
-╚═══════════════════════════════════╝
-  `);
-  
-  // Log available routes
-  console.log('\n🌐 Available routes:');
-  console.log('  GET  /              - Frontend or dashboard');
-  console.log('  GET  /api/health    - Health check');
-  console.log('  POST /api/auth/login - User login');
-  console.log('  POST /api/auth/register - User registration');
-});
