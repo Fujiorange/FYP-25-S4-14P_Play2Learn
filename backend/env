@@ -1,7 +1,0 @@
-# ==================== MONGODB DATABASE ====================
-MONGODB_URI=mongodb+srv://alfred_db_user:FYP2026@cluster0.eeygjwi.mongodb.net/play2learn?appName=Cluster0
-
-# ==================== JWT & SERVER ====================
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-PORT=5000
-NODE_ENV=development
