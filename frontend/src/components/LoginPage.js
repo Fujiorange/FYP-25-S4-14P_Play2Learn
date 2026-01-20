@@ -22,11 +22,20 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      console.log('📤 Attempting login...');
+      
       const result = await authService.login(email, password, role);
 
+      console.log('📥 Login result:', result);
+
       if (result.success) {
-        // Redirect based on user role
-        const userRole = result.user.role;
+        console.log('✅ Login successful!');
+        console.log('👤 User role:', result.user.role);
+        
+        // Redirect based on user role (case-insensitive)
+        const userRole = result.user.role.toLowerCase();
+        
+        console.log('🔀 Navigating to:', userRole);
         
         if (userRole === 'platform-admin') {
           navigate('/platform-admin');
@@ -39,12 +48,15 @@ export default function LoginPage() {
         } else if (userRole === 'parent') {
           navigate('/parent');
         } else {
+          console.log('⚠️ Unknown role:', userRole);
           navigate('/login');
         }
       } else {
+        console.log('❌ Login failed:', result.error);
         setError(result.error || 'Login failed');
       }
     } catch (err) {
+      console.error('❌ Login error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);

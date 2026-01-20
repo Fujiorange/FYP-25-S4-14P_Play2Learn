@@ -122,7 +122,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// ==================== LOGIN ====================
+// ==================== LOGIN (UPDATED - SUPPORTS BOTH SCHEMAS) ====================
 router.post('/login', async (req, res) => {
   try {
     const { email, password, role } = req.body;
@@ -140,11 +140,8 @@ router.post('/login', async (req, res) => {
     const db = mongoose.connection.db;
     const usersCollection = db.collection('users');
 
-    // Get user from database
-    const user = await usersCollection.findOne({ 
-      email: email, 
-      role: role 
-    });
+    // Find user by email only (we'll check role separately)
+    const user = await usersCollection.findOne({ email: email });
 
     if (!user) {
       console.log('❌ User not found:', email);
@@ -154,15 +151,32 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check if account is active
-    if (!user.is_active) {
+    console.log('✅ User found:', user.email);
+    console.log('   User role in DB:', user.role);
+    console.log('   Requested role:', role);
+
+    // Check role (case-insensitive comparison)
+    const userRoleLower = (user.role || '').toLowerCase();
+    const requestedRoleLower = (role || '').toLowerCase();
+
+    if (userRoleLower !== requestedRoleLower) {
+      console.log('❌ Role mismatch');
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Invalid email, password, or role' 
+      });
+    }
+
+    // Check if account is active (support both field names)
+    const isActive = user.is_active !== undefined ? user.is_active : user.accountActive;
+    if (isActive === false) {
       return res.status(403).json({ 
         success: false, 
         error: 'Account is deactivated. Please contact support.' 
       });
     }
 
-    // Check approval status
+    // Check approval status (if field exists)
     if (user.approval_status === 'pending') {
       return res.status(403).json({ 
         success: false, 
@@ -177,8 +191,19 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Verify password
-    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+    // Verify password (support both field names: password_hash and password)
+    const passwordHash = user.password_hash || user.password;
+    
+    if (!passwordHash) {
+      console.log('❌ No password hash found for user');
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Invalid email, password, or role' 
+      });
+    }
+
+    console.log('🔑 Checking password...');
+    const passwordMatch = await bcrypt.compare(password, passwordHash);
 
     if (!passwordMatch) {
       console.log('❌ Password mismatch for:', email);
@@ -187,6 +212,8 @@ router.post('/login', async (req, res) => {
         error: 'Invalid email, password, or role' 
       });
     }
+
+    console.log('✅ Password valid');
 
     // Update last login
     await usersCollection.updateOne(
@@ -215,10 +242,14 @@ router.post('/login', async (req, res) => {
       contact: user.contact,
       gender: user.gender,
       date_of_birth: user.date_of_birth,
-      is_active: user.is_active,
+      is_active: isActive,
       approval_status: user.approval_status,
       created_at: user.created_at,
-      last_login: user.last_login
+      last_login: user.last_login,
+      // Add additional fields for students (CSV imported users)
+      gradeLevel: user.gradeLevel,
+      class: user.class,
+      username: user.username
     };
 
     res.json({
@@ -281,8 +312,9 @@ router.get('/me', async (req, res) => {
       });
     }
 
-    // Check if account is active
-    if (!user.is_active) {
+    // Check if account is active (support both field names)
+    const isActive = user.is_active !== undefined ? user.is_active : user.accountActive;
+    if (isActive === false) {
       return res.status(403).json({ 
         success: false, 
         error: 'Account is deactivated' 
@@ -303,9 +335,13 @@ router.get('/me', async (req, res) => {
       contact: user.contact,
       gender: user.gender,
       date_of_birth: user.date_of_birth,
-      is_active: user.is_active,
+      is_active: isActive,
       approval_status: user.approval_status,
-      created_at: user.created_at
+      created_at: user.created_at,
+      // Add additional fields for students
+      gradeLevel: user.gradeLevel,
+      class: user.class,
+      username: user.username
     };
 
     res.json({
@@ -427,7 +463,7 @@ async function createRoleSpecificEntry(db, userId, role, name, email) {
   try {
     const timestamp = new Date();
     
-    switch (role) {
+    switch (role.toLowerCase()) {  // Make case-insensitive
       case 'student':
         await db.collection('students').insertOne({
           user_id: userId,
