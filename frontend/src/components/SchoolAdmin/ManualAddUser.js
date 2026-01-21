@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import schoolAdminService from '../../services/schoolAdminService';
 
 export default function ManualAddUser() {
   const navigate = useNavigate();
@@ -45,37 +46,34 @@ export default function ManualAddUser() {
     setLoading(true);
 
     try {
-      // TODO: Uncomment when backend is ready
-      // const token = authService.getToken();
-      // const response = await fetch('http://localhost:5000/api/mongo/school-admin/users/manual', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${token}`
-      //   },
-      //   body: JSON.stringify(formData)
-      // });
-      // const result = await response.json();
-      // 
-      // if (result.success) {
-      //   setMessage({ type: 'success', text: 'User created successfully!' });
-      //   setTimeout(() => {
-      //     setFormData({ name: '', email: '', password: '', role: '', gender: '', gradeLevel: 'Primary 1', subject: 'Mathematics' });
-      //     setMessage({ type: '', text: '' });
-      //   }, 2000);
-      // } else {
-      //   setMessage({ type: 'error', text: result.error || 'Failed to create user' });
-      // }
+      // REAL API CALL - This will hit the database!
+      const result = await schoolAdminService.createUser({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        gender: formData.gender,
+        gradeLevel: 'Primary 1',
+        subject: 'Mathematics'
+      });
 
-      // MOCK SUCCESS - Remove when API is connected
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Creating user:', formData);
-      
-      setMessage({ type: 'success', text: 'User created successfully!' });
-      setTimeout(() => {
-        setFormData({ name: '', email: '', password: '', role: '', gender: '', gradeLevel: 'Primary 1', subject: 'Mathematics' });
-        setMessage({ type: '', text: '' });
-      }, 2000);
+      if (result.success) {
+        setMessage({ type: 'success', text: 'User created successfully!' });
+        setTimeout(() => {
+          setFormData({ 
+            name: '', 
+            email: '', 
+            password: '', 
+            role: '', 
+            gender: '', 
+            gradeLevel: 'Primary 1', 
+            subject: 'Mathematics' 
+          });
+          setMessage({ type: '', text: '' });
+        }, 2000);
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to create user' });
+      }
 
     } catch (err) {
       console.error('Create user error:', err);
@@ -101,7 +99,7 @@ export default function ManualAddUser() {
     label: { fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px', display: 'block' },
     required: { color: '#ef4444', marginLeft: '3px' },
     input: { width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#f9fafb', fontFamily: 'inherit', boxSizing: 'border-box' },
-    disabledInput: { width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#e5e7eb', fontFamily: 'inherit', boxSizing: 'border-box', cursor: 'not-allowed', color: '#6b7280' },
+    disabledInput: { width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#e5e7eb', fontFamily: 'inherit', boxSizing: 'border-box', cursor: 'not-allowed', color: '#6b757d' },
     select: { width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#f9fafb', cursor: 'pointer', fontFamily: 'inherit', boxSizing: 'border-box' },
     buttonGroup: { display: 'flex', gap: '12px', marginTop: '24px' },
     submitButton: { flex: 1, padding: '14px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' },

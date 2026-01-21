@@ -623,4 +623,326 @@ router.post('/bulk-import-parents', upload.single('file'), async (req, res) => {
   }
 });
 
+// ==================== SCHOOL ADMIN USER MANAGEMENT ROUTES ====================
+// Added by WX to try School Admin Dashboard functionality
+
+// ==================== 1. DASHBOARD STATS ====================
+router.get('/dashboard-stats', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const usersCollection = db.collection('users');
+    
+    // Count users by role (handle both lowercase and capitalized)
+    const totalStudents = await usersCollection.countDocuments({ 
+      role: { $in: ['student', 'Student'] }
+    });
+    
+    const totalTeachers = await usersCollection.countDocuments({ 
+      role: { $in: ['teacher', 'Teacher'] }
+    });
+    
+    const totalParents = await usersCollection.countDocuments({ 
+      role: { $in: ['parent', 'Parent'] }
+    });
+    
+    // Count classes (unique class values for Primary 1)
+    const classes = await usersCollection.distinct('class', { 
+      gradeLevel: 'Primary 1'
+    });
+    const totalClasses = classes.filter(c => c).length;
+    
+    res.json({
+      success: true,
+      total_students: totalStudents,
+      total_teachers: totalTeachers,
+      total_parents: totalParents,
+      total_classes: totalClasses
+    });
+  } catch (error) {
+    console.error('Dashboard stats error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load dashboard stats' });
+  }
+});
+
+// ==================== 2. GET ALL USERS ====================
+router.get('/users', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const usersCollection = db.collection('users');
+    
+    // Filter by grade and subject if provided
+    const filter = {};
+    if (req.query.gradeLevel) {
+      filter.gradeLevel = req.query.gradeLevel;
+    }
+    if (req.query.subject) {
+      filter.subject = req.query.subject;
+    }
+    
+    const users = await usersCollection.find(filter).toArray();
+    
+    // Normalize field names for frontend
+    const normalizedUsers = users.map(user => ({
+      id: user._id.toString(),
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: (user.role || '').toLowerCase(),
+      gradeLevel: user.gradeLevel,
+      subject: user.subject,
+      class: user.class,
+      isActive: user.is_active !== undefined ? user.is_active : user.accountActive,
+      created_at: user.created_at || user.createdAt
+    }));
+    
+    res.json({ success: true, users: normalizedUsers });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load users' });
+  }
+});
+
+// ==================== 3. CREATE USER MANUALLY ====================
+router.post('/users/manual', authenticateToken, async (req, res) => {
+  try {
+    const { name, email, password, role, gender, gradeLevel, subject } = req.body;
+    
+    // Validation
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Name, email, password, and role are required' 
+      });
+    }
+    
+    const db = mongoose.connection.db;
+    const usersCollection = db.collection('users');
+    
+    // Check if email already exists
+    const existingUser = await usersCollection.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ 
+        success: false, 
+        error: 'Email already exists' 
+      });
+    }
+    
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+    
+    // Create user document (UNIFIED SCHEMA)
+    const newUser = {
+      name,
+      email,
+      password_hash: passwordHash,
+      role: role.toLowerCase(),
+      gender: gender || null,
+      gradeLevel: gradeLevel || 'Primary 1',
+      subject: subject || 'Mathematics',
+      class: null,
+      is_active: true,
+      approval_status: 'approved',
+      created_at: new Date(),
+      createdBy: 'school-admin',
+      last_login: null
+    };
+    
+    const result = await usersCollection.insertOne(newUser);
+    
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      user: {
+        id: result.insertedId.toString(),
+        ...newUser
+      }
+    });
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create user' });
+  }
+});
+
+// ==================== 4. DELETE USER ====================
+router.delete('/users/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const usersCollection = db.collection('users');
+    
+    const result = await usersCollection.deleteOne({ 
+      _id: new mongoose.Types.ObjectId(req.params.id) 
+    });
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete user' });
+  }
+});
+
+// ==================== 5. UPDATE USER STATUS (ENABLE/DISABLE) ====================
+router.put('/users/:id/status', authenticateToken, async (req, res) => {
+  try {
+    const { isActive } = req.body;
+    const db = mongoose.connection.db;
+    const usersCollection = db.collection('users');
+    
+    // Update both field names for compatibility
+    const result = await usersCollection.updateOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) },
+      { 
+        $set: { 
+          is_active: isActive,
+          accountActive: isActive
+        } 
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    
+    res.json({ success: true, message: 'User status updated successfully' });
+  } catch (error) {
+    console.error('Update status error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update user status' });
+  }
+});
+
+// ==================== 6. UPDATE USER ROLE ====================
+router.put('/users/:id/role', authenticateToken, async (req, res) => {
+  try {
+    const { role } = req.body;
+    
+    // SECURITY: Prevent promotion to school-admin
+    if (role.toLowerCase() === 'school-admin') {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Cannot assign school-admin role' 
+      });
+    }
+    
+    const db = mongoose.connection.db;
+    const usersCollection = db.collection('users');
+    
+    const result = await usersCollection.updateOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) },
+      { $set: { role: role.toLowerCase() } }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    
+    res.json({ success: true, message: 'User role updated successfully' });
+  } catch (error) {
+    console.error('Update role error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update user role' });
+  }
+});
+
+// ==================== 7. RESET USER PASSWORD ====================
+router.put('/users/:id/password', authenticateToken, async (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    if (!password || password.length < 8) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Password must be at least 8 characters' 
+      });
+    }
+    
+    const passwordHash = await bcrypt.hash(password, 10);
+    const db = mongoose.connection.db;
+    const usersCollection = db.collection('users');
+    
+    // Update both field names for compatibility
+    const result = await usersCollection.updateOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) },
+      { 
+        $set: { 
+          password_hash: passwordHash,
+          password: passwordHash
+        } 
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    
+    res.json({ success: true, message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, error: 'Failed to reset password' });
+  }
+});
+
+// ==================== 8. GET CLASSES ====================
+router.get('/classes', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const usersCollection = db.collection('users');
+    
+    // Get unique classes for Primary 1
+    const classes = await usersCollection.aggregate([
+      { $match: { gradeLevel: 'Primary 1', class: { $ne: null } } },
+      { $group: { 
+        _id: '$class',
+        studentCount: { $sum: 1 }
+      }},
+      { $project: {
+        _id: 0,
+        id: '$_id',
+        name: '$_id',
+        grade: 'Primary 1',
+        subject: 'Mathematics',
+        students: '$studentCount',
+        teacher: 'Not assigned'
+      }}
+    ]).toArray();
+    
+    res.json({ success: true, classes });
+  } catch (error) {
+    console.error('Get classes error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load classes' });
+  }
+});
+
+// ==================== 9. CREATE CLASS ====================
+router.post('/classes', authenticateToken, async (req, res) => {
+  try {
+    const { name, grade, subject } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Class name is required' });
+    }
+    
+    // For now, just acknowledge creation
+    // Classes are managed through user's class field
+    res.status(201).json({
+      success: true,
+      message: 'Class created successfully',
+      class: {
+        id: new mongoose.Types.ObjectId().toString(),
+        name,
+        grade: grade || 'Primary 1',
+        subject: subject || 'Mathematics',
+        students: 0,
+        teacher: 'Not assigned'
+      }
+    });
+  } catch (error) {
+    console.error('Create class error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create class' });
+  }
+});
+
+// ==================== END OF WEI XIANG'S ADDITIONS ====================
+
 module.exports = router;
