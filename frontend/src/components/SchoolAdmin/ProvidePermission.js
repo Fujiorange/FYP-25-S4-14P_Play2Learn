@@ -145,7 +145,7 @@ export default function ProvidePermission() {
             <div style={styles.logoIcon}>P</div>
             <span style={styles.logoText}>Play2Learn</span>
           </div>
-          <button style={styles.backButton} onClick={() => navigate('/school-admin/dashboard')}>
+          <button style={styles.backButton} onClick={() => navigate('/school-admin')}>
             ← Back to Dashboard
           </button>
         </div>

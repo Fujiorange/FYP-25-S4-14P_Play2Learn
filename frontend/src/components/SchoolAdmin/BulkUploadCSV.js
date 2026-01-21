@@ -24,7 +24,7 @@ export default function BulkUploadCSV() {
   }, [navigate]);
 
   const handleBack = () => {
-    navigate('/school-admin/dashboard');
+    navigate('/school-admin');
   };
 
   const downloadTemplate = () => {
