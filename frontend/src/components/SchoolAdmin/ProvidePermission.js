@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 
-// Mock data - will replace with API
+// Mock data - Primary 1 Mathematics users
 const mockUsers = [
   { id: 1, name: "Alice Tan", email: "alice@student.com", role: "student" },
   { id: 2, name: "Bob Lee", email: "bob@teacher.com", role: "teacher" },
@@ -17,10 +18,38 @@ export default function ProvidePermission() {
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
-    // TODO: Replace with API call
-    // fetch('http://localhost:5000/api/school-admin/users')
-    setUsers(mockUsers);
-  }, []);
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    if (currentUser.role !== 'school-admin') {
+      navigate('/login');
+      return;
+    }
+
+    loadUsers();
+  }, [navigate]);
+
+  const loadUsers = async () => {
+    try {
+      // TODO: Uncomment when backend is ready
+      // const token = authService.getToken();
+      // const response = await fetch('http://localhost:5000/api/mongo/school-admin/users?gradeLevel=Primary 1&subject=Mathematics', {
+      //   headers: {
+      //     'Authorization': `Bearer ${token}`
+      //   }
+      // });
+      // const data = await response.json();
+      // setUsers(data.users || []);
+
+      // MOCK DATA - Primary 1 Mathematics users
+      setUsers(mockUsers);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
 
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,15 +68,34 @@ export default function ProvidePermission() {
       return;
     }
 
+    // SECURITY: Prevent changing to school-admin
+    if (selectedRole === 'school-admin') {
+      setMessage({ type: 'error', text: 'Cannot assign school-admin role' });
+      return;
+    }
+
     try {
-      // TODO: Replace with API call
-      // await fetch(`http://localhost:5000/api/school-admin/users/${editingUser.id}/role`, {
+      // TODO: Uncomment when backend is ready
+      // const token = authService.getToken();
+      // const response = await fetch(`http://localhost:5000/api/mongo/school-admin/users/${editingUser.id}/role`, {
       //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${token}`
+      //   },
       //   body: JSON.stringify({ role: selectedRole })
       // });
+      // const result = await response.json();
+      // 
+      // if (result.success) {
+      //   setUsers(users.map(u => u.id === editingUser.id ? { ...u, role: selectedRole } : u));
+      //   setMessage({ type: 'success', text: `Role updated for ${editingUser.name}` });
+      //   setEditingUser(null);
+      // } else {
+      //   setMessage({ type: 'error', text: result.error || 'Failed to update role' });
+      // }
 
-      // TEMPORARY: Update local state
+      // MOCK SUCCESS - Remove when API is connected
       setUsers(users.map(u => u.id === editingUser.id ? { ...u, role: selectedRole } : u));
       setMessage({ type: 'success', text: `Role updated for ${editingUser.name}` });
       setEditingUser(null);
@@ -86,6 +134,7 @@ export default function ProvidePermission() {
     message: { marginBottom: '20px', padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500' },
     successMessage: { background: '#f0fdf4', border: '2px solid #bbf7d0', color: '#16a34a' },
     errorMessage: { background: '#fef2f2', border: '2px solid #fecaca', color: '#dc2626' },
+    securityNote: { fontSize: '13px', color: '#dc2626', marginTop: '8px', fontStyle: 'italic' },
   };
 
   return (
@@ -96,7 +145,7 @@ export default function ProvidePermission() {
             <div style={styles.logoIcon}>P</div>
             <span style={styles.logoText}>Play2Learn</span>
           </div>
-          <button style={styles.backButton} onClick={() => navigate('/school-admin')}>
+          <button style={styles.backButton} onClick={() => navigate('/school-admin/dashboard')}>
             ← Back to Dashboard
           </button>
         </div>
@@ -104,7 +153,7 @@ export default function ProvidePermission() {
 
       <main style={styles.main}>
         <h1 style={styles.pageTitle}>Manage User Permissions</h1>
-        <p style={styles.pageSubtitle}>Assign roles and permissions to users.</p>
+        <p style={styles.pageSubtitle}>Assign roles and permissions to Primary 1 Mathematics users.</p>
 
         <div style={styles.card}>
           {message.text && (
@@ -166,8 +215,9 @@ export default function ProvidePermission() {
               <option value="student">Student</option>
               <option value="teacher">Teacher</option>
               <option value="parent">Parent</option>
-              <option value="school-admin">School Admin</option>
+              {/* SECURITY: school-admin option removed - cannot promote to school-admin */}
             </select>
+            <p style={styles.securityNote}>⚠️ School Admin role cannot be assigned for security reasons</p>
             <div style={styles.modalButtons}>
               <button style={styles.cancelButton} onClick={() => setEditingUser(null)}>Cancel</button>
               <button style={styles.saveButton} onClick={handleSave}>Save Changes</button>

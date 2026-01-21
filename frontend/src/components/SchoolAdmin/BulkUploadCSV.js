@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 
 export default function BulkUploadCSV() {
   const navigate = useNavigate();
@@ -8,22 +9,36 @@ export default function BulkUploadCSV() {
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    if (currentUser.role !== 'school-admin') {
+      navigate('/login');
+      return;
+    }
+  }, [navigate]);
 
   const handleBack = () => {
-    navigate('/school-admin');
+    navigate('/school-admin/dashboard');
   };
 
   const downloadTemplate = () => {
-    const csvTemplate = `name,email,role,password,gender,contact,gradeLevel
-John Tan,john.tan@student.com,student,password123,male,+6512345678,Primary 1
-Mary Lim,mary.lim@student.com,student,password123,female,+6587654321,Primary 2
-Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,`;
+    // PRIMARY 1 MATHEMATICS ONLY template
+    const csvTemplate = `name,email,role,password,gender,contact,gradeLevel,subject
+John Tan,john.tan@student.com,student,password123,male,+6512345678,Primary 1,Mathematics
+Mary Lim,mary.lim@student.com,student,password123,female,+6587654321,Primary 1,Mathematics
+Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,Primary 1,Mathematics`;
 
     const blob = new Blob([csvTemplate], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'user_upload_template.csv';
+    a.download = 'user_upload_template_p1_math.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -33,7 +48,6 @@ Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,`;
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-      // Basic validation
       if (!selectedFile.name.endsWith('.csv')) {
         setError('Please upload a CSV file');
         setFile(null);
@@ -62,22 +76,37 @@ Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,`;
     setError('');
 
     try {
-      // TODO: Replace with actual API call
+      // TODO: Uncomment when backend is ready
       // const formData = new FormData();
       // formData.append('file', file);
-      // const response = await fetch('/api/school-admin/users/bulk-upload', {
+      // const token = authService.getToken();
+      // 
+      // const response = await fetch('http://localhost:5000/api/mongo/school-admin/bulk-import-students', {
       //   method: 'POST',
+      //   headers: {
+      //     'Authorization': `Bearer ${token}`
+      //   },
       //   body: formData
       // });
+      // 
       // const result = await response.json();
+      // 
+      // if (result.success) {
+      //   setSuccess(true);
+      //   setTimeout(() => {
+      //     setFile(null);
+      //     setSuccess(false);
+      //   }, 2000);
+      // } else {
+      //   setError(result.error || 'Upload failed');
+      // }
 
-      // TEMPORARY: Simulate API call
+      // MOCK SUCCESS - Remove when API is connected
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       console.log('Uploading file:', file.name);
       setSuccess(true);
       
-      // Reset form after 2 seconds
       setTimeout(() => {
         setFile(null);
         setSuccess(false);
@@ -92,194 +121,34 @@ Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,`;
   };
 
   const styles = {
-    container: {
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)',
-    },
-    header: {
-      background: 'white',
-      borderBottom: '1px solid #e5e7eb',
-      padding: '16px 0',
-    },
-    headerContent: {
-      maxWidth: '1400px',
-      margin: '0 auto',
-      padding: '0 32px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    logo: {
-      display: 'flex',
-      alignItems: 'center',
-    },
-    logoIcon: {
-      width: '40px',
-      height: '40px',
-      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-      borderRadius: '10px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'white',
-      fontWeight: 'bold',
-      fontSize: '18px',
-      marginRight: '12px',
-    },
-    logoText: {
-      fontSize: '20px',
-      fontWeight: '700',
-      color: '#1f2937',
-    },
-    backButton: {
-      padding: '8px 16px',
-      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '14px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s',
-    },
-    main: {
-      maxWidth: '800px',
-      margin: '0 auto',
-      padding: '32px',
-    },
-    pageTitle: {
-      fontSize: '28px',
-      fontWeight: '700',
-      color: '#1f2937',
-      marginBottom: '8px',
-    },
-    pageSubtitle: {
-      fontSize: '15px',
-      color: '#6b7280',
-      marginBottom: '32px',
-    },
-    card: {
-      background: 'white',
-      borderRadius: '12px',
-      padding: '32px',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    },
-    infoBox: {
-      background: '#f0f9ff',
-      border: '2px solid #bfdbfe',
-      borderRadius: '8px',
-      padding: '16px',
-      marginBottom: '24px',
-      fontSize: '14px',
-      color: '#1e40af',
-    },
-    infoTitle: {
-      fontWeight: '700',
-      marginBottom: '8px',
-    },
-    infoList: {
-      margin: '8px 0 0 20px',
-      paddingLeft: '0',
-    },
-    formGroup: {
-      marginBottom: '24px',
-    },
-    label: {
-      fontSize: '14px',
-      fontWeight: '600',
-      color: '#374151',
-      marginBottom: '8px',
-      display: 'block',
-    },
-    fileInput: {
-      width: '100%',
-      padding: '12px 16px',
-      border: '2px solid #e5e7eb',
-      borderRadius: '8px',
-      fontSize: '15px',
-      background: '#f9fafb',
-      cursor: 'pointer',
-      fontFamily: 'inherit',
-    },
-    fileInfo: {
-      marginTop: '12px',
-      padding: '12px 16px',
-      background: '#f0fdf4',
-      border: '2px solid #bbf7d0',
-      borderRadius: '8px',
-      color: '#16a34a',
-      fontSize: '14px',
-      fontWeight: '500',
-    },
-    buttonGroup: {
-      display: 'flex',
-      gap: '12px',
-      marginTop: '24px',
-    },
-    uploadButton: {
-      flex: 1,
-      padding: '14px',
-      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '16px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s',
-      fontFamily: 'inherit',
-    },
-    cancelButton: {
-      flex: 1,
-      padding: '14px',
-      background: '#f3f4f6',
-      color: '#374151',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '16px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s',
-      fontFamily: 'inherit',
-    },
-    templateButton: {
-      width: '100%',
-      padding: '12px',
-      background: '#f3f4f6',
-      color: '#374151',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '14px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s',
-      marginBottom: '24px',
-    },
-    successMessage: {
-      marginTop: '20px',
-      padding: '12px 16px',
-      background: '#f0fdf4',
-      border: '2px solid #bbf7d0',
-      borderRadius: '8px',
-      color: '#16a34a',
-      fontSize: '14px',
-      fontWeight: '500',
-    },
-    errorMessage: {
-      marginTop: '20px',
-      padding: '12px 16px',
-      background: '#fef2f2',
-      border: '2px solid #fecaca',
-      borderRadius: '8px',
-      color: '#dc2626',
-      fontSize: '14px',
-      fontWeight: '500',
-    },
+    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
+    header: { background: 'white', borderBottom: '1px solid #e5e7eb', padding: '16px 0' },
+    headerContent: { maxWidth: '1400px', margin: '0 auto', padding: '0 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    logo: { display: 'flex', alignItems: 'center' },
+    logoIcon: { width: '40px', height: '40px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '18px', marginRight: '12px' },
+    logoText: { fontSize: '20px', fontWeight: '700', color: '#1f2937' },
+    backButton: { padding: '8px 16px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s' },
+    main: { maxWidth: '800px', margin: '0 auto', padding: '32px' },
+    pageTitle: { fontSize: '28px', fontWeight: '700', color: '#1f2937', marginBottom: '8px' },
+    pageSubtitle: { fontSize: '15px', color: '#6b7280', marginBottom: '32px' },
+    card: { background: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
+    infoBox: { background: '#f0f9ff', border: '2px solid #bfdbfe', borderRadius: '8px', padding: '16px', marginBottom: '24px', fontSize: '14px', color: '#1e40af' },
+    infoTitle: { fontWeight: '700', marginBottom: '8px' },
+    infoList: { margin: '8px 0 0 20px', paddingLeft: '0' },
+    formGroup: { marginBottom: '24px' },
+    label: { fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px', display: 'block' },
+    fileInput: { width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#f9fafb', cursor: 'pointer', fontFamily: 'inherit' },
+    fileInfo: { marginTop: '12px', padding: '12px 16px', background: '#f0fdf4', border: '2px solid #bbf7d0', borderRadius: '8px', color: '#16a34a', fontSize: '14px', fontWeight: '500' },
+    buttonGroup: { display: 'flex', gap: '12px', marginTop: '24px' },
+    uploadButton: { flex: 1, padding: '14px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s', fontFamily: 'inherit' },
+    cancelButton: { flex: 1, padding: '14px', background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s', fontFamily: 'inherit' },
+    templateButton: { width: '100%', padding: '12px', background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s', marginBottom: '24px' },
+    successMessage: { marginTop: '20px', padding: '12px 16px', background: '#f0fdf4', border: '2px solid #bbf7d0', borderRadius: '8px', color: '#16a34a', fontSize: '14px', fontWeight: '500' },
+    errorMessage: { marginTop: '20px', padding: '12px 16px', background: '#fef2f2', border: '2px solid #fecaca', borderRadius: '8px', color: '#dc2626', fontSize: '14px', fontWeight: '500' },
   };
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerContent}>
           <div style={styles.logo}>
@@ -297,11 +166,10 @@ Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,`;
         </div>
       </header>
 
-      {/* Main Content */}
       <main style={styles.main}>
         <h1 style={styles.pageTitle}>Bulk Upload Users (CSV)</h1>
         <p style={styles.pageSubtitle}>
-          Upload multiple users at once using a CSV file.
+          Upload multiple Primary 1 Mathematics users at once using a CSV file.
         </p>
 
         <div style={styles.card}>
@@ -309,7 +177,9 @@ Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,`;
             <div style={styles.infoTitle}>📋 CSV Format Requirements:</div>
             <ul style={styles.infoList}>
               <li><strong>Required columns:</strong> name, email, role, password</li>
-              <li><strong>Optional columns:</strong> gender, contact, gradeLevel</li>
+              <li><strong>Optional columns:</strong> gender, contact</li>
+              <li><strong>Grade Level:</strong> Must be "Primary 1"</li>
+              <li><strong>Subject:</strong> Must be "Mathematics"</li>
               <li>Role must be: student, teacher, or parent</li>
               <li>Password must be at least 8 characters</li>
               <li>Maximum file size: 5MB</li>
@@ -322,7 +192,7 @@ Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,`;
             onMouseEnter={(e) => e.target.style.background = '#e5e7eb'}
             onMouseLeave={(e) => e.target.style.background = '#f3f4f6'}
           >
-            📥 Download CSV Template
+            📥 Download CSV Template (Primary 1 Mathematics)
           </button>
 
           <form onSubmit={handleUpload}>
@@ -342,7 +212,6 @@ Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,`;
               )}
             </div>
 
-            {/* Buttons */}
             <div style={styles.buttonGroup}>
               <button
                 type="button"
@@ -369,14 +238,12 @@ Mr. David Lee,david.lee@teacher.com,teacher,teacher123,male,+6591234567,`;
               </button>
             </div>
 
-            {/* Success Message */}
             {success && (
               <div style={styles.successMessage}>
                 ✅ Users uploaded successfully!
               </div>
             )}
 
-            {/* Error Message */}
             {error && (
               <div style={styles.errorMessage}>
                 ⚠️ {error}

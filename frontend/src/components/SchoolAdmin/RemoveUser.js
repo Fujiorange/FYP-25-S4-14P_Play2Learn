@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 
-// Mock user data
+// Mock user data - Primary 1 Mathematics only
 const mockUsers = [
-  { id: 1, name: "Alice Tan", email: "alice@student.com", role: "student" },
-  { id: 2, name: "Bob Lee", email: "bob@student.com", role: "student" },
-  { id: 3, name: "Ms. Diana Lim", email: "diana@teacher.com", role: "teacher" },
-  { id: 4, name: "Mr. Ethan Tan", email: "ethan@teacher.com", role: "teacher" },
-  { id: 5, name: "Mrs. Wong", email: "parent.wong@email.com", role: "parent" },
+  { id: 1, name: "Alice Tan", email: "alice@student.com", role: "student", gradeLevel: "Primary 1", subject: "Mathematics" },
+  { id: 2, name: "Bob Lee", email: "bob@student.com", role: "student", gradeLevel: "Primary 1", subject: "Mathematics" },
+  { id: 3, name: "Ms. Diana Lim", email: "diana@teacher.com", role: "teacher", gradeLevel: "Primary 1", subject: "Mathematics" },
+  { id: 4, name: "Mr. Ethan Tan", email: "ethan@teacher.com", role: "teacher", gradeLevel: "Primary 1", subject: "Mathematics" },
+  { id: 5, name: "Mrs. Wong", email: "parent.wong@email.com", role: "parent", gradeLevel: "Primary 1", subject: "Mathematics" },
 ];
 
 export default function RemoveUser() {
@@ -19,9 +20,38 @@ export default function RemoveUser() {
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
-    // Load users (replace with API call)
-    setUsers(mockUsers);
-  }, []);
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    if (currentUser.role !== 'school-admin') {
+      navigate('/login');
+      return;
+    }
+
+    loadUsers();
+  }, [navigate]);
+
+  const loadUsers = async () => {
+    try {
+      // TODO: Uncomment when backend is ready
+      // const token = authService.getToken();
+      // const response = await fetch('http://localhost:5000/api/mongo/school-admin/users?gradeLevel=Primary 1&subject=Mathematics', {
+      //   headers: {
+      //     'Authorization': `Bearer ${token}`
+      //   }
+      // });
+      // const data = await response.json();
+      // setUsers(data.users || []);
+
+      // MOCK DATA - Primary 1 Mathematics only
+      setUsers(mockUsers);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -34,10 +64,24 @@ export default function RemoveUser() {
     if (!deleteConfirm) return;
 
     try {
-      // TODO: Replace with actual API call
-      // await fetch(`/api/school-admin/users/${deleteConfirm.id}`, { method: 'DELETE' });
+      // TODO: Uncomment when backend is ready
+      // const token = authService.getToken();
+      // const response = await fetch(`http://localhost:5000/api/mongo/school-admin/users/${deleteConfirm.id}`, {
+      //   method: 'DELETE',
+      //   headers: {
+      //     'Authorization': `Bearer ${token}`
+      //   }
+      // });
+      // const result = await response.json();
+      // 
+      // if (result.success) {
+      //   setUsers(users.filter(u => u.id !== deleteConfirm.id));
+      //   setMessage({ type: 'success', text: `User "${deleteConfirm.name}" removed successfully` });
+      // } else {
+      //   setMessage({ type: 'error', text: result.error || 'Failed to delete user' });
+      // }
 
-      // TEMPORARY: Simulate API call
+      // MOCK SUCCESS - Remove when API is connected
       await new Promise(resolve => setTimeout(resolve, 500));
       
       setUsers(users.filter(u => u.id !== deleteConfirm.id));
@@ -90,7 +134,7 @@ export default function RemoveUser() {
             <div style={styles.logoIcon}>P</div>
             <span style={styles.logoText}>Play2Learn</span>
           </div>
-          <button style={styles.backButton} onClick={() => navigate('/school-admin')}>
+          <button style={styles.backButton} onClick={() => navigate('/school-admin/dashboard')}>
             ← Back to Dashboard
           </button>
         </div>
@@ -98,7 +142,7 @@ export default function RemoveUser() {
 
       <main style={styles.main}>
         <h1 style={styles.pageTitle}>Remove User</h1>
-        <p style={styles.pageSubtitle}>Search and remove user accounts.</p>
+        <p style={styles.pageSubtitle}>Search and remove Primary 1 Mathematics user accounts.</p>
 
         <div style={styles.card}>
           {message.text && (

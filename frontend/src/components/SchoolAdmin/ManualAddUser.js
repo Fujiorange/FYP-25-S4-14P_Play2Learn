@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 
 export default function ManualAddUser() {
   const navigate = useNavigate();
@@ -9,10 +10,24 @@ export default function ManualAddUser() {
     password: '',
     role: '',
     gender: '',
-    gradeLevel: '',
+    gradeLevel: 'Primary 1', 
+    subject: 'Mathematics',   
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    if (currentUser.role !== 'school-admin') {
+      navigate('/login');
+      return;
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,7 +37,6 @@ export default function ManualAddUser() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Basic validation
     if (!formData.name || !formData.email || !formData.password || !formData.role) {
       setMessage({ type: 'error', text: 'Please fill in all required fields' });
       return;
@@ -31,24 +45,40 @@ export default function ManualAddUser() {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/school-admin/users/create', {
+      // TODO: Uncomment when backend is ready
+      // const token = authService.getToken();
+      // const response = await fetch('http://localhost:5000/api/mongo/school-admin/users/manual', {
       //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${token}`
+      //   },
       //   body: JSON.stringify(formData)
       // });
+      // const result = await response.json();
+      // 
+      // if (result.success) {
+      //   setMessage({ type: 'success', text: 'User created successfully!' });
+      //   setTimeout(() => {
+      //     setFormData({ name: '', email: '', password: '', role: '', gender: '', gradeLevel: 'Primary 1', subject: 'Mathematics' });
+      //     setMessage({ type: '', text: '' });
+      //   }, 2000);
+      // } else {
+      //   setMessage({ type: 'error', text: result.error || 'Failed to create user' });
+      // }
 
-      // TEMPORARY: Simulate API call
+      // MOCK SUCCESS - Remove when API is connected
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log('Creating user:', formData);
       
       setMessage({ type: 'success', text: 'User created successfully!' });
       setTimeout(() => {
-        setFormData({ name: '', email: '', password: '', role: '', gender: '', gradeLevel: '' });
+        setFormData({ name: '', email: '', password: '', role: '', gender: '', gradeLevel: 'Primary 1', subject: 'Mathematics' });
         setMessage({ type: '', text: '' });
       }, 2000);
 
     } catch (err) {
+      console.error('Create user error:', err);
       setMessage({ type: 'error', text: 'Failed to create user' });
     } finally {
       setLoading(false);
@@ -71,6 +101,7 @@ export default function ManualAddUser() {
     label: { fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px', display: 'block' },
     required: { color: '#ef4444', marginLeft: '3px' },
     input: { width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#f9fafb', fontFamily: 'inherit', boxSizing: 'border-box' },
+    disabledInput: { width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#e5e7eb', fontFamily: 'inherit', boxSizing: 'border-box', cursor: 'not-allowed', color: '#6b7280' },
     select: { width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#f9fafb', cursor: 'pointer', fontFamily: 'inherit', boxSizing: 'border-box' },
     buttonGroup: { display: 'flex', gap: '12px', marginTop: '24px' },
     submitButton: { flex: 1, padding: '14px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' },
@@ -78,6 +109,7 @@ export default function ManualAddUser() {
     message: { marginTop: '20px', padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500' },
     successMessage: { background: '#f0fdf4', border: '2px solid #bbf7d0', color: '#16a34a' },
     errorMessage: { background: '#fef2f2', border: '2px solid #fecaca', color: '#dc2626' },
+    note: { fontSize: '13px', color: '#6b7280', marginTop: '8px', fontStyle: 'italic' },
   };
 
   return (
@@ -88,7 +120,7 @@ export default function ManualAddUser() {
             <div style={styles.logoIcon}>P</div>
             <span style={styles.logoText}>Play2Learn</span>
           </div>
-          <button style={styles.backButton} onClick={() => navigate('/school-admin')}>
+          <button style={styles.backButton} onClick={() => navigate('/school-admin/dashboard')}>
             ← Back to Dashboard
           </button>
         </div>
@@ -96,7 +128,9 @@ export default function ManualAddUser() {
 
       <main style={styles.main}>
         <h1 style={styles.pageTitle}>Add New User</h1>
-        <p style={styles.pageSubtitle}>Create a new account for students, teachers, or parents.</p>
+        <p style={styles.pageSubtitle}>
+          Create a new account for students, teachers, or parents. Platform scope: Primary 1 Mathematics only.
+        </p>
 
         <div style={styles.card}>
           <form onSubmit={handleSubmit}>
@@ -179,31 +213,36 @@ export default function ManualAddUser() {
             </div>
 
             {formData.role === 'student' && (
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Grade Level</label>
-                <select
-                  name="gradeLevel"
-                  value={formData.gradeLevel}
-                  onChange={handleChange}
-                  disabled={loading}
-                  style={styles.select}
-                >
-                  <option value="">Select grade</option>
-                  <option value="Primary 1">Primary 1</option>
-                  <option value="Primary 2">Primary 2</option>
-                  <option value="Primary 3">Primary 3</option>
-                  <option value="Primary 4">Primary 4</option>
-                  <option value="Primary 5">Primary 5</option>
-                  <option value="Primary 6">Primary 6</option>
-                </select>
-              </div>
+              <>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Grade Level</label>
+                  <input
+                    type="text"
+                    value="Primary 1"
+                    disabled
+                    style={styles.disabledInput}
+                  />
+                  <p style={styles.note}>Platform is currently scoped to Primary 1 only</p>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Subject</label>
+                  <input
+                    type="text"
+                    value="Mathematics"
+                    disabled
+                    style={styles.disabledInput}
+                  />
+                  <p style={styles.note}>Platform is currently scoped to Mathematics only</p>
+                </div>
+              </>
             )}
 
             <div style={styles.buttonGroup}>
               <button
                 type="button"
                 style={styles.cancelButton}
-                onClick={() => navigate('/school-admin')}
+                onClick={() => navigate('/school-admin/dashboard')}
                 disabled={loading}
               >
                 Cancel

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 
-// Mock data
+// Mock data - Primary 1 Mathematics only
 const mockUsers = [
-  { id: 1, name: "Alice Tan", email: "alice@student.com", role: "student", isActive: true },
-  { id: 2, name: "Bob Lee", email: "bob@teacher.com", role: "teacher", isActive: true },
-  { id: 3, name: "Mrs. Wong", email: "parent@email.com", role: "parent", isActive: false },
+  { id: 1, name: "Alice Tan", email: "alice@student.com", role: "student", isActive: true, gradeLevel: "Primary 1", subject: "Mathematics" },
+  { id: 2, name: "Bob Lee", email: "bob@teacher.com", role: "teacher", isActive: true, gradeLevel: "Primary 1", subject: "Mathematics" },
+  { id: 3, name: "Mrs. Wong", email: "parent@email.com", role: "parent", isActive: false, gradeLevel: "Primary 1", subject: "Mathematics" },
 ];
 
 export default function DisableUser() {
@@ -13,12 +14,40 @@ export default function DisableUser() {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
-
+  
   useEffect(() => {
-    // TODO: Replace with API call
-    // fetch('http://localhost:5000/api/school-admin/users')
-    setUsers(mockUsers);
-  }, []);
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    if (currentUser.role !== 'school-admin') {
+      navigate('/login');
+      return;
+    }
+
+    loadUsers();
+  }, [navigate]);
+  
+  const loadUsers = async () => {
+    try {
+      // TODO: Uncomment when backend is ready
+      // const token = authService.getToken();
+      // const response = await fetch('http://localhost:5000/api/mongo/school-admin/users?gradeLevel=Primary 1&subject=Mathematics', {
+      //   headers: {
+      //     'Authorization': `Bearer ${token}`
+      //   }
+      // });
+      // const data = await response.json();
+      // setUsers(data.users || []);
+
+      // MOCK DATA - Primary 1 Mathematics only
+      setUsers(mockUsers);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
 
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -27,13 +56,26 @@ export default function DisableUser() {
 
   const handleToggle = async (user) => {
     try {
-      // TODO: Replace with API call
-      // await fetch(`http://localhost:5000/api/school-admin/users/${user.id}/toggle-status`, {
+      // TODO: Uncomment when backend is ready
+      // const token = authService.getToken();
+      // const response = await fetch(`http://localhost:5000/api/mongo/school-admin/users/${user.id}/status`, {
       //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${token}`
+      //   },
       //   body: JSON.stringify({ isActive: !user.isActive })
       // });
+      // const result = await response.json();
+      // 
+      // if (result.success) {
+      //   setUsers(users.map(u => u.id === user.id ? { ...u, isActive: !u.isActive } : u));
+      //   setMessage({ type: 'success', text: `${user.name} has been ${user.isActive ? 'disabled' : 'enabled'}` });
+      // } else {
+      //   setMessage({ type: 'error', text: result.error || 'Failed to update user status' });
+      // }
 
+      // MOCK SUCCESS - Remove when API is connected
       setUsers(users.map(u => u.id === user.id ? { ...u, isActive: !u.isActive } : u));
       setMessage({ 
         type: 'success', 
@@ -80,7 +122,7 @@ export default function DisableUser() {
             <div style={styles.logoIcon}>P</div>
             <span style={styles.logoText}>Play2Learn</span>
           </div>
-          <button style={styles.backButton} onClick={() => navigate('/school-admin')}>
+          <button style={styles.backButton} onClick={() => navigate('/school-admin/dashboard')}>
             ← Back to Dashboard
           </button>
         </div>
@@ -88,7 +130,7 @@ export default function DisableUser() {
 
       <main style={styles.main}>
         <h1 style={styles.pageTitle}>Enable/Disable Users</h1>
-        <p style={styles.pageSubtitle}>Temporarily disable user accounts without deleting them.</p>
+        <p style={styles.pageSubtitle}>Temporarily disable Primary 1 Mathematics user accounts without deleting them.</p>
 
         <div style={styles.card}>
           {message.text && (

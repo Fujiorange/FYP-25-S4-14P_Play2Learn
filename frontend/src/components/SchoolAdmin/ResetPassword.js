@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 
-// Mock data
+// Mock data - Primary 1 Mathematics users
 const mockUsers = [
   { id: 1, name: "Alice Tan", email: "alice@student.com", role: "student" },
   { id: 2, name: "Bob Lee", email: "bob@teacher.com", role: "teacher" },
@@ -17,10 +18,38 @@ export default function ResetPassword() {
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
-    // TODO: Replace with API call
-    // fetch('http://localhost:5000/api/school-admin/users')
-    setUsers(mockUsers);
-  }, []);
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    const currentUser = authService.getCurrentUser();
+    if (currentUser.role !== 'school-admin') {
+      navigate('/login');
+      return;
+    }
+
+    loadUsers();
+  }, [navigate]);
+
+  const loadUsers = async () => {
+    try {
+      // TODO: Uncomment when backend is ready
+      // const token = authService.getToken();
+      // const response = await fetch('http://localhost:5000/api/mongo/school-admin/users?gradeLevel=Primary 1&subject=Mathematics', {
+      //   headers: {
+      //     'Authorization': `Bearer ${token}`
+      //   }
+      // });
+      // const data = await response.json();
+      // setUsers(data.users || []);
+
+      // MOCK DATA - Primary 1 Mathematics users
+      setUsers(mockUsers);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
 
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -34,13 +63,27 @@ export default function ResetPassword() {
     }
 
     try {
-      // TODO: Replace with API call
-      // await fetch(`http://localhost:5000/api/school-admin/users/${selectedUser.id}/reset-password`, {
+      // TODO: Uncomment when backend is ready
+      // const token = authService.getToken();
+      // const response = await fetch(`http://localhost:5000/api/mongo/school-admin/users/${selectedUser.id}/password`, {
       //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `Bearer ${token}`
+      //   },
       //   body: JSON.stringify({ password: newPassword })
       // });
+      // const result = await response.json();
+      // 
+      // if (result.success) {
+      //   setMessage({ type: 'success', text: `Password reset for ${selectedUser.name}` });
+      //   setSelectedUser(null);
+      //   setNewPassword('');
+      // } else {
+      //   setMessage({ type: 'error', text: result.error || 'Failed to reset password' });
+      // }
 
+      // MOCK SUCCESS - Remove when API is connected
       setMessage({ type: 'success', text: `Password reset for ${selectedUser.name}` });
       setSelectedUser(null);
       setNewPassword('');
@@ -88,7 +131,7 @@ export default function ResetPassword() {
             <div style={styles.logoIcon}>P</div>
             <span style={styles.logoText}>Play2Learn</span>
           </div>
-          <button style={styles.backButton} onClick={() => navigate('/school-admin')}>
+          <button style={styles.backButton} onClick={() => navigate('/school-admin/dashboard')}>
             ← Back to Dashboard
           </button>
         </div>
@@ -96,7 +139,7 @@ export default function ResetPassword() {
 
       <main style={styles.main}>
         <h1 style={styles.pageTitle}>Reset User Password</h1>
-        <p style={styles.pageSubtitle}>Search for a user and reset their password.</p>
+        <p style={styles.pageSubtitle}>Search for a Primary 1 Mathematics user and reset their password.</p>
 
         <div style={styles.card}>
           {message.text && (

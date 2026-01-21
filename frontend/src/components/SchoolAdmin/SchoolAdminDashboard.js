@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 
 export default function SchoolAdminDashboard() {
   const navigate = useNavigate();
@@ -8,24 +9,50 @@ export default function SchoolAdminDashboard() {
   const [hoveredItem, setHoveredItem] = useState(null);
 
   useEffect(() => {
-    // TODO: Replace with actual auth check
-    // if (!authService.isAuthenticated()) {
-    //   navigate('/login');
-    //   return;
-    // }
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
 
-    // TEMPORARY: Mock data
-    setUser({ name: 'School Admin', email: 'admin@school.com' });
-    setDashboardData({
-      total_students: 45,
-      total_classes: 3,
-      total_teachers: 8,
-    });
+    const currentUser = authService.getCurrentUser();
+    if (currentUser.role !== 'school-admin') {
+      navigate('/login');
+      return;
+    }
+
+    setUser(currentUser);
+    loadDashboardData();
   }, [navigate]);
 
+  const loadDashboardData = async () => {
+    try {
+      // TODO: Uncomment when backend is ready
+      // const response = await fetch('http://localhost:5000/api/mongo/school-admin/dashboard-stats', {
+      //   headers: {
+      //     'Authorization': `Bearer ${authService.getToken()}`
+      //   }
+      // });
+      // const data = await response.json();
+      // setDashboardData(data);
+
+      // MOCK DATA - Primary 1 Mathematics only
+      setDashboardData({
+        total_students: 45,
+        total_classes: 3,
+        total_teachers: 8,
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      setDashboardData({
+        total_students: 0,
+        total_classes: 0,
+        total_teachers: 0,
+      });
+    }
+  };
+
   const handleLogout = () => {
-    // TODO: Replace with actual logout
-    // authService.logout();
+    authService.logout();
     navigate('/login');
   };
 
@@ -79,7 +106,7 @@ export default function SchoolAdminDashboard() {
         <div style={styles.headerContent}>
           <div style={styles.logo}>
             <div style={styles.logoIcon}>P</div>
-            <span style={styles.logoText}>Play2Learn</span>
+            <span style={styles.logoText}>Play2Learn - Primary 1 Mathematics</span>
           </div>
           <div style={styles.headerRight}>
             <div style={styles.userInfo}>
@@ -94,7 +121,7 @@ export default function SchoolAdminDashboard() {
       <main style={styles.main}>
         <div style={styles.welcomeSection}>
           <h1 style={styles.welcomeTitle}>Welcome back, {user.name?.split(' ')[0]}! 👋</h1>
-          <p style={styles.welcomeSubtitle}>Manage your school's adaptive learning platform.</p>
+          <p style={styles.welcomeSubtitle}>Manage your Primary 1 Mathematics adaptive learning platform.</p>
         </div>
 
         <div style={styles.statsGrid}>
@@ -204,127 +231,6 @@ export default function SchoolAdminDashboard() {
                 onClick={() => handleMenuClick('/school-admin/classes/manage')}
               >
                 <span>Manage Classes</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Incentive System */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <span style={styles.sectionIcon}>🏆</span>
-              <h2 style={styles.sectionTitle}>Incentive System</h2>
-            </div>
-            <ul style={styles.menuList}>
-              <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'badges' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('badges')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/incentive/badges')}
-              >
-                <span>Badge Management</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-              <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'points' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('points')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/incentive/points')}
-              >
-                <span>Point Management</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-              <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'redemption' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('redemption')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/incentive/redemption')}
-              >
-                <span>Redemption System</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Support System */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <span style={styles.sectionIcon}>🎫</span>
-              <h2 style={styles.sectionTitle}>Support System</h2>
-            </div>
-            <ul style={styles.menuList}>
-              <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'support-tickets' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('support-tickets')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/support/tickets')}
-              >
-                <span>Support Tickets</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-              <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'knowledge-base' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('knowledge-base')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/support/knowledge-base')}
-              >
-                <span>Knowledge Base</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Analytics Panel */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <span style={styles.sectionIcon}>📊</span>
-              <h2 style={styles.sectionTitle}>Analytics Panel</h2>
-            </div>
-            <ul style={styles.menuList}>
-              <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'trends' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('trends')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/analytics/trends')}
-              >
-                <span>Trend Monitoring</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-              <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'performance' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('performance')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/analytics/performance')}
-              >
-                <span>Performance Dashboard</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Communication */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <span style={styles.sectionIcon}>📢</span>
-              <h2 style={styles.sectionTitle}>Communication</h2>
-            </div>
-            <ul style={styles.menuList}>
-              <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'announcements' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('announcements')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/communication/announcements')}
-              >
-                <span>School Announcements</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-              <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'maintenance' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('maintenance')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/communication/maintenance')}
-              >
-                <span>Maintenance Messages</span>
                 <span style={styles.arrow}>→</span>
               </li>
             </ul>
