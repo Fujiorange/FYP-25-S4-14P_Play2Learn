@@ -17,6 +17,7 @@ import Footer from './components/Footer/Footer';
 // Auth Components
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
+import RegisterP2LAdmin from './components/RegisterP2LAdmin';
 
 // Teacher Components
 import TeacherDashboard from './components/Teacher/TeacherDashboard';
@@ -108,6 +109,7 @@ function App() {
           {/* ========== AUTHENTICATION ========== */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/register/p2ladmin" element={<RegisterP2LAdmin />} />
 
           {/* ========== TEACHER ROUTES ========== */}
           <Route path="/teacher" element={<TeacherDashboard />} />
