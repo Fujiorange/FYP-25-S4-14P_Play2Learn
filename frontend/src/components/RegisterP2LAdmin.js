@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 
-export default function RegisterPage() {
+export default function RegisterP2LAdmin() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
@@ -10,7 +10,8 @@ export default function RegisterPage() {
     gender: '',
     dateOfBirth: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    adminSecret: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -50,10 +51,15 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!formData.adminSecret) {
+      setError('Admin secret code is required');
+      return;
+    }
+
     // Age validation
     const age = calculateAge(formData.dateOfBirth);
-    if (age < 6 || age > 100) {
-      setError('Please enter a valid date of birth');
+    if (age < 18 || age > 100) {
+      setError('P2L Admin must be at least 18 years old');
       return;
     }
 
@@ -70,17 +76,17 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Prepare registration data with defaults for trial users
+      // Prepare registration data for P2L admin
       const registrationData = {
         name: formData.name,
         email: formData.email,
         password: formData.password,
         gender: formData.gender,
         dateOfBirth: formData.dateOfBirth,
-        role: 'student', // Default trial role
-        gradeLevel: 'Not Set', // Will be determined later
-        organizationName: 'Trial User',
-        organizationType: 'individual',
+        role: 'p2ladmin',
+        adminSecret: formData.adminSecret,
+        organizationName: 'Play2Learn',
+        organizationType: 'platform',
         contact: '',
         businessRegistrationNumber: ''
       };
@@ -167,11 +173,11 @@ export default function RegisterPage() {
       marginBottom: '40px',
       lineHeight: '1.5',
     },
-    trialBadge: {
+    adminBadge: {
       display: 'inline-flex',
       alignItems: 'center',
       gap: '6px',
-      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
       color: 'white',
       padding: '6px 14px',
       borderRadius: '20px',
@@ -180,6 +186,16 @@ export default function RegisterPage() {
       marginBottom: '20px',
       textTransform: 'uppercase',
       letterSpacing: '0.5px',
+    },
+    warningBox: {
+      background: '#fef3c7',
+      border: '2px solid #fbbf24',
+      borderRadius: '10px',
+      padding: '12px 16px',
+      marginBottom: '25px',
+      fontSize: '13px',
+      color: '#92400e',
+      lineHeight: '1.5',
     },
     formGroup: {
       marginBottom: '20px',
@@ -293,7 +309,7 @@ export default function RegisterPage() {
     },
     infoSection: {
       flex: '1',
-      background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+      background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
       padding: '60px 50px',
       display: 'flex',
       flexDirection: 'column',
@@ -331,14 +347,18 @@ export default function RegisterPage() {
             <span style={styles.logoText}>Play2Learn</span>
           </div>
 
-          <div style={styles.trialBadge}>
-            ✨ FREE TRIAL
+          <div style={styles.adminBadge}>
+            🔐 P2L ADMIN REGISTRATION
           </div>
 
-          <h1 style={styles.title}>Start Your Journey!</h1>
+          <h1 style={styles.title}>Register as P2L Admin</h1>
           <p style={styles.subtitle}>
-            Create your free account in seconds. No credit card required.
+            Create a platform administrator account. Admin access required.
           </p>
+
+          <div style={styles.warningBox}>
+            ⚠️ <strong>Admin Registration:</strong> This form is for authorized Play2Learn platform administrators only. You must have the admin secret code to proceed.
+          </div>
 
           <div>
             <div style={styles.formGroup}>
@@ -374,7 +394,7 @@ export default function RegisterPage() {
                 onKeyPress={handleKeyPress}
                 onFocus={() => setFocusedField('email')}
                 onBlur={() => setFocusedField('')}
-                placeholder="you@example.com"
+                placeholder="admin@play2learn.com"
                 disabled={loading}
                 style={{
                   ...styles.input,
@@ -423,6 +443,27 @@ export default function RegisterPage() {
                 style={{
                   ...styles.input,
                   ...(focusedField === 'dateOfBirth' ? styles.inputFocus : {}),
+                }}
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Admin Secret Code<span style={styles.required}>*</span>
+              </label>
+              <input
+                type="password"
+                name="adminSecret"
+                value={formData.adminSecret}
+                onChange={handleChange}
+                onKeyPress={handleKeyPress}
+                onFocus={() => setFocusedField('adminSecret')}
+                onBlur={() => setFocusedField('')}
+                placeholder="Enter admin secret code"
+                disabled={loading}
+                style={{
+                  ...styles.input,
+                  ...(focusedField === 'adminSecret' ? styles.inputFocus : {}),
                 }}
               />
             </div>
@@ -523,12 +564,12 @@ export default function RegisterPage() {
                 cursor: loading ? 'not-allowed' : 'pointer',
               }}
             >
-              {loading ? 'Creating Account...' : 'Sign Up'}
+              {loading ? 'Creating Admin Account...' : 'Register as Admin'}
             </button>
 
             {success && (
               <div style={styles.successMessage}>
-                ✅ Account created successfully! Redirecting to login...
+                ✅ Admin account created successfully! Redirecting to login...
               </div>
             )}
 
@@ -551,14 +592,14 @@ export default function RegisterPage() {
             </p>
 
             <p style={styles.loginLink}>
-              Are you a platform administrator?{' '}
+              Not an admin?{' '}
               <Link 
-                to="/register/p2ladmin" 
+                to="/register" 
                 style={styles.link}
                 onMouseEnter={(e) => e.target.style.color = '#059669'}
                 onMouseLeave={(e) => e.target.style.color = '#10b981'}
               >
-                Register as P2L Admin
+                Register as regular user
               </Link>
             </p>
           </div>
@@ -566,33 +607,33 @@ export default function RegisterPage() {
 
         <div style={styles.infoSection}>
           <h2 style={styles.infoTitle}>
-            Level up your learning 🎓
+            Platform Admin Access 🛡️
           </h2>
 
           <div>
             <div style={styles.feature}>
-              <span style={styles.star}>⭐</span>
-              <span>Track progress in real time</span>
+              <span style={styles.star}>🔐</span>
+              <span>Full platform control and oversight</span>
             </div>
 
             <div style={styles.feature}>
-              <span style={styles.star}>⭐</span>
-              <span>Gamified quests for English, Math & Science</span>
+              <span style={styles.star}>👥</span>
+              <span>Manage all organizations and users</span>
             </div>
 
             <div style={styles.feature}>
-              <span style={styles.star}>⭐</span>
-              <span>Rewards that keep you motivated</span>
+              <span style={styles.star}>📊</span>
+              <span>Access comprehensive analytics</span>
             </div>
 
             <div style={styles.feature}>
-              <span style={styles.star}>⭐</span>
-              <span>Join a community of learners</span>
+              <span style={styles.star}>⚙️</span>
+              <span>Configure platform settings</span>
             </div>
 
             <div style={styles.feature}>
-              <span style={styles.star}>⭐</span>
-              <span>100% free trial - no credit card required</span>
+              <span style={styles.star}>🔒</span>
+              <span>Secure access with admin verification</span>
             </div>
           </div>
         </div>
