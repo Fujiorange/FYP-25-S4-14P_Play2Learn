@@ -26,34 +26,80 @@ const authenticateP2LAdmin = async (req, res, next) => {
 };
 
 // ==================== Register P2L Admin ====================
-router.post('/register-admin', authenticateP2LAdmin, async (req, res) => {
+// Public endpoint - allows creation of admin accounts
+router.post('/register-admin', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
+    const { email, password, name } = req.body;
+    
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Email and password are required' 
+      });
     }
 
-    const db = mongoose.connection.db;
-    const existingAdmin = await db.collection('users').findOne({ email });
-    if (existingAdmin) {
-      return res.status(400).json({ error: 'Admin with this email already exists' });
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid email format' 
+      });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    const newAdmin = {
-      name: name,
-      email: email,
-      password_hash: passwordHash,
+    // Password validation
+    if (password.length < 8) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Password must be at least 8 characters long' 
+      });
+    }
+
+    const User = require('../models/User');
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Email already registered' 
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Create admin name from email if not provided
+    const adminName = name || email.split('@')[0];
+
+    // Create new admin user
+    const newAdmin = new User({
+      name: adminName,
+      email: email.toLowerCase(),
+      password: hashedPassword,
       role: 'p2ladmin',
-      is_active: true,
-      created_at: new Date(),
-    };
+      emailVerified: true,
+      accountActive: true
+    });
 
-    await db.collection('users').insertOne(newAdmin);
+    await newAdmin.save();
 
-    res.status(201).json({ success: true, message: 'P2L Admin registered successfully' });
+    res.status(201).json({ 
+      success: true, 
+      message: 'Admin registration successful',
+      user: {
+        id: newAdmin._id,
+        email: newAdmin.email,
+        role: newAdmin.role
+      }
+    });
   } catch (err) {
-    res.status(500).json({ success: false, error: 'An error occurred' });
+    console.error('Admin registration error:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: 'An error occurred during registration' 
+    });
   }
 });
 
