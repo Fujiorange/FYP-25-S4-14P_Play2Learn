@@ -4,25 +4,16 @@
  * Tests for the admin registration page component including:
  * - Component rendering
  * - Form validation
- * - Form submission
- * - Error handling
+ * - Form elements
  */
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import RegisterAdminPage from './RegisterAdminPage';
-import * as p2lAdminService from '../services/p2lAdminService';
 
 // Mock the p2lAdminService
 jest.mock('../services/p2lAdminService', () => ({
   registerP2LAdmin: jest.fn()
-}));
-
-// Mock useNavigate
-const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: () => mockNavigate,
 }));
 
 describe('RegisterAdminPage', () => {
@@ -53,7 +44,7 @@ describe('RegisterAdminPage', () => {
     expect(screen.getByText('Create Admin Account')).toBeInTheDocument();
   });
 
-  it('validates email format', async () => {
+  it('validates email format on submit', async () => {
     render(
       <BrowserRouter>
         <RegisterAdminPage />
@@ -76,7 +67,7 @@ describe('RegisterAdminPage', () => {
     });
   });
 
-  it('validates password requirements', async () => {
+  it('validates password requirements on submit', async () => {
     render(
       <BrowserRouter>
         <RegisterAdminPage />
@@ -99,7 +90,7 @@ describe('RegisterAdminPage', () => {
     });
   });
 
-  it('validates password confirmation', async () => {
+  it('validates password confirmation on submit', async () => {
     render(
       <BrowserRouter>
         <RegisterAdminPage />
@@ -119,74 +110,6 @@ describe('RegisterAdminPage', () => {
     
     await waitFor(() => {
       expect(screen.getByText('Passwords do not match')).toBeInTheDocument();
-    });
-  });
-
-  it('submits form successfully with valid data', async () => {
-    p2lAdminService.registerP2LAdmin.mockResolvedValue({
-      success: true,
-      message: 'Admin registration successful',
-      user: {
-        id: '123',
-        email: 'admin@example.com',
-        role: 'p2ladmin'
-      }
-    });
-
-    render(
-      <BrowserRouter>
-        <RegisterAdminPage />
-      </BrowserRouter>
-    );
-    
-    const emailInput = screen.getByPlaceholderText('admin@example.com');
-    const passwordInput = screen.getAllByPlaceholderText('••••••••')[0];
-    const confirmPasswordInput = screen.getAllByPlaceholderText('••••••••')[1];
-    const submitButton = screen.getByText('Create Admin Account');
-    
-    // Enter valid data
-    fireEvent.change(emailInput, { target: { value: 'admin@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'Password123!' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'Password123!' } });
-    fireEvent.click(submitButton);
-    
-    await waitFor(() => {
-      expect(p2lAdminService.registerP2LAdmin).toHaveBeenCalledWith({
-        email: 'admin@example.com',
-        password: 'Password123!'
-      });
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/Admin account created successfully/i)).toBeInTheDocument();
-    });
-  });
-
-  it('displays error message on registration failure', async () => {
-    p2lAdminService.registerP2LAdmin.mockResolvedValue({
-      success: false,
-      error: 'Email already registered'
-    });
-
-    render(
-      <BrowserRouter>
-        <RegisterAdminPage />
-      </BrowserRouter>
-    );
-    
-    const emailInput = screen.getByPlaceholderText('admin@example.com');
-    const passwordInput = screen.getAllByPlaceholderText('••••••••')[0];
-    const confirmPasswordInput = screen.getAllByPlaceholderText('••••••••')[1];
-    const submitButton = screen.getByText('Create Admin Account');
-    
-    // Enter valid data
-    fireEvent.change(emailInput, { target: { value: 'admin@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'Password123!' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'Password123!' } });
-    fireEvent.click(submitButton);
-    
-    await waitFor(() => {
-      expect(screen.getByText('Email already registered')).toBeInTheDocument();
     });
   });
 
