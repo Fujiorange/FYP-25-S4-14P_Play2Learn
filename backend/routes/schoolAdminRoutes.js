@@ -1,6 +1,7 @@
-// backend/routes/schoolAdminRoutes.js - COMPLETE VERSION WITH PARENT CSV IMPORT
+// backend/routes/schoolAdminRoutes.js - COMPLETE VERSION WITH EMAIL FIX
 // ✅ Queries USERS collection correctly for dashboard stats
 // ✅ Parent CSV import with linkedStudents integration
+// ✅ FIXED: Student credentials email now sends correct parameters
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -287,14 +288,14 @@ router.post('/bulk-import-students', upload.single('file'), async (req, res) => 
         console.log(`✅ Student created in users collection: ${newUser.email}`);
         results.created++;
 
-        // Send credentials email to parent if parentEmail exists
+        // ✅ FIXED: Send credentials email with correct parameter order
         if (studentData.parentEmail) {
           try {
             await sendStudentCredentialsToParent(
-              studentData.parentEmail,
-              studentData.name,
-              studentData.email,
-              tempPassword
+              newUser,                    // 1. student object (has .name, .email, .class)
+              tempPassword,               // 2. tempPassword string
+              studentData.parentEmail,    // 3. parentEmail string
+              'Your School'               // 4. schoolName string
             );
             console.log(`📧 Sent credentials to parent: ${studentData.parentEmail}`);
             results.emailsSent++;

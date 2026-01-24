@@ -1,4 +1,5 @@
 // backend/routes/p2lAdminRoutes.js
+// ✅ FIXED: Standardized to use 'password' field instead of 'password_hash'
 // Routes for p2ladmin (platform-level admin)
 
 const express = require('express');
@@ -52,22 +53,28 @@ router.post('/seed', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
 
     if (existing) {
+      // ✅ FIXED: Use 'password' instead of 'password_hash'
       await db.collection('users').updateOne(
         { _id: existing._id },
-        { $set: { password_hash: passwordHash, role: 'p2ladmin', is_active: true, name } }
+        { $set: { password: passwordHash, role: 'p2ladmin', is_active: true, accountActive: true, name } }
       );
+      console.log(`✅ Updated p2ladmin: ${email}`);
       return res.json({ success: true, message: 'P2L admin updated', email, password });
     }
 
+    // ✅ FIXED: Use 'password' instead of 'password_hash'
     const newUser = {
       name,
       email,
-      password_hash: passwordHash,
+      password: passwordHash,  // ✅ Changed from password_hash
       role: 'p2ladmin',
       contact: '',
       approval_status: 'approved',
       is_active: true,
+      accountActive: true,
+      emailVerified: true,
       created_at: new Date(),
+      createdAt: new Date(),
       last_login: null
     };
 
@@ -79,12 +86,14 @@ router.post('/seed', async (req, res) => {
       admin_level: 'owner',
       permissions: ['all'],
       created_at: new Date()
+    }).catch(err => {
+      console.log('ℹ️  Platform_admins collection not created (optional)');
     });
 
-    console.log(`Created p2ladmin: ${email} / password: ${password}`);
+    console.log(`✅ Created p2ladmin: ${email} / password: ${password}`);
     return res.json({ success: true, message: 'P2L admin created', email, password });
   } catch (error) {
-    console.error('Seed p2ladmin error:', error);
+    console.error('❌ Seed p2ladmin error:', error);
     return res.status(500).json({ success: false, error: 'Failed to seed p2ladmin' });
   }
 });
@@ -190,35 +199,44 @@ router.post('/school-admins', authenticateP2LAdmin, async (req, res) => {
       const tempPassword = genTempPassword(8);
       const passwordHash = await bcrypt.hash(tempPassword, 10);
 
+      // ✅ FIXED: Use 'password' instead of 'password_hash'
       const newAdmin = {
         name,
         email,
-        password_hash: passwordHash,
+        password: passwordHash,  // ✅ Changed from password_hash
         contact,
-        role: 'school-admin',
+        role: 'School Admin',
+        schoolId: new mongoose.Types.ObjectId(schoolId),
         school_id: new mongoose.Types.ObjectId(schoolId),
         organization_type: 'school',
         approval_status: 'approved',
         is_active: true,
+        accountActive: true,
+        emailVerified: true,
         created_at: new Date(),
+        createdAt: new Date(),
         last_login: null
       };
 
       const result = await db.collection('users').insertOne(newAdmin);
+      
       // insert profile
       await db.collection('school_admins').insertOne({
         user_id: result.insertedId,
         school_id: new mongoose.Types.ObjectId(schoolId),
         permissions: ['basic'],
         created_at: new Date()
+      }).catch(err => {
+        console.log('ℹ️  School_admins collection not created (optional)');
       });
 
-      created.push({ email, success: true, tempPassword });
+      console.log(`✅ Created school admin: ${email} / password: ${tempPassword}`);
+      created.push({ email, success: true, tempPassword, name });
     }
 
     return res.json({ success: true, created });
   } catch (err) {
-    console.error('Create school-admins error:', err);
+    console.error('❌ Create school-admins error:', err);
     return res.status(500).json({ success: false, error: 'Failed to create school admins' });
   }
 });

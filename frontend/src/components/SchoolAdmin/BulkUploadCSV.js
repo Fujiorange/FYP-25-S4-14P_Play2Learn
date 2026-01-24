@@ -93,13 +93,19 @@ Mrs. Lim Mei Ling,parent.lim@email.com,mary.lim@student.com,Mother,+6598765432,f
       const response = await schoolAdminService.bulkUploadUsers(file, userType);
 
       if (response.success) {
+        // ✅ FIXED: Handle both response structures
+        // Students/Teachers use response.results.*
+        // Parents use response.summary.*
+        const dataSource = response.summary || response.results || {};
+        
         setResult({
           success: true,
           message: response.message,
-          created: response.results?.created || 0,
-          failed: response.results?.failed || 0,
-          emailsSent: response.results?.emailsSent || 0,
-          errors: response.results?.errors || []
+          created: dataSource.created || 0,
+          updated: dataSource.updated || 0,  // Only for parents
+          failed: dataSource.failed || 0,
+          emailsSent: dataSource.emailsSent || 0,
+          errors: response.errors || dataSource.errors || []
         });
         setFile(null);
         // Reset file input
@@ -296,6 +302,9 @@ Mrs. Lim Mei Ling,parent.lim@email.com,mary.lim@student.com,Mother,+6598765432,f
               <div style={styles.successBox}>
                 <div style={styles.successTitle}>✅ Upload Complete!</div>
                 <div style={styles.successStats}>📊 Created: {result.created} users</div>
+                {result.updated > 0 && (
+                  <div style={styles.successStats}>🔄 Updated (linked): {result.updated} users</div>
+                )}
                 {result.failed > 0 && (
                   <div style={styles.successStats}>⚠️ Failed: {result.failed} users</div>
                 )}
@@ -307,7 +316,7 @@ Mrs. Lim Mei Ling,parent.lim@email.com,mary.lim@student.com,Mother,+6598765432,f
                     <strong>Errors:</strong>
                     {result.errors.map((err, idx) => (
                       <div key={idx} style={styles.errorItem}>
-                        {err.email}: {err.error}
+                        {err.email || err.parentEmail}: {err.error}
                       </div>
                     ))}
                   </div>

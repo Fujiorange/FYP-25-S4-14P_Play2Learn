@@ -51,7 +51,7 @@ router.post('/register', async (req, res) => {
     const newUser = new User({
       name,
       email: email.toLowerCase(),
-      password: hashedPassword,
+      password: hashedPassword,  // ✅ Using 'password' field
       role: normalizedRole,
       schoolId: schoolId || null,
       class: studentClass || null,
@@ -82,7 +82,13 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) return res.status(401).json({ success: false, error: 'Invalid email or password' });
 
-    const ok = await bcrypt.compare(password, user.password || '');
+    // ✅ FIXED: Now only checking 'password' field (standardized)
+    if (!user.password) {
+      console.error('❌ No password field found for user:', email);
+      return res.status(401).json({ success: false, error: 'Invalid email or password' });
+    }
+
+    const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(401).json({ success: false, error: 'Invalid email or password' });
 
     const token = jwt.sign({ userId: user._id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
