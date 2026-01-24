@@ -30,98 +30,12 @@ function authenticateToken(req, res, next) {
 router.use(authenticateToken);
 
 // ==================== MODELS ====================
-const User = mongoose.model("User");
-
-if (!mongoose.models.MathProfile) {
-  const mathProfileSchema = new mongoose.Schema({
-    student_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    current_profile: { type: Number, default: 1, min: 1, max: 10 },
-    placement_completed: { type: Boolean, default: false },
-    total_points: { type: Number, default: 0 },
-    consecutive_fails: { type: Number, default: 0 },
-    quizzes_today: { type: Number, default: 0 },
-    last_reset_date: { type: Date, default: Date.now },
-    streak: { type: Number, default: 0 },
-    last_quiz_date: { type: Date },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
-  });
-  mongoose.model("MathProfile", mathProfileSchema);
-}
-
-if (!mongoose.models.Quiz) {
-  const quizSchema = new mongoose.Schema({
-    student_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    quiz_type: { type: String, enum: ["placement", "regular"], required: true },
-    profile_level: { type: Number, required: true },
-    questions: [
-      {
-        question_text: String,
-        operation: String,
-        correct_answer: Number,
-        student_answer: Number,
-        is_correct: Boolean,
-      },
-    ],
-    score: { type: Number, default: 0 },
-    total_questions: { type: Number, default: 15 },
-    percentage: { type: Number, default: 0 },
-    points_earned: { type: Number, default: 0 },
-    completed_at: { type: Date, default: Date.now },
-  });
-  mongoose.model("Quiz", quizSchema);
-}
-
-if (!mongoose.models.MathSkill) {
-  const mathSkillSchema = new mongoose.Schema({
-    student_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    skill_name: { type: String, required: true },
-    current_level: { type: Number, default: 0, min: 0, max: 5 },
-    xp: { type: Number, default: 0 },
-    unlocked: { type: Boolean, default: true },
-    updatedAt: { type: Date, default: Date.now },
-  });
-  mathSkillSchema.index({ student_id: 1, skill_name: 1 }, { unique: true });
-  mongoose.model("MathSkill", mathSkillSchema);
-}
-
-if (!mongoose.models.SupportTicket) {
-  const supportTicketSchema = new mongoose.Schema({
-    student_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    student_name: { type: String, required: true },
-    student_email: { type: String, required: true },
-    subject: { type: String, required: true },
-    category: { type: String, default: 'general' },
-    message: { type: String, required: true },
-    status: { type: String, enum: ['open', 'in-progress', 'resolved', 'closed'], default: 'open' },
-    priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium' },
-    created_at: { type: Date, default: Date.now },
-    updated_at: { type: Date, default: Date.now },
-    resolved_at: { type: Date },
-    admin_response: { type: String },
-  });
-  mongoose.model("SupportTicket", supportTicketSchema);
-}
-
-if (!mongoose.models.Testimonial) {
-  const testimonialSchema = new mongoose.Schema({
-    student_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    student_name: { type: String, required: true },
-    student_email: { type: String },
-    title: { type: String },
-    rating: { type: Number, min: 1, max: 5, required: true },
-    message: { type: String, required: true },
-    approved: { type: Boolean, default: false },
-    created_at: { type: Date, default: Date.now },
-  });
-  mongoose.model("Testimonial", testimonialSchema);
-}
-
-const MathProfile = mongoose.model("MathProfile");
-const Quiz = mongoose.model("Quiz");
-const MathSkill = mongoose.model("MathSkill");
-const SupportTicket = mongoose.model("SupportTicket");
-const Testimonial = mongoose.model("Testimonial");
+const User = require('../models/User');
+const MathProfile = require('../models/MathProfile');
+const StudentQuiz = require('../models/StudentQuiz');
+const MathSkill = require('../models/MathSkill');
+const SupportTicket = require('../models/SupportTicket');
+const Testimonial = require('../models/Testimonial');
 
 // ==================== TIME HELPERS ====================
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -345,7 +259,7 @@ router.get("/dashboard", async (req, res) => {
       });
     }
 
-    const completedQuizzes = await Quiz.countDocuments({ 
+    const completedQuizzes = await StudentQuiz.countDocuments({ 
       student_id: studentId,
       quiz_type: "regular" 
     });
@@ -501,7 +415,7 @@ router.post("/placement-quiz/generate", async (req, res) => {
     const opSeq = buildOperationSequence(profile);
     const questions = opSeq.map((op) => generateQuestion(cfg.range, op));
 
-    const quiz = await Quiz.create({
+    const quiz = await StudentQuiz.create({
       student_id: studentId,
       quiz_type: "placement",
       profile_level: profile,
@@ -530,7 +444,7 @@ router.post("/placement-quiz/submit", async (req, res) => {
     const studentId = req.user.userId;
     const { quiz_id, answers } = req.body;
 
-    const quiz = await Quiz.findById(quiz_id);
+    const quiz = await StudentQuiz.findById(quiz_id);
     if (!quiz || quiz.quiz_type !== "placement") {
       return res.status(404).json({ success: false, error: "Placement quiz not found" });
     }
@@ -632,7 +546,7 @@ router.post("/quiz/generate", async (req, res) => {
     const opSeq = buildOperationSequence(profile);
     const questions = opSeq.map((op) => generateQuestion(cfg.range, op));
 
-    const quiz = await Quiz.create({
+    const quiz = await StudentQuiz.create({
       student_id: studentId,
       quiz_type: "regular",
       profile_level: profile,
@@ -666,7 +580,7 @@ router.post("/quiz/submit", async (req, res) => {
     const studentId = req.user.userId;
     const { quiz_id, answers } = req.body;
 
-    const quiz = await Quiz.findById(quiz_id);
+    const quiz = await StudentQuiz.findById(quiz_id);
     if (!quiz || quiz.quiz_type !== "regular") {
       return res.status(404).json({ success: false, error: "Quiz not found" });
     }
@@ -754,7 +668,7 @@ router.get("/math-progress", async (req, res) => {
       await mathProfile.save();
     }
 
-    const quizzes = await Quiz.find({ student_id: studentId, quiz_type: "regular" }).sort({
+    const quizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" }).sort({
       completed_at: -1,
     });
 
@@ -794,7 +708,7 @@ router.get("/math-progress", async (req, res) => {
 router.get("/quiz-results", async (req, res) => {
   try {
     const studentId = req.user.userId;
-    const quizzes = await Quiz.find({ student_id: studentId, quiz_type: "regular" }).sort({ completed_at: -1 });
+    const quizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" }).sort({ completed_at: -1 });
 
     res.json({
       success: true,
@@ -818,7 +732,7 @@ router.get("/quiz-results", async (req, res) => {
 router.get("/quiz-history", async (req, res) => {
   try {
     const studentId = req.user.userId;
-    const quizzes = await Quiz.find({ student_id: studentId, quiz_type: "regular" }).sort({ completed_at: -1 });
+    const quizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" }).sort({ completed_at: -1 });
 
     res.json({
       success: true,
