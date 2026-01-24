@@ -39,6 +39,34 @@ export const seedP2LAdmin = async (credentials) => {
   });
 };
 
+// ==================== REGISTER P2LADMIN ====================
+/**
+ * Register a new P2L Admin user
+ * @param {Object} credentials - { email, password }
+ * @returns {Promise} - Registration result
+ */
+export const registerP2LAdmin = async (credentials) => {
+  try {
+    const url = `${API_BASE_URL}/api/p2ladmin/register-admin`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(credentials),
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Registration API error:', error);
+    return { 
+      success: false, 
+      error: 'Registration failed. Please try again.' 
+    };
+  }
+};
+
 // ==================== LANDING PAGE ====================
 export const getLandingPage = async () => {
   return apiCall('/api/p2ladmin/landing');
@@ -178,6 +206,7 @@ export const getHealthStatus = async () => {
 
 export default {
   seedP2LAdmin,
+  registerP2LAdmin,
   getLandingPage,
   saveLandingPage,
   updateLandingPage,

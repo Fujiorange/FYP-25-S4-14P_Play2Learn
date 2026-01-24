@@ -17,6 +17,7 @@ import Footer from './components/Footer/Footer';
 // Auth Components
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
+import RegisterAdminPage from './components/RegisterAdminPage';
 
 // Teacher Components
 import TeacherDashboard from './components/Teacher/TeacherDashboard';
@@ -119,6 +120,7 @@ function App() {
           {/* ========== AUTHENTICATION ========== */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/register_admin" element={<RegisterAdminPage />} />
 
           {/* ========== TEACHER ROUTES ========== */}
           <Route path="/teacher" element={<TeacherDashboard />} />

@@ -87,6 +87,98 @@ router.post('/seed', async (req, res) => {
   }
 });
 
+// ==================== REGISTER NEW P2LADMIN ====================
+/**
+ * Register a new P2L Admin user
+ * Validates email format and password strength
+ * Hashes password securely with bcrypt
+ * Sets admin field (role) to 'p2ladmin'
+ */
+router.post('/register-admin', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Email and password are required' 
+      });
+    }
+
+    // Email format validation (RFC 5322 simplified)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid email format' 
+      });
+    }
+
+    // Password validation
+    // Minimum 8 characters, at least one letter, one number, and one special character
+    if (password.length < 8) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Password must be at least 8 characters long' 
+      });
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+    if (!hasLetter || !hasNumber || !hasSpecialChar) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Password must contain at least one letter, one number, and one special character' 
+      });
+    }
+
+    // Check if email already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Email already registered' 
+      });
+    }
+
+    // Hash password with bcrypt (salt rounds: 10)
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create new admin user with admin field set to true
+    const newAdmin = new User({
+      name: email.split('@')[0], // Use email prefix as default name
+      email: email.toLowerCase(),
+      password: passwordHash,
+      role: 'p2ladmin', // Admin role
+      emailVerified: true,
+      accountActive: true
+    });
+
+    await newAdmin.save();
+
+    console.log(`✅ Registered new p2ladmin: ${email}`);
+    
+    return res.status(201).json({ 
+      success: true, 
+      message: 'Admin registration successful',
+      user: {
+        id: newAdmin._id,
+        email: newAdmin.email,
+        role: newAdmin.role
+      }
+    });
+  } catch (error) {
+    console.error('❌ Admin registration error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Registration failed. Please try again.' 
+    });
+  }
+});
+
 // ==================== LANDING PAGE CRUD (modular blocks) ====================
 router.post('/landing', authenticateP2LAdmin, async (req, res) => {
   try {
