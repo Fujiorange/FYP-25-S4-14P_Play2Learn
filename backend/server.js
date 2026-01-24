@@ -147,7 +147,7 @@ try {
   app.use('/api/auth', mongoAuthRoutes); // Backward compatibility
   app.use('/api/mongo/student', authenticateToken, mongoStudentRoutes);
   app.use('/api/mongo/school-admin', schoolAdminRoutes);
-  app.use('/api/p2ladmin', p2lAdminRoutes);
+  app.use('/api/mongo/p2l-admin', p2lAdminRoutes);
   
   console.log('✅ Routes loaded successfully');
 } catch (error) {
