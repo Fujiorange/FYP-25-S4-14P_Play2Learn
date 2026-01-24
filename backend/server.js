@@ -141,11 +141,13 @@ try {
   const mongoAuthRoutes = require('./routes/mongoAuthRoutes');
   const mongoStudentRoutes = require('./routes/mongoStudentRoutes');
   const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
+  const p2lAdminRoutes = require('./routes/p2lAdminRoutes');
   
   app.use('/api/mongo/auth', mongoAuthRoutes);
   app.use('/api/auth', mongoAuthRoutes); // Backward compatibility
   app.use('/api/mongo/student', authenticateToken, mongoStudentRoutes);
   app.use('/api/mongo/school-admin', schoolAdminRoutes);
+  app.use('/api/p2ladmin', p2lAdminRoutes);
   
   console.log('✅ Routes loaded successfully');
 } catch (error) {
@@ -195,7 +197,8 @@ app.get('/', (req, res) => {
       health: '/api/health',
       auth: '/api/auth/*',
       student: '/api/mongo/student/*',
-      admin: '/api/mongo/school-admin/*'
+      admin: '/api/mongo/school-admin/*',
+      p2ladmin: '/api/p2ladmin/*'
     },
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
