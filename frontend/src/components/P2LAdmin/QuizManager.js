@@ -139,7 +139,7 @@ function QuizManager() {
                         onChange={() => handleQuestionToggle(q._id)}
                       />
                       <span className="question-preview">
-                        {q.text.substring(0, 80)}...
+                        {q.text.length > 80 ? `${q.text.substring(0, 80)}...` : q.text}
                         <span className="badge">Difficulty: {q.difficulty}</span>
                       </span>
                     </div>

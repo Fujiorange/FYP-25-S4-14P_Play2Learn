@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getSchools, createSchool, updateSchool, deleteSchool } from '../../services/p2lAdminService';
+import LICENSE_PLANS from '../../constants/licensePlans';
 import './SchoolManagement.css';
 
 function SchoolManagement() {
@@ -15,12 +16,6 @@ function SchoolManagement() {
     plan: 'starter',
     contact: ''
   });
-
-  const LICENSE_PLANS = {
-    starter: { teacher_limit: 50, student_limit: 500, price: 2500 },
-    professional: { teacher_limit: 100, student_limit: 1000, price: 5000 },
-    enterprise: { teacher_limit: 250, student_limit: 2500, price: 10000 }
-  };
 
   useEffect(() => {
     fetchSchools();

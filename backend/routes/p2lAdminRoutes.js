@@ -23,9 +23,8 @@ const authenticateP2LAdmin = async (req, res, next) => {
     if (!token) return res.status(401).json({ success: false, error: 'No token provided' });
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const db = mongoose.connection.db;
-    const user = await db.collection('users').findOne({
-      _id: new mongoose.Types.ObjectId(decoded.userId),
+    const user = await User.findOne({
+      _id: decoded.userId,
       role: 'p2ladmin'
     });
 
@@ -539,7 +538,7 @@ router.delete('/quizzes/:id', authenticateP2LAdmin, async (req, res) => {
 });
 
 // Adaptive quiz run - Get next question based on previous answer
-router.post('/quizzes/run', async (req, res) => {
+router.post('/quizzes/run', authenticateP2LAdmin, async (req, res) => {
   try {
     const { quizId, lastQuestionId = null, wasCorrect = null, currentDifficulty = 2 } = req.body;
 
@@ -586,12 +585,22 @@ router.post('/quizzes/run', async (req, res) => {
 // ==================== HEALTH CHECK ====================
 router.get('/health', async (req, res) => {
   try {
-    const db = mongoose.connection.db;
-    const mongooseState = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    const mongooseState = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+    const isConnected = mongoose.connection.readyState === 1;
+    
     return res.json({
-      success: true,
+      success: isConnected,
       environment: process.env.NODE_ENV || 'development',
-      db: mongooseState,
+      database: {
+        status: mongooseState,
+        connected: isConnected,
+        type: process.env.MONGODB_URI ? 'MongoDB Atlas' : 'Local MongoDB'
+      },
+      server: {
+        environment: process.env.NODE_ENV || 'development',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+      },
       uptime: process.uptime(),
       timestamp: new Date().toISOString()
     });
