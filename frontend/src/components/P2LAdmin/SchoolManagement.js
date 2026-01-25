@@ -41,11 +41,28 @@ function SchoolManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Get plan_info based on selected plan
+      const planInfo = LICENSE_PLANS[formData.plan];
+      if (!planInfo) {
+        alert('Invalid plan selected');
+        return;
+      }
+
+      // Prepare data with plan_info
+      const schoolData = {
+        ...formData,
+        plan_info: {
+          teacher_limit: planInfo.teacher_limit,
+          student_limit: planInfo.student_limit,
+          price: planInfo.price
+        }
+      };
+
       if (editingSchool) {
-        await updateSchool(editingSchool._id, formData);
+        await updateSchool(editingSchool._id, schoolData);
         alert('School updated successfully');
       } else {
-        await createSchool(formData);
+        await createSchool(schoolData);
         alert('School created successfully');
       }
       setShowForm(false);
