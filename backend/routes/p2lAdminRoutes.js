@@ -18,9 +18,10 @@ const authenticateP2LAdmin = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const db = mongoose.connection.db;
-    const admin = await db.collection('users').findOne({ _id: new mongoose.Types.ObjectId(decoded.userId), role: 'p2ladmin' });
-    if (!admin) return res.status(403).json({ error: 'Access restricted to P2L Admins' });
+    const admin = await User.findById(decoded.userId);
+    if (!admin || admin.role !== 'p2ladmin') {
+      return res.status(403).json({ error: 'Access restricted to P2L Admins' });
+    }
 
     req.user = admin;
     next();
