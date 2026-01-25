@@ -113,6 +113,7 @@ router.post('/login', async (req, res) => {
         subject: user.subject,
         emailVerified: user.emailVerified,
         accountActive: user.accountActive,
+        requirePasswordChange: user.requirePasswordChange,
       },
     });
   } catch (error) {
@@ -147,6 +148,7 @@ router.get('/me', async (req, res) => {
         subject: user.subject,
         emailVerified: user.emailVerified,
         accountActive: user.accountActive,
+        requirePasswordChange: user.requirePasswordChange,
       },
     });
   } catch (error) {
@@ -239,6 +241,64 @@ router.put('/update-picture', async (req, res) => {
   } catch (error) {
     console.error('Update picture error:', error);
     return res.status(500).json({ success: false, error: 'Failed to update profile picture' });
+  }
+});
+
+router.put('/change-password', async (req, res) => {
+  try {
+    const token = (req.headers.authorization || '').split(' ')[1];
+    if (!token) return res.status(401).json({ success: false, error: 'No token provided' });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { oldPassword, newPassword } = req.body;
+
+    // Validate required fields
+    if (!newPassword) {
+      return res.status(400).json({ success: false, error: 'New password is required' });
+    }
+
+    // Password validation
+    if (newPassword.length < 8) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Password must be at least 8 characters long' 
+      });
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+    // If old password is provided, verify it (for regular password changes)
+    // If not provided, only allow if requirePasswordChange is true (first-time login)
+    if (oldPassword) {
+      const isValidOldPassword = await bcrypt.compare(oldPassword, user.password);
+      if (!isValidOldPassword) {
+        return res.status(401).json({ success: false, error: 'Current password is incorrect' });
+      }
+    } else if (!user.requirePasswordChange) {
+      // If no old password and not required to change, reject
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Current password is required' 
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    // Update password and clear requirePasswordChange flag
+    user.password = hashedPassword;
+    user.requirePasswordChange = false;
+    user.updatedAt = new Date();
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to change password' });
   }
 });
 

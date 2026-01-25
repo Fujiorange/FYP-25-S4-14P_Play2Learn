@@ -3,6 +3,9 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const csv = require('csv-parser');
+const fs = require('fs');
 const User = require('../models/User');
 const School = require('../models/School');
 const Question = require('../models/Question');
@@ -12,6 +15,9 @@ const { sendSchoolAdminWelcomeEmail } = require('../services/emailService');
 const { generateTempPassword } = require('../utils/passwordGenerator');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
+
+// Configure multer for file uploads
+const upload = multer({ dest: 'uploads/' });
 
 // Middleware to authenticate P2L Admins
 const authenticateP2LAdmin = async (req, res, next) => {
@@ -312,7 +318,7 @@ router.get('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
     // Find users who are school-admins for this school
     const admins = await User.find({
       schoolId: schoolId,
-      role: 'school-admin'
+      role: 'School Admin'
     }).select('-password');
 
     res.json({
@@ -371,10 +377,11 @@ router.post('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
       name: name || email.split('@')[0],
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: 'school-admin',
+      role: 'School Admin',
       schoolId: schoolId,
       emailVerified: true,
-      accountActive: true
+      accountActive: true,
+      requirePasswordChange: true
     });
 
     await admin.save();
@@ -561,6 +568,138 @@ router.delete('/questions/:id', authenticateP2LAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to delete question' 
+    });
+  }
+});
+
+// CSV upload for questions
+router.post('/questions/upload-csv', authenticateP2LAdmin, upload.single('file'), async (req, res) => {
+  const filePath = req.file?.path;
+  
+  if (!filePath) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'No file uploaded' 
+    });
+  }
+
+  const results = [];
+  const errors = [];
+  let lineNumber = 1; // Start at 1 for header
+
+  try {
+    // Parse CSV file
+    const parsePromise = new Promise((resolve, reject) => {
+      fs.createReadStream(filePath)
+        .pipe(csv())
+        .on('data', (row) => {
+          lineNumber++;
+          
+          // Normalize field names (handle case-insensitive headers)
+          const normalizedRow = {};
+          Object.keys(row).forEach(key => {
+            normalizedRow[key.toLowerCase().trim()] = row[key];
+          });
+
+          // Validate required fields
+          const text = normalizedRow.text || normalizedRow.question;
+          const answer = normalizedRow.answer || normalizedRow['correct answer'];
+          
+          if (!text || !answer) {
+            errors.push({
+              line: lineNumber,
+              error: 'Missing required fields: text and answer are required',
+              data: row
+            });
+            return;
+          }
+
+          // Parse choices (can be comma-separated or individual columns)
+          let choices = [];
+          if (normalizedRow.choices) {
+            // If choices are comma-separated
+            choices = normalizedRow.choices.split(',').map(c => c.trim()).filter(c => c);
+          } else {
+            // Check for choice1, choice2, choice3, choice4, etc.
+            const choiceKeys = Object.keys(normalizedRow).filter(k => k.startsWith('choice'));
+            choices = choiceKeys.map(k => normalizedRow[k]).filter(c => c && c.trim());
+          }
+
+          // Parse difficulty (default to 3 if not provided or invalid)
+          let difficulty = parseInt(normalizedRow.difficulty) || 3;
+          if (difficulty < 1 || difficulty > 5) {
+            difficulty = 3;
+          }
+
+          results.push({
+            text: text.trim(),
+            choices: choices,
+            answer: answer.trim(),
+            difficulty: difficulty,
+            subject: normalizedRow.subject || 'General',
+            topic: normalizedRow.topic || '',
+            is_active: normalizedRow.is_active !== 'false' && normalizedRow.is_active !== '0'
+          });
+        })
+        .on('end', () => resolve())
+        .on('error', (error) => reject(error));
+    });
+
+    await parsePromise;
+
+    // Delete uploaded file
+    fs.unlinkSync(filePath);
+
+    // If all rows failed, return error
+    if (results.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid questions found in CSV',
+        errors: errors
+      });
+    }
+
+    // Save questions to database
+    const savedQuestions = [];
+    for (const questionData of results) {
+      try {
+        const question = new Question({
+          ...questionData,
+          created_by: req.user._id
+        });
+        await question.save();
+        savedQuestions.push(question);
+      } catch (dbError) {
+        errors.push({
+          error: 'Failed to save question',
+          data: questionData,
+          message: dbError.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully uploaded ${savedQuestions.length} questions`,
+      data: {
+        total: results.length,
+        successful: savedQuestions.length,
+        failed: errors.length,
+        errors: errors.length > 0 ? errors : undefined
+      }
+    });
+  } catch (error) {
+    console.error('CSV upload error:', error);
+    
+    // Clean up file if it exists
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to process CSV file',
+      message: error.message 
     });
   }
 });
