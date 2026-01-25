@@ -56,11 +56,19 @@ function QuizManager() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Transform question_ids to questions array format expected by backend
+      const quizData = {
+        title: formData.title,
+        description: formData.description,
+        questions: formData.question_ids.map(id => ({ question_id: id })),
+        is_adaptive: formData.is_adaptive
+      };
+      
       if (editingQuiz) {
-        await updateQuiz(editingQuiz._id, formData);
+        await updateQuiz(editingQuiz._id, quizData);
         alert('Quiz updated successfully');
       } else {
-        await createQuiz(formData);
+        await createQuiz(quizData);
         alert('Quiz created successfully');
       }
       setShowForm(false);
