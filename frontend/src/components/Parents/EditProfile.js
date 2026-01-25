@@ -10,7 +10,7 @@ export default function EditProfile() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    contactNumber: '',
+    contact: '',
     gender: '',
   });
 
@@ -25,7 +25,7 @@ export default function EditProfile() {
       setFormData({
         name: currentUser.name || '',
         email: currentUser.email || '',
-        contactNumber: currentUser.contact_number || '',
+        contact: currentUser.contact || '',
         gender: currentUser.gender || '',
       });
       setLoading(false);
@@ -42,13 +42,41 @@ export default function EditProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const currentUser = authService.getCurrentUser();
-    const updatedUser = { ...currentUser, name: formData.name, contact_number: formData.contactNumber, gender: formData.gender };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setMessage({ type: 'success', text: 'Profile updated successfully!' });
-    setSaving(false);
-    setTimeout(() => navigate('/parent/profile'), 2000);
+    setMessage({ type: '', text: '' });
+
+    try {
+      // ✅ FIXED: Actually call the backend API to update database
+      const result = await authService.updateProfile({
+        name: formData.name,
+        contact: formData.contact,
+        gender: formData.gender
+      });
+
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Profile updated successfully!' });
+        
+        // Update localStorage with new user data from server
+        if (result.user) {
+          localStorage.setItem('user', JSON.stringify(result.user));
+        }
+
+        // Redirect after 2 seconds
+        setTimeout(() => navigate('/parent/profile'), 2000);
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: result.error || 'Failed to update profile. Please try again.' 
+        });
+      }
+    } catch (error) {
+      console.error('Profile update error:', error);
+      setMessage({ 
+        type: 'error', 
+        text: 'Failed to update profile. Please try again.' 
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const styles = {
@@ -67,6 +95,7 @@ export default function EditProfile() {
     cancelButton: { flex: 1, padding: '12px', background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' },
     message: { padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', marginBottom: '16px' },
     successMessage: { background: '#d1fae5', color: '#065f46', border: '1px solid #34d399' },
+    errorMessage: { background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' },
     loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
     loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
   };
@@ -80,24 +109,64 @@ export default function EditProfile() {
           <h1 style={styles.title}>Edit Profile</h1>
           <button style={styles.backButton} onClick={() => navigate('/parent/profile')}>← Back to Profile</button>
         </div>
-        {message.text && <div style={{...styles.message, ...styles.successMessage}}>{message.text}</div>}
+        
+        {message.text && (
+          <div style={{
+            ...styles.message, 
+            ...(message.type === 'success' ? styles.successMessage : styles.errorMessage)
+          }}>
+            {message.text}
+          </div>
+        )}
+        
         <form style={styles.form} onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
             <label style={styles.label}>Full Name *</label>
-            <input type="text" name="name" value={formData.name} onChange={handleChange} required disabled={saving} style={styles.input} />
+            <input 
+              type="text" 
+              name="name" 
+              value={formData.name} 
+              onChange={handleChange} 
+              required 
+              disabled={saving} 
+              style={styles.input} 
+            />
           </div>
+          
           <div style={styles.formGroup}>
             <label style={styles.label}>Email Address</label>
-            <input type="email" name="email" value={formData.email} disabled style={{...styles.input, background: '#f3f4f6', cursor: 'not-allowed'}} />
+            <input 
+              type="email" 
+              name="email" 
+              value={formData.email} 
+              disabled 
+              style={{...styles.input, background: '#f3f4f6', cursor: 'not-allowed'}} 
+            />
             <small style={{ color: '#6b7280', fontSize: '12px' }}>Email cannot be changed</small>
           </div>
+          
           <div style={styles.formGroup}>
             <label style={styles.label}>Contact Number</label>
-            <input type="tel" name="contactNumber" value={formData.contactNumber} onChange={handleChange} disabled={saving} style={styles.input} />
+            <input 
+              type="tel" 
+              name="contact" 
+              value={formData.contact} 
+              onChange={handleChange} 
+              disabled={saving} 
+              style={styles.input} 
+              placeholder="Enter contact number"
+            />
           </div>
+          
           <div style={styles.formGroup}>
             <label style={styles.label}>Gender</label>
-            <select name="gender" value={formData.gender} onChange={handleChange} disabled={saving} style={styles.select}>
+            <select 
+              name="gender" 
+              value={formData.gender} 
+              onChange={handleChange} 
+              disabled={saving} 
+              style={styles.select}
+            >
               <option value="">Select gender</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
@@ -105,9 +174,27 @@ export default function EditProfile() {
               <option value="prefer-not-to-say">Prefer not to say</option>
             </select>
           </div>
+          
           <div style={styles.buttonGroup}>
-            <button type="submit" disabled={saving} style={styles.saveButton}>{saving ? 'Saving...' : '💾 Save Changes'}</button>
-            <button type="button" onClick={() => navigate('/parent/profile')} disabled={saving} style={styles.cancelButton}>Cancel</button>
+            <button 
+              type="submit" 
+              disabled={saving} 
+              style={{
+                ...styles.saveButton,
+                opacity: saving ? 0.6 : 1,
+                cursor: saving ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {saving ? 'Saving...' : '💾 Save Changes'}
+            </button>
+            <button 
+              type="button" 
+              onClick={() => navigate('/parent/profile')} 
+              disabled={saving} 
+              style={styles.cancelButton}
+            >
+              Cancel
+            </button>
           </div>
         </form>
       </div>

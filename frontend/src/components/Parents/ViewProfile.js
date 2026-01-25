@@ -73,7 +73,8 @@ export default function ViewProfile() {
             </div>
             <div style={styles.infoItem}>
               <div style={styles.label}>Contact Number</div>
-              <div style={styles.value}>{user.contact_number || 'Not provided'}</div>
+              {/* ✅ FIXED: Changed contact_number to contact to match User model */}
+              <div style={styles.value}>{user.contact || 'Not provided'}</div>
             </div>
             <div style={styles.infoItem}>
               <div style={styles.label}>Gender</div>
@@ -91,7 +92,8 @@ export default function ViewProfile() {
             </div>
             <div style={styles.infoItem}>
               <div style={styles.label}>Account Status</div>
-              <div style={styles.value}>{user.is_active ? '✅ Active' : '❌ Inactive'}</div>
+              {/* ✅ FIXED: Changed is_active to accountActive to match User model */}
+              <div style={styles.value}>{user.accountActive ? '✅ Active' : '❌ Inactive'}</div>
             </div>
           </div>
         </div>

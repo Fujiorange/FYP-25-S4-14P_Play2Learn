@@ -1,4 +1,4 @@
-// backend/server.js - Play2Learn Backend - FIXED
+// backend/server.js - Play2Learn Backend - WITH PARENT ROUTES
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
@@ -8,8 +8,6 @@ require('dotenv').config();
 
 const app = express();
 const path = require('path');
-
-
 
 // ==================== CORS CONFIGURATION ====================
 const corsOptions = {
@@ -85,6 +83,7 @@ if (process.env.NODE_ENV === 'production') {
     process.exit(1);
   }
 }
+
 // ==================== AUTHENTICATION MIDDLEWARE ====================
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -111,15 +110,12 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// ==================== STATIC FILES (PRODUCTION) ====================
 if (process.env.NODE_ENV === 'production') {
   // Serve static frontend files
   app.use(express.static(path.join(__dirname, '../frontend/build')));
-  
-  // Serve index.html for all unknown routes
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-  });
 }
+
 // ==================== REQUEST LOGGING ====================
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString().split('T')[1]} - ${req.method} ${req.path}`);
@@ -141,13 +137,16 @@ try {
   const mongoAuthRoutes = require('./routes/mongoAuthRoutes');
   const mongoStudentRoutes = require('./routes/mongoStudentRoutes');
   const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
+  const mongoParentRoutes = require('./routes/mongoParentRoutes'); // ✅ ADDED
   
   app.use('/api/mongo/auth', mongoAuthRoutes);
   app.use('/api/auth', mongoAuthRoutes); // Backward compatibility
   app.use('/api/mongo/student', authenticateToken, mongoStudentRoutes);
   app.use('/api/mongo/school-admin', schoolAdminRoutes);
+  app.use('/api/mongo/parent', mongoParentRoutes); // ✅ ADDED - Parent routes
   
   console.log('✅ Routes loaded successfully');
+  console.log('✅ Parent routes: /api/mongo/parent/*'); // ✅ ADDED
 } catch (error) {
   console.error('❌ Error loading routes:', error.message);
   console.log('⚠️  Some routes may not be available');
@@ -195,11 +194,20 @@ app.get('/', (req, res) => {
       health: '/api/health',
       auth: '/api/auth/*',
       student: '/api/mongo/student/*',
+      parent: '/api/mongo/parent/*', // ✅ ADDED
       admin: '/api/mongo/school-admin/*'
     },
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
   });
 });
+
+// ==================== PRODUCTION FALLBACK ====================
+if (process.env.NODE_ENV === 'production') {
+  // Serve index.html for all unknown routes (SPA support)
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+  });
+}
 
 // ==================== ERROR HANDLERS ====================
 app.use((req, res) => {
@@ -222,17 +230,17 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log('╔══════════════════════════════════════════════╗');
+  console.log('╔═══════════════════════════════════════════════╗');
   console.log('║          🚀 Play2Learn Server               ║');
   console.log(`║          📍 Port: ${PORT}                       ║`);
-  console.log(`║          🌐 URL: ${process.env.NODE_ENV === 'production' ? 'https://play2learn-test.onrender.com' : `http://localhost:${PORT}`} ║`);
+  console.log(`║          🌍 URL: ${process.env.NODE_ENV === 'production' ? 'https://play2learn-test.onrender.com' : `http://localhost:${PORT}`} ║`);
   console.log('║          🗄️  Database: ' + 
     (mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Disconnected') + 
     '           ║');
   console.log('║          🔐 JWT: ' + 
     (process.env.JWT_SECRET ? '✅ Set' : '❌ Using default') + 
     '                   ║');
-  console.log('╚══════════════════════════════════════════════╝');
+  console.log('╚═══════════════════════════════════════════════╝');
 });
 
 // Graceful shutdown
