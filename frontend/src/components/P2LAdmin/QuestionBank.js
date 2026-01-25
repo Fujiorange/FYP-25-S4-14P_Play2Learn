@@ -1,7 +1,7 @@
 // Question Bank Management Component
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getQuestions, createQuestion, updateQuestion, deleteQuestion } from '../../services/p2lAdminService';
+import { getQuestions, createQuestion, updateQuestion, deleteQuestion, uploadQuestionsCSV } from '../../services/p2lAdminService';
 import './QuestionBank.css';
 
 function QuestionBank() {
@@ -18,6 +18,10 @@ function QuestionBank() {
     subject: 'General',
     topic: ''
   });
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadResult, setUploadResult] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchQuestions();
@@ -128,6 +132,67 @@ function QuestionBank() {
     return classes[level] || '';
   };
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.name.endsWith('.csv')) {
+        alert('Please select a CSV file');
+        return;
+      }
+      setUploadFile(file);
+      setUploadResult(null);
+    }
+  };
+
+  const handleUploadCSV = async () => {
+    if (!uploadFile) {
+      alert('Please select a file');
+      return;
+    }
+
+    setUploading(true);
+    setUploadResult(null);
+
+    try {
+      const result = await uploadQuestionsCSV(uploadFile);
+      setUploadResult(result);
+      
+      // Refresh questions list
+      await fetchQuestions();
+      
+      // Clear file selection
+      setUploadFile(null);
+      
+      if (result.success) {
+        alert(`Successfully uploaded ${result.data.successful} questions!`);
+      }
+    } catch (error) {
+      console.error('CSV upload failed:', error);
+      setUploadResult({ 
+        success: false, 
+        error: error.message || 'Failed to upload CSV' 
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const template = `text,choice1,choice2,choice3,choice4,answer,difficulty,subject,topic
+"What is 2 + 2?","2","3","4","5","4",1,"Math","Addition"
+"What is the capital of France?","London","Berlin","Paris","Rome","Paris",2,"Geography","Capitals"
+"Which planet is closest to the sun?","Venus","Mars","Mercury","Earth","Mercury",3,"Science","Solar System"`;
+    
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'questions_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
@@ -139,9 +204,14 @@ function QuestionBank() {
           <h1>Question Bank</h1>
           <Link to="/p2ladmin/dashboard" className="back-link">← Back to Dashboard</Link>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
-          + Create Question
-        </button>
+        <div className="header-actions">
+          <button onClick={() => setShowUpload(true)} className="btn-secondary">
+            📤 Upload CSV
+          </button>
+          <button onClick={() => setShowForm(true)} className="btn-primary">
+            + Create Question
+          </button>
+        </div>
       </header>
 
       <div className="filters-section">
@@ -219,13 +289,35 @@ function QuestionBank() {
 
               <div className="form-group">
                 <label>Correct Answer *</label>
-                <input
-                  type="text"
-                  name="answer"
-                  value={formData.answer}
-                  onChange={handleInputChange}
-                  required
-                />
+                {formData.choices.filter(c => c.trim()).length > 0 ? (
+                  <select
+                    name="answer"
+                    value={formData.answer}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Select correct answer</option>
+                    {formData.choices.filter(c => c.trim()).map((choice, index) => (
+                      <option key={index} value={choice}>
+                        {choice}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    name="answer"
+                    value={formData.answer}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="Enter the correct answer"
+                  />
+                )}
+                <small>
+                  {formData.choices.filter(c => c.trim()).length > 0 
+                    ? 'Select from the choices above' 
+                    : 'Add choices above to select from dropdown'}
+                </small>
               </div>
 
               <div className="form-row">
@@ -275,6 +367,97 @@ function QuestionBank() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showUpload && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Upload Questions CSV</h2>
+            
+            <div className="upload-section">
+              <div className="info-box">
+                <h3>📋 CSV Format Instructions</h3>
+                <p>Your CSV should have the following columns:</p>
+                <ul>
+                  <li><strong>text</strong> - The question text (required)</li>
+                  <li><strong>choice1, choice2, choice3, choice4</strong> - Answer choices (optional)</li>
+                  <li><strong>answer</strong> - The correct answer (required)</li>
+                  <li><strong>difficulty</strong> - Number from 1-5 (default: 3)</li>
+                  <li><strong>subject</strong> - Subject name (default: General)</li>
+                  <li><strong>topic</strong> - Topic name (optional)</li>
+                </ul>
+                <button onClick={downloadTemplate} className="btn-download">
+                  📥 Download Template
+                </button>
+              </div>
+
+              <div className="file-input-section">
+                <label htmlFor="csv-file" className="file-label">
+                  {uploadFile ? uploadFile.name : 'Choose CSV file'}
+                </label>
+                <input
+                  id="csv-file"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+              </div>
+
+              {uploadResult && (
+                <div className={`upload-result ${uploadResult.success ? 'success' : 'error'}`}>
+                  {uploadResult.success ? (
+                    <div>
+                      <h4>✅ Upload Successful!</h4>
+                      <p>Total questions: {uploadResult.data.total}</p>
+                      <p>Successfully uploaded: {uploadResult.data.successful}</p>
+                      {uploadResult.data.failed > 0 && (
+                        <p>Failed: {uploadResult.data.failed}</p>
+                      )}
+                      {uploadResult.data.errors && uploadResult.data.errors.length > 0 && (
+                        <div className="errors-detail">
+                          <h5>Errors:</h5>
+                          <ul>
+                            {uploadResult.data.errors.slice(0, 5).map((err, i) => (
+                              <li key={i}>Line {err.line}: {err.error}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <h4>❌ Upload Failed</h4>
+                      <p>{uploadResult.error}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="form-actions">
+                <button 
+                  onClick={handleUploadCSV} 
+                  className="btn-submit"
+                  disabled={!uploadFile || uploading}
+                >
+                  {uploading ? 'Uploading...' : 'Upload CSV'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowUpload(false);
+                    setUploadFile(null);
+                    setUploadResult(null);
+                  }} 
+                  className="btn-cancel"
+                  disabled={uploading}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

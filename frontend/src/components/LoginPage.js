@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
+import ChangePassword from './Auth/ChangePassword';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   // Helper function to normalize and route based on role
   const navigateByRole = (role) => {
@@ -53,6 +55,14 @@ export default function LoginPage() {
         console.log('✅ Login successful!');
         console.log('👤 User role:', result.user.role);
         
+        // Check if password change is required
+        if (result.user.requirePasswordChange) {
+          console.log('🔒 Password change required');
+          setShowPasswordChange(true);
+          setLoading(false);
+          return;
+        }
+        
         navigateByRole(result.user.role);
       } else {
         console.log('❌ Login failed:', result.error);
@@ -63,6 +73,14 @@ export default function LoginPage() {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordChangeSuccess = () => {
+    const user = authService.getCurrentUser();
+    if (user) {
+      setShowPasswordChange(false);
+      navigateByRole(user.role);
     }
   };
 
@@ -283,6 +301,16 @@ export default function LoginPage() {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [buttonHovered, setButtonHovered] = useState(false);
+
+  // Show password change modal if needed
+  if (showPasswordChange) {
+    return (
+      <ChangePassword 
+        requireChange={true}
+        onSuccess={handlePasswordChangeSuccess}
+      />
+    );
+  }
 
   return (
     <div style={styles.container}>

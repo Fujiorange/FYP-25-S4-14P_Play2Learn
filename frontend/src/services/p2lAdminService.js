@@ -174,6 +174,28 @@ export const deleteQuestion = async (id) => {
   });
 };
 
+export const uploadQuestionsCSV = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const url = `${API_BASE_URL}/api/p2ladmin/questions/upload-csv`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': getAuthToken(),
+    },
+    body: formData,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'CSV upload failed');
+  }
+
+  return data;
+};
+
 // ==================== QUIZZES ====================
 export const getQuizzes = async () => {
   return apiCall('/api/p2ladmin/quizzes');
@@ -234,6 +256,7 @@ export default {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  uploadQuestionsCSV,
   getQuizzes,
   getQuiz,
   createQuiz,
