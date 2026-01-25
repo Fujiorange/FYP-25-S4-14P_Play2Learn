@@ -283,11 +283,13 @@ router.post('/bulk-import-students', authenticateSchoolAdmin, upload.single('fil
         if (!licenseCheck.available) {
           console.log(`⚠️  License limit reached - stopping bulk import`);
           results.limitReached = true;
-          results.failed++;
+          const processedCount = results.created + results.failed;
           results.errors.push({ 
             email: studentData.email || 'unknown', 
-            error: `${licenseCheck.error}. Import stopped at student ${results.created + 1} of ${students.length}.`
+            error: `${licenseCheck.error}. Import stopped at record ${processedCount + 1} of ${students.length}.`
           });
+          // Count remaining unprocessed students as failed
+          results.failed += (students.length - processedCount);
           break; // Stop processing remaining students when limit is reached
         }
         
@@ -492,11 +494,13 @@ router.post('/bulk-import-teachers', authenticateSchoolAdmin, upload.single('fil
         if (!licenseCheck.available) {
           console.log(`⚠️  License limit reached - stopping bulk import`);
           results.limitReached = true;
-          results.failed++;
+          const processedCount = results.created + results.failed;
           results.errors.push({ 
             email: teacherData.email || 'unknown', 
-            error: `${licenseCheck.error}. Import stopped at teacher ${results.created + 1} of ${teachers.length}.`
+            error: `${licenseCheck.error}. Import stopped at record ${processedCount + 1} of ${teachers.length}.`
           });
+          // Count remaining unprocessed teachers as failed
+          results.failed += (teachers.length - processedCount);
           break; // Stop processing remaining teachers when limit is reached
         }
         
@@ -962,17 +966,23 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
     }
     
     // Send credentials via email
+    let emailSent = false;
     try {
       const schoolData = await School.findById(schoolAdmin.schoolId);
       const schoolName = schoolData ? schoolData.organization_name : 'Your School';
       
       if (role === 'Teacher') {
         await sendTeacherWelcomeEmail(newUser, tempPassword, schoolName);
-      } else if (role === 'Student' && parentEmail) {
-        await sendStudentCredentialsToParent(newUser, tempPassword, parentEmail, schoolName);
+        emailSent = true;
+      } else if (role === 'Student') {
+        if (parentEmail) {
+          await sendStudentCredentialsToParent(newUser, tempPassword, parentEmail, schoolName);
+          emailSent = true;
+        }
       }
     } catch (emailError) {
       console.error('Email sending error:', emailError);
+      emailSent = false;
       // Continue even if email fails - user is still created
     }
     
@@ -985,7 +995,10 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
         email: newUser.email,
         role: newUser.role,
         tempPassword: tempPassword // Return temp password so admin can share it if email fails
-      }
+      },
+      warning: !emailSent && role === 'Student' && !parentEmail 
+        ? 'No parent email provided. Please share the credentials manually with the student.' 
+        : (!emailSent ? 'Email sending failed. Please share the credentials manually.' : null)
     });
   } catch (error) {
     console.error('Create user error:', error);
