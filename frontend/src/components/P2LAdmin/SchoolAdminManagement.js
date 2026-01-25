@@ -26,7 +26,7 @@ function SchoolAdminManagement() {
   const fetchSchools = async () => {
     try {
       const response = await getSchools();
-      setSchools(response.schools || []);
+      setSchools(response.data || []);
     } catch (error) {
       console.error('Failed to fetch schools:', error);
       alert('Failed to load schools');
@@ -38,7 +38,7 @@ function SchoolAdminManagement() {
   const fetchSchoolAdmins = async (schoolId) => {
     try {
       const response = await getSchoolAdmins(schoolId);
-      setAdmins(response.admins || []);
+      setAdmins(response.data || []);
     } catch (error) {
       console.error('Failed to fetch school admins:', error);
     }

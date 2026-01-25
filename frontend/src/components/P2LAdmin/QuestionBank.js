@@ -26,7 +26,7 @@ function QuestionBank() {
   const fetchQuestions = async () => {
     try {
       const response = await getQuestions(filters);
-      setQuestions(response.questions || []);
+      setQuestions(response.data || []);
     } catch (error) {
       console.error('Failed to fetch questions:', error);
       alert('Failed to load questions');

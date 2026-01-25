@@ -26,8 +26,8 @@ function QuizManager() {
         getQuizzes(),
         getQuestions()
       ]);
-      setQuizzes(quizzesRes.quizzes || []);
-      setQuestions(questionsRes.questions || []);
+      setQuizzes(quizzesRes.data || []);
+      setQuestions(questionsRes.data || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       alert('Failed to load data');

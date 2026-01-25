@@ -24,7 +24,7 @@ function SchoolManagement() {
   const fetchSchools = async () => {
     try {
       const response = await getSchools();
-      setSchools(response.schools || []);
+      setSchools(response.data || []);
     } catch (error) {
       console.error('Failed to fetch schools:', error);
       alert('Failed to load schools');
