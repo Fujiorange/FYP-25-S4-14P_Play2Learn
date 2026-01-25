@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import AnnouncementBanner from '../shared/AnnouncementBanner';
 
 export default function TeacherDashboard() {
   const navigate = useNavigate();
@@ -359,6 +360,9 @@ export default function TeacherDashboard() {
 
       {/* Main Content */}
       <main style={styles.main}>
+        {/* Announcements Banner */}
+        <AnnouncementBanner userRole="teacher" />
+
         {/* Welcome Section */}
         <div style={styles.welcomeSection}>
           <h1 style={styles.welcomeTitle}>Welcome back, {user.name?.split(' ')[user.name?.split(' ').length - 1] || 'Teacher'}! 👋</h1>

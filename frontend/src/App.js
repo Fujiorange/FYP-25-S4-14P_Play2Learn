@@ -83,6 +83,11 @@ import ResetPassword from './components/SchoolAdmin/ResetPassword';
 import DisableUser from './components/SchoolAdmin/DisableUser';
 import BadgeManagement from './components/SchoolAdmin/BadgeManagement';
 import PointsManagement from './components/SchoolAdmin/PointsManagement';
+import AnalyticsDashboard from './components/SchoolAdmin/AnalyticsDashboard';
+import Announcements from './components/SchoolAdmin/Announcements';
+import MaintenanceMessages from './components/SchoolAdmin/MaintenanceMessages';
+import KnowledgeBase from './components/SchoolAdmin/KnowledgeBase';
+import SupportTicketManagement from './components/SchoolAdmin/SupportTicketManagement';
 
 function App() {
   return (
@@ -183,6 +188,11 @@ function App() {
           <Route path="/school-admin/users/disable" element={<DisableUser />} />
           <Route path="/school-admin/badges" element={<BadgeManagement />} />
           <Route path="/school-admin/points" element={<PointsManagement />} />
+          <Route path="/school-admin/analytics" element={<AnalyticsDashboard />} />
+          <Route path="/school-admin/announcements" element={<Announcements />} />
+          <Route path="/school-admin/maintenance" element={<MaintenanceMessages />} />
+          <Route path="/school-admin/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/school-admin/support-tickets" element={<SupportTicketManagement />} />
 
         </Routes>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import AnnouncementBanner from '../shared/AnnouncementBanner';
 
 export default function ParentDashboard() {
   const navigate = useNavigate();
@@ -301,6 +302,9 @@ export default function ParentDashboard() {
 
       {/* Main Content */}
       <main style={styles.main}>
+        {/* Announcements Banner */}
+        <AnnouncementBanner userRole="parent" />
+
         {/* Welcome Section */}
         <div style={styles.welcomeSection}>
           <h1 style={styles.welcomeTitle}>Welcome, {user.name?.split(' ')[0] || 'Parent'}! 👨‍👩‍👧‍👦</h1>
