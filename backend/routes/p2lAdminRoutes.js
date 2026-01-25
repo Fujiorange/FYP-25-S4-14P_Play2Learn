@@ -7,8 +7,19 @@ const User = require('../models/User');
 const School = require('../models/School');
 const Question = require('../models/Question');
 const Quiz = require('../models/Quiz');
+const { sendSchoolAdminWelcomeEmail } = require('../services/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
+
+// Password generator for school admins
+function generateTempPassword(userType) {
+  const crypto = require('crypto');
+  const prefix = userType.substring(0, 3).toUpperCase();
+  const random = crypto.randomBytes(2).toString('hex'); // 4 random chars
+  const specialChars = '!@#$%^&*';
+  const special = specialChars[Math.floor(Math.random() * specialChars.length)];
+  return `${prefix}${random}${special}`;
+}
 
 // Middleware to authenticate P2L Admins
 const authenticateP2LAdmin = async (req, res, next) => {
@@ -291,7 +302,7 @@ router.get('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
 
     // Find users who are school-admins for this school
     const admins = await User.find({
-      school_id: schoolId,
+      schoolId: schoolId,
       role: 'school-admin'
     }).select('-password');
 
@@ -311,8 +322,16 @@ router.get('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
 // Create/assign school admin
 router.post('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, name } = req.body;
     const schoolId = req.params.id;
+    
+    // Validate required fields
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Email is required' 
+      });
+    }
     
     // Validate school exists
     const school = await School.findById(schoolId);
@@ -332,8 +351,11 @@ router.post('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
       });
     }
 
+    // Generate temporary password
+    const tempPassword = generateTempPassword('school-admin');
+    
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
     
     // Create school admin
     const admin = new User({
@@ -341,12 +363,20 @@ router.post('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
       email: email.toLowerCase(),
       password: hashedPassword,
       role: 'school-admin',
-      school_id: schoolId,
+      schoolId: schoolId,
       emailVerified: true,
       accountActive: true
     });
 
     await admin.save();
+    
+    // Send welcome email with credentials
+    try {
+      await sendSchoolAdminWelcomeEmail(admin, tempPassword, school.organization_name);
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Continue even if email fails - admin is still created
+    }
 
     res.status(201).json({
       success: true,
@@ -355,7 +385,8 @@ router.post('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
         id: admin._id,
         email: admin.email,
         name: admin.name,
-        role: admin.role
+        role: admin.role,
+        tempPassword: tempPassword // Return temp password so P2L admin can share it if email fails
       }
     });
   } catch (error) {
