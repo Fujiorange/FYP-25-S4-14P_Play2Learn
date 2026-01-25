@@ -44,7 +44,8 @@ function SchoolManagement() {
       // Get plan_info based on selected plan
       const planInfo = LICENSE_PLANS[formData.plan];
       if (!planInfo) {
-        alert('Invalid plan selected');
+        console.error('Invalid plan selected:', formData.plan);
+        alert('Please select a valid subscription plan');
         return;
       }
 
