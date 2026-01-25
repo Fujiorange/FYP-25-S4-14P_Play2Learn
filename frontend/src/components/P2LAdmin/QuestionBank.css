@@ -297,6 +297,16 @@ textarea:focus {
   background: #5568d3;
 }
 
+.upload-error {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #fee2e2;
+  border: 2px solid #ef4444;
+  border-radius: 8px;
+  color: #991b1b;
+  font-weight: 500;
+}
+
 .upload-result {
   padding: 1.5rem;
   border-radius: 8px;
@@ -321,6 +331,11 @@ textarea:focus {
 
 .upload-result p {
   margin: 0.5rem 0;
+}
+
+.warning-text {
+  color: #d97706;
+  font-weight: 500;
 }
 
 .errors-detail {

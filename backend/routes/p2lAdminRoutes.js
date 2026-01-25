@@ -367,7 +367,7 @@ router.post('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
     }
 
     // Generate temporary password
-    const tempPassword = generateTempPassword('school-admin');
+    const tempPassword = generateTempPassword('school');
     
     // Hash password
     const hashedPassword = await bcrypt.hash(tempPassword, 10);

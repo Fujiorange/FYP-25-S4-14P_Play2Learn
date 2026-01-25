@@ -22,6 +22,7 @@ function QuestionBank() {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
     fetchQuestions();
@@ -135,24 +136,32 @@ function QuestionBank() {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
-      if (!file.name.endsWith('.csv')) {
-        alert('Please select a CSV file');
+      // Validate file type by MIME type and extension
+      const validTypes = ['text/csv', 'application/csv', 'text/plain'];
+      const isValidExtension = file.name.toLowerCase().endsWith('.csv');
+      const isValidMimeType = validTypes.includes(file.type);
+      
+      if (!isValidExtension || (!isValidMimeType && file.type !== '')) {
+        setUploadError('Please select a valid CSV file');
+        setUploadFile(null);
         return;
       }
+      
       setUploadFile(file);
       setUploadResult(null);
+      setUploadError('');
     }
   };
 
   const handleUploadCSV = async () => {
     if (!uploadFile) {
-      alert('Please select a file');
+      setUploadError('Please select a file');
       return;
     }
 
     setUploading(true);
     setUploadResult(null);
+    setUploadError('');
 
     try {
       const result = await uploadQuestionsCSV(uploadFile);
@@ -163,16 +172,9 @@ function QuestionBank() {
       
       // Clear file selection
       setUploadFile(null);
-      
-      if (result.success) {
-        alert(`Successfully uploaded ${result.data.successful} questions!`);
-      }
     } catch (error) {
       console.error('CSV upload failed:', error);
-      setUploadResult({ 
-        success: false, 
-        error: error.message || 'Failed to upload CSV' 
-      });
+      setUploadError(error.message || 'Failed to upload CSV');
     } finally {
       setUploading(false);
     }
@@ -404,6 +406,11 @@ function QuestionBank() {
                   onChange={handleFileSelect}
                   style={{ display: 'none' }}
                 />
+                {uploadError && (
+                  <div className="upload-error">
+                    ⚠️ {uploadError}
+                  </div>
+                )}
               </div>
 
               {uploadResult && (
@@ -414,7 +421,7 @@ function QuestionBank() {
                       <p>Total questions: {uploadResult.data.total}</p>
                       <p>Successfully uploaded: {uploadResult.data.successful}</p>
                       {uploadResult.data.failed > 0 && (
-                        <p>Failed: {uploadResult.data.failed}</p>
+                        <p className="warning-text">Failed: {uploadResult.data.failed}</p>
                       )}
                       {uploadResult.data.errors && uploadResult.data.errors.length > 0 && (
                         <div className="errors-detail">
@@ -423,6 +430,9 @@ function QuestionBank() {
                             {uploadResult.data.errors.slice(0, 5).map((err, i) => (
                               <li key={i}>Line {err.line}: {err.error}</li>
                             ))}
+                            {uploadResult.data.errors.length > 5 && (
+                              <li>... and {uploadResult.data.errors.length - 5} more</li>
+                            )}
                           </ul>
                         </div>
                       )}
@@ -450,6 +460,7 @@ function QuestionBank() {
                     setShowUpload(false);
                     setUploadFile(null);
                     setUploadResult(null);
+                    setUploadError('');
                   }} 
                   className="btn-cancel"
                   disabled={uploading}
