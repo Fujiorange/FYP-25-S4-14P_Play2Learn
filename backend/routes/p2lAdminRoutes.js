@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
 
@@ -15,7 +16,7 @@ const authenticateP2LAdmin = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const db = mongoose.connection.db;
-    const admin = await db.collection('users').findOne({ _id: mongoose.Types.ObjectId(decoded.userId), role: 'p2ladmin' });
+    const admin = await db.collection('users').findOne({ _id: new mongoose.Types.ObjectId(decoded.userId), role: 'p2ladmin' });
     if (!admin) return res.status(403).json({ error: 'Access restricted to P2L Admins' });
 
     req.user = admin;
@@ -65,8 +66,6 @@ router.post('/register-admin', async (req, res) => {
         error: 'Password must be at least 8 characters long' 
       });
     }
-
-    const User = require('../models/User');
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
