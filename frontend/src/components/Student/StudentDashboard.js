@@ -122,6 +122,13 @@ export default function StudentDashboard() {
       action: () => navigate('/student/quiz/attempt'),
     },
     {
+      id: 'adaptive-quiz',
+      title: 'Adaptive Quizzes',
+      description: 'Try quizzes that adapt to your skill level',
+      icon: '🎲',
+      action: () => navigate('/student/adaptive-quizzes'),
+    },
+    {
       id: 'skills',
       title: 'Skill Matrix',
       description: 'See your unlocked math skills',
