@@ -273,20 +273,31 @@ router.post('/bulk-import-students', authenticateSchoolAdmin, upload.single('fil
 
     console.log('\n🔄 Processing students...\n');
 
+    // Get school data once for all operations
+    const schoolData = await School.findById(schoolAdmin.schoolId);
+    if (!schoolData) {
+      throw new Error('School not found');
+    }
+    
+    // Track students created in this batch for atomic update at the end
+    let studentsCreatedCount = 0;
+
     // ✅ FIX: Only create user in 'users' collection, NO separate student profile
     for (const studentData of students) {
       try {
         console.log(`👤 Processing: ${studentData.name} (${studentData.email})`);
         
-        // Check license availability before processing
-        const licenseCheck = await checkLicenseAvailability(schoolAdmin.schoolId, 'Student');
-        if (!licenseCheck.available) {
+        // Check license availability using cached school data
+        const currentStudents = (schoolData.current_students || 0) + studentsCreatedCount;
+        const studentLimit = schoolData.plan_info.student_limit;
+        
+        if (currentStudents >= studentLimit) {
           console.log(`⚠️  License limit reached - stopping bulk import`);
           results.limitReached = true;
           const processedCount = results.created + results.failed;
           results.errors.push({ 
             email: studentData.email || 'unknown', 
-            error: `${licenseCheck.error}. Import stopped at record ${processedCount + 1} of ${students.length}.`
+            error: `Student limit reached (${currentStudents}/${studentLimit}). Import stopped at record ${processedCount + 1} of ${students.length}.`
           });
           // Count remaining unprocessed students as failed
           results.failed += (students.length - processedCount);
@@ -372,19 +383,12 @@ router.post('/bulk-import-students', authenticateSchoolAdmin, upload.single('fil
 
         console.log(`✅ Student created in users collection: ${newUser.email}`);
         results.created++;
-        
-        // Update school's student count
-        const school = await School.findById(schoolAdmin.schoolId);
-        if (school) {
-          school.current_students = (school.current_students || 0) + 1;
-          await school.save();
-        }
+        studentsCreatedCount++; // Track for batch update
 
         // ✅ FIXED: Send credentials email with correct parameter order
         if (studentData.parentEmail) {
           try {
-            const schoolData = await School.findById(schoolAdmin.schoolId);
-            const schoolName = schoolData ? schoolData.organization_name : 'Your School';
+            const schoolName = schoolData.organization_name || 'Your School';
             
             await sendStudentCredentialsToParent(
               newUser,                    // 1. student object (has .name, .email, .class)
@@ -410,6 +414,14 @@ router.post('/bulk-import-students', authenticateSchoolAdmin, upload.single('fil
           error: error.message 
         });
       }
+    }
+
+    // Atomic update of school's student count for all created students
+    if (studentsCreatedCount > 0) {
+      await School.findByIdAndUpdate(
+        schoolAdmin.schoolId,
+        { $inc: { current_students: studentsCreatedCount } }
+      );
     }
 
     fs.unlinkSync(req.file.path);
@@ -487,17 +499,28 @@ router.post('/bulk-import-teachers', authenticateSchoolAdmin, upload.single('fil
         .on('error', reject);
     });
 
+    // Get school data once for all operations
+    const schoolData = await School.findById(schoolAdmin.schoolId);
+    if (!schoolData) {
+      throw new Error('School not found');
+    }
+    
+    // Track teachers created in this batch for atomic update at the end
+    let teachersCreatedCount = 0;
+
     for (const teacherData of teachers) {
       try {
-        // Check license availability before processing
-        const licenseCheck = await checkLicenseAvailability(schoolAdmin.schoolId, 'Teacher');
-        if (!licenseCheck.available) {
+        // Check license availability using cached school data
+        const currentTeachers = (schoolData.current_teachers || 0) + teachersCreatedCount;
+        const teacherLimit = schoolData.plan_info.teacher_limit;
+        
+        if (currentTeachers >= teacherLimit) {
           console.log(`⚠️  License limit reached - stopping bulk import`);
           results.limitReached = true;
           const processedCount = results.created + results.failed;
           results.errors.push({ 
             email: teacherData.email || 'unknown', 
-            error: `${licenseCheck.error}. Import stopped at record ${processedCount + 1} of ${teachers.length}.`
+            error: `Teacher limit reached (${currentTeachers}/${teacherLimit}). Import stopped at record ${processedCount + 1} of ${teachers.length}.`
           });
           // Count remaining unprocessed teachers as failed
           results.failed += (teachers.length - processedCount);
@@ -542,17 +565,10 @@ router.post('/bulk-import-teachers', authenticateSchoolAdmin, upload.single('fil
 
         console.log(`✅ Teacher created: ${newTeacher.email}`);
         results.created++;
-        
-        // Update school's teacher count
-        const school = await School.findById(schoolAdmin.schoolId);
-        if (school) {
-          school.current_teachers = (school.current_teachers || 0) + 1;
-          await school.save();
-        }
+        teachersCreatedCount++; // Track for batch update
 
         try {
-          const schoolData = await School.findById(schoolAdmin.schoolId);
-          const schoolName = schoolData ? schoolData.organization_name : 'Your School';
+          const schoolName = schoolData.organization_name || 'Your School';
           
           await sendTeacherWelcomeEmail(
             newTeacher,
@@ -573,6 +589,14 @@ router.post('/bulk-import-teachers', authenticateSchoolAdmin, upload.single('fil
           error: error.message 
         });
       }
+    }
+
+    // Atomic update of school's teacher count for all created teachers
+    if (teachersCreatedCount > 0) {
+      await School.findByIdAndUpdate(
+        schoolAdmin.schoolId,
+        { $inc: { current_teachers: teachersCreatedCount } }
+      );
     }
 
     fs.unlinkSync(req.file.path);
@@ -952,17 +976,13 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
       createdBy: 'school-admin',
     });
     
-    // Update school's current teacher/student count
+    // Update school's current teacher/student count using atomic increment
     if (role === 'Teacher' || role === 'Student') {
-      const school = await School.findById(schoolAdmin.schoolId);
-      if (school) {
-        if (role === 'Teacher') {
-          school.current_teachers = (school.current_teachers || 0) + 1;
-        } else if (role === 'Student') {
-          school.current_students = (school.current_students || 0) + 1;
-        }
-        await school.save();
-      }
+      const incrementField = role === 'Teacher' ? 'current_teachers' : 'current_students';
+      await School.findByIdAndUpdate(
+        schoolAdmin.schoolId,
+        { $inc: { [incrementField]: 1 } }
+      );
     }
     
     // Send credentials via email
