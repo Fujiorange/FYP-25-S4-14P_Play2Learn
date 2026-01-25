@@ -918,7 +918,18 @@ router.post('/quizzes/generate-adaptive', authenticateP2LAdmin, async (req, res)
     const questions = [];
     const missingQuestions = [];
     
-    // First, check availability for all difficulty levels
+    // First, check if there are ANY questions in the database
+    const totalQuestions = await Question.countDocuments({ is_active: true });
+    if (totalQuestions === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No active questions found in the question bank. Please add questions before creating a quiz.',
+        suggestion: 'You can add questions by: (1) Using the Question Bank page in P2L Admin, (2) Uploading a CSV file, or (3) Running the seed script: node backend/seed-questions.js',
+        totalQuestions: 0
+      });
+    }
+    
+    // Check availability for all difficulty levels
     for (const [difficulty, count] of Object.entries(difficulty_distribution)) {
       const diff = parseInt(difficulty);
       const questionCount = parseInt(count);
@@ -949,7 +960,9 @@ router.post('/quizzes/generate-adaptive', authenticateP2LAdmin, async (req, res)
       return res.status(400).json({ 
         success: false, 
         error: `Not enough active questions in question bank. ${errorDetails}. Please add more questions or adjust your quiz configuration.`,
-        missingQuestions
+        suggestion: 'Add more questions at the required difficulty levels using the Question Bank page, or reduce the number of questions requested for each difficulty level.',
+        missingQuestions,
+        totalQuestions
       });
     }
     
