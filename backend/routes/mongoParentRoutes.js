@@ -1,6 +1,8 @@
-// backend/routes/mongoParentRoutes.js - COMPLETE & CORRECTED
-// ✅ CRITICAL FIX: Now reads from MathSkill and MathProfile collections (where student actually saves!)
-// ✅ Includes ALL Phase 1, Phase 2, and Phase 2.5 endpoints
+// backend/routes/mongoParentRoutes.js - COMPLETE WITH REAL PERFORMANCE DATA
+// ✅ Phase 1: Dashboard, Children, Support Tickets
+// ✅ Phase 2: Testimonials, Feedback, Performance (UPDATED), Progress
+// ✅ Phase 2.5: Skill Matrix
+// ✅ Phase 2.7: Performance Report with REAL DATA (NEW)
 
 const express = require('express');
 const router = express.Router();
@@ -10,7 +12,7 @@ const mongoose = require('mongoose');
 const User = mongoose.model('User');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
 
-// ==================== MATHSKILL SCHEMA (CRITICAL - SAME AS STUDENT ROUTES) ====================
+// ==================== MATHSKILL SCHEMA ====================
 if (!mongoose.models.MathSkill) {
   const mathSkillSchema = new mongoose.Schema({
     student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -26,7 +28,7 @@ if (!mongoose.models.MathSkill) {
 
 const MathSkill = mongoose.model('MathSkill');
 
-// ==================== MATHPROFILE SCHEMA (FOR CURRENTPROFILE) ====================
+// ==================== MATHPROFILE SCHEMA ====================
 if (!mongoose.models.MathProfile) {
   const mathProfileSchema = new mongoose.Schema({
     student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -44,6 +46,24 @@ if (!mongoose.models.MathProfile) {
 }
 
 const MathProfile = mongoose.model('MathProfile');
+
+// ==================== QUIZ SCHEMA (NEW FOR PHASE 2.7) ====================
+if (!mongoose.models.Quiz) {
+  const quizSchema = new mongoose.Schema({
+    student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    quiz_id: { type: String, required: true },
+    quiz_type: { type: String, enum: ['placement', 'regular'], default: 'regular' },
+    profile_level: { type: Number, required: true },
+    score: { type: Number, required: true },
+    total_questions: { type: Number, required: true },
+    percentage: { type: Number, required: true },
+    points_earned: { type: Number, default: 0 },
+    completed_at: { type: Date, default: Date.now }
+  });
+  mongoose.model('Quiz', quizSchema);
+}
+
+const Quiz = mongoose.model('Quiz');
 
 // ==================== SUPPORT TICKET SCHEMA ====================
 const supportTicketSchema = new mongoose.Schema({
@@ -97,7 +117,7 @@ const feedbackSchema = new mongoose.Schema({
 
 const Feedback = mongoose.models.Feedback || mongoose.model('Feedback', feedbackSchema);
 
-// ==================== INLINE JWT AUTH MIDDLEWARE ====================
+// ==================== JWT AUTH MIDDLEWARE ====================
 const authenticateParent = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -657,9 +677,14 @@ router.put('/feedback/:feedbackId/mark-read', authenticateParent, async (req, re
 // PERFORMANCE ENDPOINTS (PHASE 2)
 // ========================================
 
+
+// ==================== PERFORMANCE ENDPOINT (PHASE 2.7 - REAL DATA) ====================
+
 router.get('/child/:studentId/performance', authenticateParent, async (req, res) => {
   try {
     const { studentId } = req.params;
+
+    console.log('📊 Parent requesting performance for student:', studentId);
 
     const parent = await User.findById(req.user.userId);
     
@@ -689,6 +714,47 @@ router.get('/child/:studentId/performance', authenticateParent, async (req, res)
         error: 'Student not found'
       });
     }
+
+    // ✅ FETCH REAL DATA FROM DATABASE
+    
+    // 1. Get Math Profile (for current_profile, streak, total_points)
+    const mathProfile = await MathProfile.findOne({ student_id: studentId });
+    
+    const currentProfile = mathProfile?.current_profile || 1;
+    const streak = mathProfile?.streak || 0;
+    const totalPoints = mathProfile?.total_points || 0;
+
+    console.log('📊 MathProfile data:', { currentProfile, streak, totalPoints });
+
+    // 2. Get Quiz Results (for totalQuizzes, highestScore, recentQuizzes)
+    const quizzes = await Quiz.find({ 
+      student_id: studentId,
+      quiz_type: 'regular'
+    }).sort({ completed_at: -1 });
+
+    const totalQuizzes = quizzes.length;
+
+    let highestScore = 0;
+    if (quizzes.length > 0) {
+      highestScore = Math.max(...quizzes.map(q => q.percentage || 0));
+    }
+
+    console.log('📊 Quiz data:', { totalQuizzes, highestScore });
+
+    // 3. Get recent quiz attempts for display (last 10)
+    const recentQuizzes = quizzes.slice(0, 10).map(quiz => ({
+      date: quiz.completed_at.toLocaleDateString('en-SG', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }),
+      profile: quiz.profile_level,
+      score: quiz.score,
+      total: quiz.total_questions,
+      percentage: quiz.percentage
+    }));
+
+    console.log('✅ Sending performance data to parent');
 
     res.json({
       success: true,
@@ -699,37 +765,18 @@ router.get('/child/:studentId/performance', authenticateParent, async (req, res)
         gradeLevel: student.gradeLevel
       },
       performance: {
-        overallScore: 0,
-        overallGrade: 'N/A',
-        subjects: [
-          {
-            name: 'Mathematics',
-            score: 0,
-            grade: 'N/A',
-            progress: 'stable',
-            quizzesCompleted: 0,
-            averageTime: 'N/A',
-            strengths: [],
-            weaknesses: []
-          },
-          {
-            name: 'English',
-            score: 0,
-            grade: 'N/A',
-            progress: 'stable',
-            quizzesCompleted: 0,
-            averageTime: 'N/A',
-            strengths: [],
-            weaknesses: []
-          }
-        ],
-        recentQuizzes: [],
-        message: 'Performance data will be available once student completes quizzes'
+        currentProfile: currentProfile,
+        totalQuizzes: totalQuizzes,
+        highestScore: highestScore,
+        streak: streak,
+        totalPoints: totalPoints,
+        recentQuizzes: recentQuizzes,
+        message: totalQuizzes === 0 ? 'Performance data will be available once student completes quizzes' : undefined
       }
     });
 
   } catch (error) {
-    console.error('Error fetching child performance:', error);
+    console.error('❌ Error fetching child performance:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to load child performance',
@@ -738,6 +785,7 @@ router.get('/child/:studentId/performance', authenticateParent, async (req, res)
   }
 });
 
+
 // ========================================
 // PROGRESS ENDPOINTS (PHASE 2)
 // ========================================
@@ -745,6 +793,8 @@ router.get('/child/:studentId/performance', authenticateParent, async (req, res)
 router.get('/child/:studentId/progress', authenticateParent, async (req, res) => {
   try {
     const { studentId } = req.params;
+
+    console.log('📈 Parent requesting progress for student:', studentId);
 
     const parent = await User.findById(req.user.userId);
     
@@ -775,6 +825,41 @@ router.get('/child/:studentId/progress', authenticateParent, async (req, res) =>
       });
     }
 
+    // ✅ FETCH REAL DATA FROM DATABASE
+    
+    // Get Math Profile data
+    const mathProfile = await MathProfile.findOne({ student_id: studentId });
+    
+    const currentLevel = mathProfile?.current_profile || 1;
+    const totalPoints = mathProfile?.total_points || 0;
+    const streak = mathProfile?.streak || 0;
+
+    // Get recent quiz attempts (last 10 for activities)
+    const recentQuizzes = await Quiz.find({ 
+      student_id: studentId,
+      quiz_type: 'regular'
+    })
+    .sort({ completed_at: -1 })
+    .limit(10);
+
+    console.log('📈 Found', recentQuizzes.length, 'recent quizzes');
+
+    // Format quiz data as "activities"
+    const recentActivities = recentQuizzes.map(quiz => {
+      const percentage = quiz.percentage || 0;
+      const scoreEmoji = percentage >= 70 ? '🎉' : percentage >= 50 ? '📝' : '📚';
+      
+      return {
+        description: `${scoreEmoji} Completed Profile ${quiz.profile_level} Quiz - Score: ${quiz.score}/${quiz.total_questions} (${percentage}%)`,
+        timestamp: quiz.completed_at
+      };
+    });
+
+    // Calculate overall progress (simple percentage based on profile level)
+    const overallProgress = Math.round((currentLevel / 10) * 100);
+
+    console.log('✅ Sending progress data with', recentActivities.length, 'activities');
+
     res.json({
       success: true,
       student: {
@@ -784,37 +869,18 @@ router.get('/child/:studentId/progress', authenticateParent, async (req, res) =>
         gradeLevel: student.gradeLevel
       },
       progress: {
-        overallProgress: 0,
-        currentLevel: 1,
-        totalPoints: 0,
-        streak: 0,
-        subjects: [
-          {
-            name: 'Mathematics',
-            currentLevel: 1,
-            points: 0,
-            progress: 0,
-            completedTopics: 0,
-            totalTopics: 10
-          },
-          {
-            name: 'English',
-            currentLevel: 1,
-            points: 0,
-            progress: 0,
-            completedTopics: 0,
-            totalTopics: 10
-          }
-        ],
+        overallProgress: overallProgress,
+        currentLevel: currentLevel,
+        totalPoints: totalPoints,
+        streak: streak,
         achievements: [],
-        recentActivities: [],
-        goalsProgress: [],
-        message: 'Progress data will be available once student completes quizzes'
+        recentActivities: recentActivities,
+        message: recentActivities.length === 0 ? 'Progress data will be available once student completes quizzes' : undefined
       }
     });
 
   } catch (error) {
-    console.error('Error fetching child progress:', error);
+    console.error('❌ Error fetching child progress:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to load child progress',
@@ -822,6 +888,7 @@ router.get('/child/:studentId/progress', authenticateParent, async (req, res) =>
     });
   }
 });
+
 
 // ========================================
 // SKILL MATRIX ENDPOINT - CORRECTED VERSION (PHASE 2.5)

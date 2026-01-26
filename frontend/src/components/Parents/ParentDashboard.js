@@ -197,7 +197,7 @@ export default function ParentDashboard() {
         <div style={styles.headerContent}>
           <div style={styles.logo}>
             <div style={styles.logoIcon}>P</div>
-            <span style={styles.logoText}>Play2Learn - Primary 1 Mathematics</span>
+            <span style={styles.logoText}>Play2Learn</span>
           </div>
           <div style={styles.headerRight}>
             <div style={styles.userInfo}>
