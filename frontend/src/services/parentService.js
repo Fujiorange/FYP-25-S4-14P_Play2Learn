@@ -267,7 +267,17 @@ const parentService = {
   isParentAuthenticated() {
     const user = this.getParentProfile();
     const token = localStorage.getItem('token');
-    return !!(user && token);
+    
+    if (!user || !token) return false;
+    
+    // Check token expiration
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const isExpired = Date.now() >= payload.exp * 1000;
+      return !isExpired;
+    } catch {
+      return false;
+    }
   },
 };
 
