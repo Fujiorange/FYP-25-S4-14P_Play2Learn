@@ -846,7 +846,34 @@ router.get("/leaderboard", async (req, res) => {
   try {
     const currentUserId = req.user.userId;
     
-    const students = await MathProfile.find()
+    // Get current user's class
+    const currentUser = await User.findById(currentUserId);
+    if (!currentUser) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    const userClass = currentUser.class;
+
+    // If user has no class, return empty leaderboard
+    if (!userClass) {
+      return res.json({
+        success: true,
+        leaderboard: [],
+      });
+    }
+
+    // Find all students in the same class
+    const studentsInClass = await User.find({
+      class: userClass,
+      role: { $in: ['student', 'Student'] }, // Case-insensitive role check
+    });
+
+    const studentIds = studentsInClass.map((s) => s._id);
+
+    // Get math profiles for students in the same class
+    const students = await MathProfile.find({
+      student_id: { $in: studentIds },
+    })
       .populate("student_id", "name email")
       .sort({ total_points: -1 })
       .limit(20);

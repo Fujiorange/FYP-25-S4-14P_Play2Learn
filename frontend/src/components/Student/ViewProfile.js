@@ -129,10 +129,10 @@ export default function ViewProfile() {
       }
 
       try {
-        // Load user profile
-        const profileResult = await studentService.getProfile();
-        if (profileResult.success) {
-          setUser(profileResult.user);
+        // Get fresh user data from server (includes accountActive field)
+        const result = await authService.getCurrentUserFromServer();
+        if (result.success && result.user) {
+          setUser(result.user);
         } else {
           const currentUser = authService.getCurrentUser();
           setUser(currentUser);
@@ -233,7 +233,7 @@ export default function ViewProfile() {
             <div style={styles.infoItem}>
               <div style={styles.label}>Account Status</div>
               <div style={styles.value}>
-                {user?.is_active ? '✅ Active' : '❌ Inactive'}
+                {user?.accountActive ? '✅ Active' : '❌ Inactive'}
               </div>
             </div>
             {user?.points !== undefined && (
