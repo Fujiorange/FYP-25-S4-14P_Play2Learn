@@ -50,12 +50,28 @@ export default function StudentDashboard() {
 
           const gradeLevel = dashboardInfo.gradeLevel ?? 'Primary 1';
 
+          // Fetch leaderboard to get user's rank
+          let userRank = '#-';
+          try {
+            const leaderboardData = await studentService.getLeaderboard();
+            if (leaderboardData.success && leaderboardData.leaderboard) {
+              const currentUserRank = leaderboardData.leaderboard.find(
+                (entry) => entry.isCurrentUser
+              );
+              if (currentUserRank) {
+                userRank = `#${currentUserRank.rank}`;
+              }
+            }
+          } catch (leaderboardError) {
+            console.warn('⚠️ Could not fetch leaderboard:', leaderboardError);
+          }
+
           setDashboardData({
             points,
             level,
             levelProgress: ((points % 500) / 500) * 100,
             achievements: dashboardInfo.achievements?.length || 0,
-            rank: '#-',
+            rank: userRank,
             completedQuizzes,
             grade_level: gradeLevel,
           });
@@ -200,7 +216,7 @@ export default function StudentDashboard() {
     },
     {
       id: 'rank',
-      title: 'Class Rank',
+      title: 'Leaderboard Rank',
       value: dashboardData.rank,
       icon: '🏆',
     },
