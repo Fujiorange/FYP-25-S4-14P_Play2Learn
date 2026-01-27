@@ -246,13 +246,27 @@ router.post('/bulk-import-students', upload.single('file'), async (req, res) => 
             const dateStr = studentData.dateOfBirth.trim();
             
             if (dateStr.includes('-')) {
+              // YYYY-MM-DD format
               parsedDateOfBirth = new Date(dateStr);
             } else if (dateStr.includes('/')) {
               const parts = dateStr.split('/');
               if (parts.length === 3) {
-                const day = parseInt(parts[0]);
-                const month = parseInt(parts[1]) - 1;
-                const year = parseInt(parts[2]);
+                // Support both M/D/YYYY and DD/MM/YYYY formats
+                // If first part > 12, assume it's DD/MM/YYYY, otherwise M/D/YYYY
+                let month, day, year;
+                
+                if (parseInt(parts[0]) > 12) {
+                  // DD/MM/YYYY format
+                  day = parseInt(parts[0]);
+                  month = parseInt(parts[1]) - 1;
+                  year = parseInt(parts[2]);
+                } else {
+                  // M/D/YYYY format (US style)
+                  month = parseInt(parts[0]) - 1;
+                  day = parseInt(parts[1]);
+                  year = parseInt(parts[2]);
+                }
+                
                 parsedDateOfBirth = new Date(year, month, day);
               }
             }
@@ -278,7 +292,7 @@ router.post('/bulk-import-students', upload.single('file'), async (req, res) => 
           parentEmail: studentData.parentEmail?.toLowerCase().trim() || null,
           contact: studentData.contact?.trim() || null,
           gender: studentData.gender?.trim() || null,
-          dateOfBirth: parsedDateOfBirth,
+          date_of_birth: parsedDateOfBirth,
           emailVerified: true,
           accountActive: true,
           createdBy: 'school-admin',
@@ -487,7 +501,9 @@ router.post('/bulk-import-parents', upload.single('file'), async (req, res) => {
             parentName: row.ParentName || row.parentName || row['Parent Name'] || '',
             parentEmail: row.ParentEmail || row.parentEmail || row['Parent Email'] || '',
             studentEmail: row.StudentEmail || row.studentEmail || row['Student Email'] || '',
-            relationship: row.Relationship || row.relationship || 'Parent'
+            relationship: row.Relationship || row.relationship || 'Parent',
+            contactNumber: row.ContactNumber || row.contactNumber || row['Contact Number'] || row.contact || '',
+            gender: row.Gender || row.gender || ''
           });
         })
         .on('end', () => {
@@ -643,6 +659,8 @@ router.post('/bulk-import-parents', upload.single('file'), async (req, res) => {
           email: parentData.parentEmail.toLowerCase().trim(),
           password: hashedPassword,
           role: 'Parent',
+          contact: parentData.contactNumber?.trim() || null,
+          gender: parentData.gender?.trim() || null,
           linkedStudents: [
             {
               studentId: student._id,
