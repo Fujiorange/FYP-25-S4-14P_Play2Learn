@@ -31,6 +31,15 @@
    - Go to "Environment" tab
 
 2. **Add These Environment Variables**:
+   
+   **Core Application Variables (REQUIRED):**
+   ```
+   MONGODB_URI=your-mongodb-connection-string
+   JWT_SECRET=your-random-secret-key-at-least-32-characters
+   NODE_ENV=production
+   ```
+   
+   **Email Service Variables (REQUIRED for user account creation):**
    ```
    EMAIL_HOST=smtp.gmail.com
    EMAIL_PORT=587

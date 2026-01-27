@@ -74,16 +74,33 @@ FRONTEND_URL=https://your-frontend-app.onrender.com
 
 ### 3. Other Required Environment Variables
 
-Make sure you also set:
+Make sure you also set these **CRITICAL** environment variables:
 
 ```
+# Required for MongoDB connection
+MONGODB_URI=your-mongodb-connection-string
+
+# Required for JWT authentication (MUST be set in production)
+JWT_SECRET=your-random-secret-key-at-least-32-characters-long
+
+# Recommended - set to 'production' for production deployments
+NODE_ENV=production
+
+# Optional - only needed if using MySQL (most deployments use MongoDB only)
 DB_HOST=your-database-host
 DB_USER=your-database-user
 DB_PASSWORD=your-database-password
 DB_NAME=play2learn
-MONGODB_URI=your-mongodb-connection-string
+
+# Optional - Port (default is 5000)
 PORT=5000
 ```
+
+**Important Notes:**
+- `JWT_SECRET` should be a strong, random string (at least 32 characters)
+- Generate a secure JWT_SECRET using: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- Never use the default JWT_SECRET in production
+- `MONGODB_URI` format: `mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority`
 
 ### 4. Deploy
 

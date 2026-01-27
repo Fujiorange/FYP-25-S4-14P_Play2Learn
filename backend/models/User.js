@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema({
 
   role: {
     type: String,
+    // Note: 'school-admin' is the standard. 'School Admin' kept for backwards compatibility.
+    // TODO: Migrate existing 'School Admin' users to 'school-admin' and remove 'School Admin' from enum
     enum: ['Platform Admin', 'p2ladmin', 'School Admin', 'school-admin', 'Teacher', 'Student', 'Parent', 'Trial Student', 'Trial Teacher'],
     required: true,
   },
