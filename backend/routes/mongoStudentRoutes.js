@@ -496,7 +496,9 @@ router.post("/placement-quiz/generate", async (req, res) => {
       });
     }
 
-    const profile = 5;
+    // Use profile 7 for placement quiz to include all 4 operations (+ - * /)
+    // This properly assesses student's full math capabilities
+    const profile = 7;
     const cfg = getProfileConfig(profile);
     const opSeq = buildOperationSequence(profile);
     const questions = opSeq.map((op) => generateQuestion(cfg.range, op));
