@@ -1,6 +1,96 @@
-# School Admin Creation Fix - Visual Guide
+# School Admin Creation & JWT Authentication Fixes - Visual Guide
 
-## The Problem
+## Critical Issues Fixed
+
+### Issue 1: JWT_SECRET Mismatch (NEW - Authentication Failures)
+### Issue 2: School Admin Role Mismatch (Creation Failures)
+
+---
+
+## Issue 1: JWT_SECRET Mismatch - CRITICAL
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ BEFORE FIX - JWT Token Verification Failures                │
+└─────────────────────────────────────────────────────────────┘
+
+Step 1: User Logs In
+┌──────────────────────────────────────────┐
+│ POST /api/auth/login                     │
+│ mongoAuthRoutes.js                       │
+│                                          │
+│ JWT_SECRET = 'dev-secret-...'            │
+│                                          │
+│ jwt.sign(payload, JWT_SECRET)            │
+│ Returns token signed with:               │
+│ 'dev-secret-change-this-in-production'   │
+└──────────────────────────────────────────┘
+                ↓
+┌──────────────────────────────────────────┐
+│ Token: eyJhbGc...                        │
+│ (signed with 'dev-secret-...')           │
+└──────────────────────────────────────────┘
+
+Step 2: User Accesses School Admin Route
+┌──────────────────────────────────────────┐
+│ GET /api/school-admin/dashboard          │
+│ schoolAdminRoutes.js                     │
+│                                          │
+│ JWT_SECRET = 'your-secret-key-...' ❌    │
+│                                          │
+│ jwt.verify(token, JWT_SECRET)            │
+│                                          │
+│ Token signed with: 'dev-secret-...'      │
+│ Verifying with:    'your-secret-key...'  │
+│                                          │
+│ MISMATCH! ❌                             │
+│ Returns: "Invalid token"                 │
+└──────────────────────────────────────────┘
+```
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ AFTER FIX - JWT Token Verification Success                  │
+└─────────────────────────────────────────────────────────────┘
+
+Step 1: User Logs In
+┌──────────────────────────────────────────┐
+│ POST /api/auth/login                     │
+│ mongoAuthRoutes.js                       │
+│                                          │
+│ JWT_SECRET = 'dev-secret-...' ✅         │
+│                                          │
+│ jwt.sign(payload, JWT_SECRET)            │
+│ Returns token signed with:               │
+│ 'dev-secret-change-this-in-production'   │
+└──────────────────────────────────────────┘
+                ↓
+┌──────────────────────────────────────────┐
+│ Token: eyJhbGc...                        │
+│ (signed with 'dev-secret-...')           │
+└──────────────────────────────────────────┘
+
+Step 2: User Accesses School Admin Route
+┌──────────────────────────────────────────┐
+│ GET /api/school-admin/dashboard          │
+│ schoolAdminRoutes.js                     │
+│                                          │
+│ JWT_SECRET = 'dev-secret-...' ✅         │
+│                                          │
+│ jwt.verify(token, JWT_SECRET)            │
+│                                          │
+│ Token signed with: 'dev-secret-...'      │
+│ Verifying with:    'dev-secret-...'      │
+│                                          │
+│ MATCH! ✅                                │
+│ Returns: decoded user data               │
+│ ✅ ACCESS GRANTED!                       │
+└──────────────────────────────────────────┘
+```
+
+---
+
+## Issue 2: School Admin Role Mismatch
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -100,7 +190,30 @@ Step 3: School Admin Accesses Features
 
 ## Code Changes
 
-### 1. User Model (backend/models/User.js)
+### 1. JWT_SECRET Consistency (CRITICAL FIX)
+
+#### mongoP2LRoutes.js & schoolAdminRoutes.js
+```javascript
+// BEFORE (BROKEN - Different secrets!)
+// mongoP2LRoutes.js:
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+
+// schoolAdminRoutes.js:
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+
+// server.js & other routes:
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
+
+// Result: Tokens signed with one secret couldn't be verified with another ❌
+
+// AFTER (FIXED - Same secret everywhere!)
+// ALL FILES NOW USE:
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
+
+// Result: All routes can verify tokens from any route ✅
+```
+
+### 2. User Model (backend/models/User.js)
 ```javascript
 // BEFORE
 enum: ['Platform Admin', 'p2ladmin', 'School Admin', 'Teacher', ...]
@@ -213,19 +326,51 @@ Step 3: Create Quiz
 ## Summary
 
 ### What Was Broken:
+❌ JWT_SECRET mismatch (authentication failures across routes)
 ❌ School admin creation (role mismatch)
 
 ### What Was Already Working:
 ✅ Adaptive quiz question source (uses question bank)
 
 ### What Was Fixed:
+✅ JWT_SECRET now consistent across all 7 backend files
 ✅ School admin role now uses 'school-admin' consistently
 ✅ Authentication now works for newly created school admins
+✅ Cross-route authentication now works (same token across all routes)
 ✅ Backwards compatibility maintained with enum dual values
 ✅ Comprehensive documentation added
+
+### Critical Fixes Detail:
+
+**JWT_SECRET Mismatch Fix:**
+- **Files Updated**: mongoP2LRoutes.js, schoolAdminRoutes.js
+- **Before**: 2 different default JWT secrets
+- **After**: All files use `'dev-secret-change-this-in-production'`
+- **Impact**: Tokens now work across all routes
+
+**Role Mismatch Fix:**
+- **Files Updated**: User.js, p2lAdminRoutes.js, mongoAuthRoutes.js, schoolAdminRoutes.js
+- **Before**: Created with 'School Admin', authenticated with 'school-admin'
+- **After**: Standardized on 'school-admin'
+- **Impact**: School admins can now login and access features
 
 ### What You Need to Do:
 1. ✅ Merge this PR
 2. ✅ Verify school admin creation works
-3. ✅ Add email environment variables in Render (if needed)
-4. ✅ Celebrate! 🎉
+3. ✅ Verify school admin can login (JWT authentication)
+4. ✅ Verify school admin can access school admin features
+5. ✅ Add email environment variables in Render (if needed)
+6. ✅ Celebrate! 🎉
+
+### Environment Variables Reminder:
+In production (Render), **always set** JWT_SECRET environment variable:
+```bash
+JWT_SECRET=your-strong-random-secret-at-least-32-characters
+```
+
+Generate one using:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**Never rely on default JWT_SECRET values in production!**
