@@ -7,14 +7,18 @@ export default function ManageClasses() {
   const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [allStudents, setAllStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
+  const [classStudents, setClassStudents] = useState([]);
   const [formData, setFormData] = useState({ name: '', teacherId: '' });
   const [message, setMessage] = useState({ type: '', text: '' });
   const [saving, setSaving] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -31,16 +35,20 @@ export default function ManageClasses() {
 
   const loadData = async () => {
     try {
-      const [classesResult, usersResult] = await Promise.all([
+      const [classesResult, teachersResult, studentsResult] = await Promise.all([
         schoolAdminService.getClasses(),
-        schoolAdminService.getUsers({ role: 'teacher' })
+        schoolAdminService.getUsers({ role: 'teacher' }),
+        schoolAdminService.getUsers({ role: 'student' })
       ]);
 
       if (classesResult.success) {
         setClasses(classesResult.classes || []);
       }
-      if (usersResult.success) {
-        setTeachers(usersResult.users || []);
+      if (teachersResult.success) {
+        setTeachers(teachersResult.users || []);
+      }
+      if (studentsResult.success) {
+        setAllStudents(studentsResult.users || []);
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -87,6 +95,13 @@ export default function ManageClasses() {
       teacherId: cls.teacherId || '' 
     });
     setShowEditModal(true);
+  };
+
+  const openStudentsModal = (cls) => {
+    setSelectedClass(cls);
+    const students = allStudents.filter(s => s.class === cls.name);
+    setClassStudents(students);
+    setShowStudentsModal(true);
   };
 
   const handleUpdateClass = async () => {
@@ -162,6 +177,62 @@ export default function ManageClasses() {
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
+  // Add student to class
+  const handleAddStudentToClass = async (studentId) => {
+    try {
+      const result = await schoolAdminService.updateUser(studentId, {
+        class: selectedClass.name
+      });
+
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Student added to class!' });
+        await loadData();
+        // Refresh modal students
+        setTimeout(() => {
+          const updatedStudents = allStudents.map(s => 
+            s._id === studentId ? { ...s, class: selectedClass.name } : s
+          );
+          setClassStudents(updatedStudents.filter(s => s.class === selectedClass.name));
+        }, 100);
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to add student' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to add student' });
+    }
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  };
+
+  // Remove student from class
+  const handleRemoveStudentFromClass = async (studentId) => {
+    if (!window.confirm('Remove this student from the class?')) return;
+
+    try {
+      const result = await schoolAdminService.updateUser(studentId, {
+        class: null
+      });
+
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Student removed from class!' });
+        await loadData();
+        setClassStudents(prev => prev.filter(s => s._id !== studentId));
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Failed to remove student' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to remove student' });
+    }
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+  };
+
+  // Get students not in this class for adding
+  const availableStudents = allStudents.filter(s => 
+    s.class !== selectedClass?.name &&
+    (studentSearch === '' || 
+     s.name?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+     s.email?.toLowerCase().includes(studentSearch.toLowerCase()))
+  );
+
   const styles = {
     container: { minHeight: '100vh', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
     header: { background: 'white', borderBottom: '1px solid #e5e7eb', padding: '16px 0' },
@@ -170,7 +241,7 @@ export default function ManageClasses() {
     logoIcon: { width: '40px', height: '40px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '18px' },
     logoText: { fontSize: '20px', fontWeight: '700', color: '#1f2937' },
     backButton: { padding: '8px 16px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-    main: { maxWidth: '1200px', margin: '0 auto', padding: '32px' },
+    main: { maxWidth: '1400px', margin: '0 auto', padding: '32px' },
     pageTitle: { fontSize: '28px', fontWeight: '700', color: '#1f2937', marginBottom: '8px' },
     pageSubtitle: { fontSize: '15px', color: '#6b7280', marginBottom: '32px' },
     card: { background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
@@ -185,10 +256,10 @@ export default function ManageClasses() {
     teacherNone: { background: '#fee2e2', color: '#991b1b' },
     actionBtn: { padding: '6px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px', marginRight: '8px' },
     editBtn: { background: '#dbeafe', color: '#1e40af' },
-    removeBtn: { background: '#fef3c7', color: '#92400e' },
+    studentsBtn: { background: '#f3e8ff', color: '#7c3aed' },
     deleteBtn: { background: '#fee2e2', color: '#dc2626' },
     modal: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-    modalContent: { background: 'white', borderRadius: '12px', padding: '32px', maxWidth: '500px', width: '90%' },
+    modalContent: { background: 'white', borderRadius: '12px', padding: '32px', maxWidth: '600px', width: '90%', maxHeight: '80vh', overflow: 'auto' },
     modalTitle: { fontSize: '20px', fontWeight: '700', color: '#1f2937', marginBottom: '24px' },
     label: { fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px', display: 'block' },
     input: { width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', background: '#f9fafb', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: '16px' },
@@ -202,7 +273,10 @@ export default function ManageClasses() {
     successMessage: { background: '#f0fdf4', border: '2px solid #bbf7d0', color: '#16a34a' },
     errorMessage: { background: '#fef2f2', border: '2px solid #fecaca', color: '#dc2626' },
     note: { fontSize: '13px', color: '#6b7280', marginTop: '-12px', marginBottom: '16px', fontStyle: 'italic' },
-    emptyState: { textAlign: 'center', padding: '60px', color: '#9ca3af' }
+    emptyState: { textAlign: 'center', padding: '60px', color: '#9ca3af' },
+    studentItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: '#f9fafb', borderRadius: '8px', marginBottom: '8px' },
+    addStudentBtn: { padding: '4px 12px', background: '#d1fae5', color: '#065f46', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '12px' },
+    removeStudentBtn: { padding: '4px 12px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '12px' }
   };
 
   if (loading) {
@@ -229,7 +303,7 @@ export default function ManageClasses() {
 
       <main style={styles.main}>
         <h1 style={styles.pageTitle}>📚 Manage Classes</h1>
-        <p style={styles.pageSubtitle}>Create classes, assign teachers, and manage class settings</p>
+        <p style={styles.pageSubtitle}>Create classes, assign teachers, and manage students</p>
 
         <div style={styles.card}>
           {message.text && (
@@ -273,7 +347,9 @@ export default function ManageClasses() {
                       <span style={styles.badge}>{cls.grade || 'Primary 1'}</span>
                     </td>
                     <td style={styles.td}>{cls.subject || 'Mathematics'}</td>
-                    <td style={styles.td}>{cls.studentCount || 0}</td>
+                    <td style={styles.td}>
+                      <span style={{ fontWeight: '600', color: '#7c3aed' }}>{cls.studentCount || 0}</span>
+                    </td>
                     <td style={styles.td}>
                       {cls.teacherId && cls.teacherName ? (
                         <span style={{ ...styles.teacherBadge, ...styles.teacherAssigned }}>
@@ -294,6 +370,12 @@ export default function ManageClasses() {
                     </td>
                     <td style={styles.td}>
                       <button 
+                        style={{ ...styles.actionBtn, ...styles.studentsBtn }} 
+                        onClick={() => openStudentsModal(cls)}
+                      >
+                        👥 Students
+                      </button>
+                      <button 
                         style={{ ...styles.actionBtn, ...styles.editBtn }} 
                         onClick={() => openEditModal(cls)}
                       >
@@ -303,7 +385,7 @@ export default function ManageClasses() {
                         style={{ ...styles.actionBtn, ...styles.deleteBtn }} 
                         onClick={() => { setSelectedClass(cls); setShowDeleteModal(true); }}
                       >
-                        🗑️ Delete
+                        🗑️
                       </button>
                     </td>
                   </tr>
@@ -339,6 +421,12 @@ export default function ManageClasses() {
               </div>
               <div style={{ fontSize: '13px', color: '#6b7280' }}>Total Students</div>
             </div>
+            <div style={{ padding: '16px', background: '#fef2f2', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '28px', fontWeight: '700', color: '#dc2626' }}>
+                {allStudents.filter(s => !s.class).length}
+              </div>
+              <div style={{ fontSize: '13px', color: '#6b7280' }}>Unassigned</div>
+            </div>
           </div>
         </div>
       </main>
@@ -352,7 +440,7 @@ export default function ManageClasses() {
             <label style={styles.label}>Class Name *</label>
             <input
               type="text"
-              placeholder="e.g., P1-Math-A"
+              placeholder="e.g., 1A, P1-Math-A"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               style={styles.input}
@@ -428,6 +516,92 @@ export default function ManageClasses() {
               </button>
               <button style={styles.saveButton} onClick={handleUpdateClass} disabled={saving}>
                 {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Students Management Modal */}
+      {showStudentsModal && selectedClass && (
+        <div style={styles.modal} onClick={() => setShowStudentsModal(false)}>
+          <div style={{ ...styles.modalContent, maxWidth: '700px' }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={styles.modalTitle}>👥 Students in "{selectedClass.name}"</h2>
+            
+            {/* Current Students */}
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#374151' }}>
+                Current Students ({classStudents.length})
+              </h4>
+              {classStudents.length === 0 ? (
+                <p style={{ color: '#9ca3af', fontStyle: 'italic' }}>No students in this class yet</p>
+              ) : (
+                <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                  {classStudents.map(student => (
+                    <div key={student._id} style={styles.studentItem}>
+                      <div>
+                        <div style={{ fontWeight: '600' }}>{student.name}</div>
+                        <div style={{ fontSize: '12px', color: '#6b7280' }}>{student.email}</div>
+                      </div>
+                      <button 
+                        style={styles.removeStudentBtn}
+                        onClick={() => handleRemoveStudentFromClass(student._id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Add Students */}
+            <div>
+              <h4 style={{ margin: '0 0 12px 0', color: '#374151' }}>Add Students</h4>
+              <input
+                type="text"
+                placeholder="Search students by name or email..."
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                style={{ ...styles.input, marginBottom: '12px' }}
+              />
+              
+              {availableStudents.length === 0 ? (
+                <p style={{ color: '#9ca3af', fontStyle: 'italic' }}>No available students to add</p>
+              ) : (
+                <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                  {availableStudents.slice(0, 20).map(student => (
+                    <div key={student._id} style={styles.studentItem}>
+                      <div>
+                        <div style={{ fontWeight: '600' }}>{student.name}</div>
+                        <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                          {student.email}
+                          {student.class && <span> (Currently in: {student.class})</span>}
+                        </div>
+                      </div>
+                      <button 
+                        style={styles.addStudentBtn}
+                        onClick={() => handleAddStudentToClass(student._id)}
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  ))}
+                  {availableStudents.length > 20 && (
+                    <p style={{ textAlign: 'center', color: '#6b7280', fontSize: '13px' }}>
+                      Showing first 20 results. Use search to find more.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.modalButtons}>
+              <button 
+                style={{ ...styles.cancelButton, flex: 'none', padding: '12px 24px' }} 
+                onClick={() => { setShowStudentsModal(false); setStudentSearch(''); }}
+              >
+                Close
               </button>
             </div>
           </div>
