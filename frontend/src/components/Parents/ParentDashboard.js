@@ -319,7 +319,7 @@ export default function ParentDashboard() {
                 onMouseLeave={() => setHoveredItem(null)}
                 onClick={() => handleMenuClick('/parent/feedback')}
               >
-                <span>View Teacher Feedback</span>
+                <span>School Announcement</span>
                 <span style={styles.arrow}>→</span>
               </li>
               <li

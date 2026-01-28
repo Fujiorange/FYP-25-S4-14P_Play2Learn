@@ -1,6 +1,6 @@
-// frontend/src/pages/Parent/ViewFeedback.js - COMPLETE VERSION
-// ✅ Loads real feedback from database
-// ✅ No more mock data
+// frontend/src/pages/Parent/ViewAnnouncements.js - COMPLETE VERSION
+// ✅ Loads real announcements from database
+// ✅ School announcements and important notices
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,78 +10,68 @@ import parentService from '../../services/parentService';
 export default function ViewFeedback() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [filter, setFilter] = useState('all');
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const loadFeedback = async () => {
+    const loadAnnouncements = async () => {
       if (!authService.isAuthenticated()) {
         navigate('/login');
         return;
       }
 
       try {
-        // ✅ FIXED: Load real feedback from database
-        const result = await parentService.getFeedback();
+        // ✅ Load real announcements from database
+        const result = await parentService.getAnnouncements();
         
         if (result.success) {
-          setFeedback(result.feedback || []);
+          setAnnouncements(result.announcements || []);
           setError(null);
         } else {
-          console.error('Failed to load feedback:', result.error);
-          setError(result.error || 'Failed to load feedback');
-          setFeedback([]);
+          console.error('Failed to load announcements:', result.error);
+          setError(result.error || 'Failed to load announcements');
+          setAnnouncements([]);
         }
       } catch (error) {
-        console.error('Error loading feedback:', error);
-        setError('Failed to load feedback. Please try again.');
-        setFeedback([]);
+        console.error('Error loading announcements:', error);
+        setError('Failed to load announcements. Please try again.');
+        setAnnouncements([]);
       } finally {
         setLoading(false);
       }
     };
 
-    loadFeedback();
+    loadAnnouncements();
   }, [navigate]);
 
-  const handleMarkAsRead = async (feedbackId) => {
+  const handleMarkAsRead = async (announcementId) => {
     try {
-      const result = await parentService.markFeedbackAsRead(feedbackId);
+      const result = await parentService.markAnnouncementAsRead(announcementId);
       
       if (result.success) {
         // Update local state
-        setFeedback(prev => prev.map(f => 
-          f.id === feedbackId ? { ...f, isRead: true } : f
+        setAnnouncements(prev => prev.map(a => 
+          a.id === announcementId ? { ...a, isRead: true } : a
         ));
       }
     } catch (error) {
-      console.error('Error marking feedback as read:', error);
+      console.error('Error marking announcement as read:', error);
     }
   };
 
-  const filteredFeedback = filter === 'all' 
-    ? feedback 
+  const filteredAnnouncements = filter === 'all' 
+    ? announcements 
     : filter === 'unread' 
-    ? feedback.filter(f => !f.isRead)
-    : feedback.filter(f => f.sentiment === filter);
+    ? announcements.filter(a => !a.isRead)
+    : announcements.filter(a => a.priority === filter);
 
-  const getSentimentColor = (sentiment) => {
-    switch(sentiment) {
-      case 'positive': return { bg: '#d1fae5', color: '#065f46', emoji: '😊' };
-      case 'neutral': return { bg: '#dbeafe', color: '#1e40af', emoji: '😐' };
-      case 'concern': return { bg: '#fef3c7', color: '#92400e', emoji: '😟' };
-      default: return { bg: '#f3f4f6', color: '#6b7280', emoji: '😐' };
-    }
-  };
-
-  const getCategoryColor = (category) => {
-    switch(category) {
-      case 'academic': return { bg: '#dbeafe', color: '#1e40af' };
-      case 'behavior': return { bg: '#fef3c7', color: '#92400e' };
-      case 'attendance': return { bg: '#fee2e2', color: '#991b1b' };
-      case 'general': return { bg: '#f3f4f6', color: '#6b7280' };
-      default: return { bg: '#f3f4f6', color: '#6b7280' };
+  const getPriorityColor = (priority) => {
+    switch(priority) {
+      case 'high': return { bg: '#fee2e2', color: '#991b1b', emoji: '🔴' };
+      case 'medium': return { bg: '#fef3c7', color: '#92400e', emoji: '🟡' };
+      case 'low': return { bg: '#dbeafe', color: '#1e40af', emoji: '🟢' };
+      default: return { bg: '#f3f4f6', color: '#6b7280', emoji: '⚪' };
     }
   };
 
@@ -96,14 +86,14 @@ export default function ViewFeedback() {
     filterButton: { padding: '8px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', background: 'white', transition: 'all 0.2s' },
     filterButtonActive: { borderColor: '#10b981', background: '#d1fae5', color: '#065f46' },
     feedbackList: { display: 'flex', flexDirection: 'column', gap: '16px' },
-    feedbackCard: { background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', position: 'relative' },
-    feedbackHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' },
-    feedbackMeta: { flex: 1 },
-    childName: { fontSize: '18px', fontWeight: '600', color: '#1f2937', marginBottom: '4px' },
-    teacherInfo: { fontSize: '14px', color: '#6b7280', marginBottom: '8px' },
+    announcementCard: { background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', position: 'relative' },
+    announcementHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' },
+    announcementMeta: { flex: 1 },
+    announcementTitle: { fontSize: '18px', fontWeight: '600', color: '#1f2937', marginBottom: '4px' },
+    announcementInfo: { fontSize: '14px', color: '#6b7280', marginBottom: '8px' },
     badges: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
     badge: { padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' },
-    feedbackMessage: { fontSize: '15px', color: '#374151', lineHeight: '1.6', marginTop: '16px', padding: '16px', background: '#f9fafb', borderRadius: '8px', borderLeft: '4px solid #10b981' },
+    announcementMessage: { fontSize: '15px', color: '#374151', lineHeight: '1.6', marginTop: '16px', padding: '16px', background: '#f9fafb', borderRadius: '8px', borderLeft: '4px solid #3b82f6' },
     unreadDot: { position: 'absolute', top: '20px', right: '20px', width: '12px', height: '12px', borderRadius: '50%', background: '#ef4444' },
     emptyState: { textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: '16px', color: '#6b7280' },
     errorMessage: { background: '#fee2e2', color: '#991b1b', padding: '16px', borderRadius: '8px', marginBottom: '24px', border: '1px solid #f87171' },
@@ -119,11 +109,11 @@ export default function ViewFeedback() {
       <div style={styles.content}>
         <div style={styles.header}>
           <div style={styles.headerTop}>
-            <h1 style={styles.title}>💬 Teacher Feedback</h1>
+            <h1 style={styles.title}>� School Announcements</h1>
             <button style={styles.backButton} onClick={() => navigate('/parent')}>← Back to Dashboard</button>
           </div>
           <div style={styles.filterButtons}>
-            {['all', 'unread', 'positive', 'neutral', 'concern'].map(filterOption => (
+            {['all', 'unread', 'high', 'medium', 'low'].map(filterOption => (
               <button 
                 key={filterOption} 
                 onClick={() => setFilter(filterOption)} 
@@ -144,40 +134,36 @@ export default function ViewFeedback() {
           </div>
         )}
 
-        {filteredFeedback.length > 0 ? (
+        {filteredAnnouncements.length > 0 ? (
           <div style={styles.feedbackList}>
-            {filteredFeedback.map(item => {
-              const sentimentStyle = getSentimentColor(item.sentiment);
-              const categoryStyle = getCategoryColor(item.category);
+            {filteredAnnouncements.map(item => {
+              const priorityStyle = getPriorityColor(item.priority);
               
               return (
                 <div 
                   key={item.id} 
-                  style={styles.feedbackCard}
+                  style={styles.announcementCard}
                   onClick={() => !item.isRead && handleMarkAsRead(item.id)}
                 >
                   {!item.isRead && <div style={styles.unreadDot} title="Unread" />}
                   
-                  <div style={styles.feedbackHeader}>
-                    <div style={styles.feedbackMeta}>
-                      <div style={styles.childName}>
-                        👦 {item.child?.name || 'Child'} • {item.child?.class || 'N/A'}
+                  <div style={styles.announcementHeader}>
+                    <div style={styles.announcementMeta}>
+                      <div style={styles.announcementTitle}>
+                        {item.title || 'Announcement'}
                       </div>
-                      <div style={styles.teacherInfo}>
-                        From: <strong>{item.from}</strong> • Subject: <strong>{item.subject}</strong> • {parentService.formatDate(item.date)}
+                      <div style={styles.announcementInfo}>
+                        From: <strong>{item.from || 'School Administration'}</strong> • {parentService.formatDate(item.date)}
                       </div>
                       <div style={styles.badges}>
-                        <span style={{...styles.badge, background: sentimentStyle.bg, color: sentimentStyle.color}}>
-                          {sentimentStyle.emoji} {item.sentiment}
-                        </span>
-                        <span style={{...styles.badge, background: categoryStyle.bg, color: categoryStyle.color}}>
-                          {item.category}
+                        <span style={{...styles.badge, background: priorityStyle.bg, color: priorityStyle.color}}>
+                          {priorityStyle.emoji} {item.priority || 'normal'}
                         </span>
                       </div>
                     </div>
                   </div>
                   
-                  <div style={styles.feedbackMessage}>
+                  <div style={styles.announcementMessage}>
                     {item.message}
                   </div>
 
@@ -198,14 +184,14 @@ export default function ViewFeedback() {
           </div>
         ) : (
           <div style={styles.emptyState}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>💬</div>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>�</div>
             <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-              {filter === 'all' ? 'No feedback yet' : `No ${filter} feedback`}
+              {filter === 'all' ? 'No announcements yet' : `No ${filter} priority announcements`}
             </p>
             <p>
-              {feedback.length === 0 
-                ? "You haven't received any feedback from teachers yet"
-                : `No ${filter} feedback to show`}
+              {announcements.length === 0 
+                ? "There are no announcements at the moment"
+                : `No ${filter} priority announcements to show`}
             </p>
           </div>
         )}
