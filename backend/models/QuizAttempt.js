@@ -22,4 +22,9 @@ const quizAttemptSchema = new mongoose.Schema({
   timeSpent: { type: Number } // in seconds
 });
 
+// Add indexes for performance optimization
+quizAttemptSchema.index({ userId: 1 });
+quizAttemptSchema.index({ userId: 1, is_completed: 1 });
+quizAttemptSchema.index({ quizId: 1 });
+
 module.exports = mongoose.model('QuizAttempt', quizAttemptSchema);

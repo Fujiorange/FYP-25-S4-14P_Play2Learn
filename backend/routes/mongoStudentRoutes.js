@@ -199,6 +199,7 @@ async function updateSkillsFromQuiz(studentId, questions, percentage, currentPro
   try {
     const skillUpdates = {};
 
+    // Aggregate skill performance from questions
     questions.forEach((q) => {
       const skill = q.operation
         ? q.operation.charAt(0).toUpperCase() + q.operation.slice(1)
@@ -211,28 +212,62 @@ async function updateSkillsFromQuiz(studentId, questions, percentage, currentPro
       if (q.is_correct) skillUpdates[skill].correct++;
     });
 
+    const requiredSkills = Object.keys(skillUpdates);
+    
+    // Fetch all required skills at once instead of one by one
+    const existingSkills = await MathSkill.find({
+      student_id: studentId,
+      skill_name: { $in: requiredSkills }
+    });
+
+    const skillMap = new Map(existingSkills.map(s => [s.skill_name, s]));
+
+    // Prepare bulk operations
+    const bulkOps = [];
+
     for (const [skillName, stats] of Object.entries(skillUpdates)) {
       const skillPercentage = (stats.correct / stats.total) * 100;
       const xpGain = Math.floor(skillPercentage / 10);
+      const existingSkill = skillMap.get(skillName);
 
-      let skill = await MathSkill.findOne({ student_id: studentId, skill_name: skillName });
-
-      if (!skill) {
-        skill = new MathSkill({
-          student_id: studentId,
-          skill_name: skillName,
-          current_level: 0,
-          xp: 0,
-          unlocked: true,
+      if (existingSkill) {
+        // Update existing skill
+        const newXp = existingSkill.xp + xpGain;
+        const newLevel = Math.min(5, Math.floor(newXp / 100));
+        
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: existingSkill._id },
+            update: {
+              $inc: { xp: xpGain },
+              $set: {
+                current_level: newLevel,
+                updatedAt: new Date()
+              }
+            }
+          }
+        });
+      } else {
+        // Insert new skill
+        const newLevel = Math.min(5, Math.floor(xpGain / 100));
+        bulkOps.push({
+          insertOne: {
+            document: {
+              student_id: studentId,
+              skill_name: skillName,
+              current_level: newLevel,
+              xp: xpGain,
+              unlocked: true,
+              updatedAt: new Date()
+            }
+          }
         });
       }
+    }
 
-      skill.xp += xpGain;
-      const newLevel = Math.min(5, Math.floor(skill.xp / 100));
-      skill.current_level = newLevel;
-      skill.updatedAt = new Date();
-
-      await skill.save();
+    // Execute all operations in a single batch
+    if (bulkOps.length > 0) {
+      await MathSkill.bulkWrite(bulkOps);
     }
   } catch (error) {
     console.error("Error updating skills:", error);
@@ -668,27 +703,43 @@ router.get("/math-progress", async (req, res) => {
       await mathProfile.save();
     }
 
-    const quizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" }).sort({
-      completed_at: -1,
-    });
+    // Use MongoDB aggregation for better performance
+    const aggregateResult = await StudentQuiz.aggregate([
+      { $match: { student_id: studentId, quiz_type: "regular" } },
+      {
+        $group: {
+          _id: null,
+          totalQuizzes: { $sum: 1 },
+          averageScore: { $avg: "$percentage" },
+          totalPoints: { $sum: "$points_earned" }
+        }
+      }
+    ]);
 
-    const totalQuizzes = quizzes.length;
-    const averageScore =
-      totalQuizzes > 0
-        ? Math.round(quizzes.reduce((sum, q) => sum + q.percentage, 0) / totalQuizzes)
-        : 0;
+    const stats = aggregateResult[0] || {
+      totalQuizzes: 0,
+      averageScore: 0,
+      totalPoints: 0
+    };
 
-    const totalPoints = quizzes.reduce((sum, q) => sum + (q.points_earned || 0), 0);
+    // Fetch only the 10 most recent quizzes for display
+    const recentQuizzes = await StudentQuiz.find({ 
+      student_id: studentId, 
+      quiz_type: "regular" 
+    })
+    .sort({ completed_at: -1 })
+    .limit(10)
+    .lean();
 
     res.json({
       success: true,
       progressData: {
         currentProfile: mathProfile ? mathProfile.current_profile : 1,
-        totalQuizzes,
-        averageScore,
-        totalPoints,
+        totalQuizzes: stats.totalQuizzes,
+        averageScore: Math.round(stats.averageScore || 0),
+        totalPoints: stats.totalPoints,
         streak: effectiveStreak,
-        recentQuizzes: quizzes.slice(0, 10).map((q) => ({
+        recentQuizzes: recentQuizzes.map((q) => ({
           date: q.completed_at.toLocaleDateString(),
           time: q.completed_at.toLocaleTimeString(),
           profile: q.profile_level,
@@ -708,7 +759,26 @@ router.get("/math-progress", async (req, res) => {
 router.get("/quiz-results", async (req, res) => {
   try {
     const studentId = req.user.userId;
-    const quizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" }).sort({ completed_at: -1 });
+    
+    // Add pagination support
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50; // Default 50 results per page
+    const skip = (page - 1) * limit;
+    
+    // Get total count for pagination metadata
+    const totalCount = await StudentQuiz.countDocuments({ 
+      student_id: studentId, 
+      quiz_type: "regular" 
+    });
+    
+    const quizzes = await StudentQuiz.find({ 
+      student_id: studentId, 
+      quiz_type: "regular" 
+    })
+    .sort({ completed_at: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
 
     res.json({
       success: true,
@@ -722,6 +792,12 @@ router.get("/quiz-results", async (req, res) => {
         percentage: q.percentage,
         points_earned: q.points_earned,
       })),
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
     });
   } catch (error) {
     console.error("❌ Quiz results error:", error);
@@ -760,10 +836,12 @@ router.get("/leaderboard", async (req, res) => {
   try {
     const currentUserId = req.user.userId;
     
+    // Use .lean() to skip Mongoose document hydration for better performance
     const students = await MathProfile.find()
       .populate("student_id", "name email")
       .sort({ total_points: -1 })
-      .limit(20);
+      .limit(20)
+      .lean();
 
     res.json({
       success: true,
