@@ -2,6 +2,7 @@
 // ✅ All endpoints match frontend expectations
 // ✅ Field names corrected for compatibility
 // ✅ Daily limit set to 2 quizzes (matching frontend)
+// ✅ Placement quizzes excluded from all statistics
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -345,10 +346,18 @@ router.get("/dashboard", async (req, res) => {
       });
     }
 
-    const completedQuizzes = await Quiz.countDocuments({ 
+    // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
+    const allQuizzes = await Quiz.find({ 
       student_id: studentId,
       quiz_type: "regular" 
     });
+
+    // Filter: Only count quizzes that have been submitted (have student answers)
+    const completedQuizzes = allQuizzes.filter(quiz => {
+      return quiz.questions && quiz.questions.some(q => 
+        q.student_answer !== null && q.student_answer !== undefined
+      );
+    }).length;
 
     const user = await User.findById(studentId);
     const { effective: effectiveStreak } = computeEffectiveStreak(mathProfile);
@@ -756,8 +765,17 @@ router.get("/math-progress", async (req, res) => {
       await mathProfile.save();
     }
 
-    const quizzes = await Quiz.find({ student_id: studentId, quiz_type: "regular" }).sort({
-      completed_at: -1,
+    // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
+    const allQuizzes = await Quiz.find({ 
+      student_id: studentId, 
+      quiz_type: "regular" 
+    }).sort({ completed_at: -1 });
+
+    // Filter: Only include quizzes that have been submitted (have student answers)
+    const quizzes = allQuizzes.filter(quiz => {
+      return quiz.questions && quiz.questions.some(q => 
+        q.student_answer !== null && q.student_answer !== undefined
+      );
     });
 
     const totalQuizzes = quizzes.length;
@@ -796,7 +814,19 @@ router.get("/math-progress", async (req, res) => {
 router.get("/quiz-results", async (req, res) => {
   try {
     const studentId = req.user.userId;
-    const quizzes = await Quiz.find({ student_id: studentId, quiz_type: "regular" }).sort({ completed_at: -1 });
+    
+    // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
+    const allQuizzes = await Quiz.find({ 
+      student_id: studentId, 
+      quiz_type: "regular" 
+    }).sort({ completed_at: -1 });
+
+    // Filter: Only include quizzes that have been submitted (have student answers)
+    const quizzes = allQuizzes.filter(quiz => {
+      return quiz.questions && quiz.questions.some(q => 
+        q.student_answer !== null && q.student_answer !== undefined
+      );
+    });
 
     res.json({
       success: true,
@@ -820,7 +850,19 @@ router.get("/quiz-results", async (req, res) => {
 router.get("/quiz-history", async (req, res) => {
   try {
     const studentId = req.user.userId;
-    const quizzes = await Quiz.find({ student_id: studentId, quiz_type: "regular" }).sort({ completed_at: -1 });
+    
+    // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
+    const allQuizzes = await Quiz.find({ 
+      student_id: studentId, 
+      quiz_type: "regular" 
+    }).sort({ completed_at: -1 });
+
+    // Filter: Only include quizzes that have been submitted (have student answers)
+    const quizzes = allQuizzes.filter(quiz => {
+      return quiz.questions && quiz.questions.some(q => 
+        q.student_answer !== null && q.student_answer !== undefined
+      );
+    });
 
     res.json({
       success: true,

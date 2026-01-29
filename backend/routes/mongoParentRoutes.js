@@ -727,10 +727,18 @@ router.get('/child/:studentId/performance', authenticateParent, async (req, res)
     console.log('📊 MathProfile data:', { currentProfile, streak, totalPoints });
 
     // 2. Get Quiz Results (for totalQuizzes, highestScore, recentQuizzes)
-    const quizzes = await Quiz.find({ 
+    const allQuizzes = await Quiz.find({ 
       student_id: studentId,
       quiz_type: 'regular'
     }).sort({ completed_at: -1 });
+
+    // ✅ FIX: Filter out unsubmitted quizzes (0/15 entries)
+    const quizzes = allQuizzes.filter(quiz => {
+      // A quiz is submitted if it has questions with student answers
+      return quiz.questions && quiz.questions.some(q => 
+        q.student_answer !== null && q.student_answer !== undefined
+      );
+    });
 
     const totalQuizzes = quizzes.length;
 
@@ -835,14 +843,20 @@ router.get('/child/:studentId/progress', authenticateParent, async (req, res) =>
     const streak = mathProfile?.streak || 0;
 
     // Get recent quiz attempts (last 10 for activities)
-    const recentQuizzes = await Quiz.find({ 
+    const allRecentQuizzes = await Quiz.find({ 
       student_id: studentId,
       quiz_type: 'regular'
     })
-    .sort({ completed_at: -1 })
-    .limit(10);
+    .sort({ completed_at: -1 });
 
-    console.log('📈 Found', recentQuizzes.length, 'recent quizzes');
+    // ✅ FIX: Filter out unsubmitted quizzes (0/15 entries)
+    const recentQuizzes = allRecentQuizzes.filter(quiz => {
+      return quiz.questions && quiz.questions.some(q => 
+        q.student_answer !== null && q.student_answer !== undefined
+      );
+    }).slice(0, 10);
+
+    console.log('📈 Found', recentQuizzes.length, 'recent quizzes (filtered from', allRecentQuizzes.length, 'total)');
 
     // Format quiz data as "activities"
     const recentActivities = recentQuizzes.map(quiz => {
