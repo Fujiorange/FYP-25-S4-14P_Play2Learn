@@ -40,6 +40,7 @@ function LandingPageManager() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [jsonError, setJsonError] = useState('');
   const [formData, setFormData] = useState({
     type: 'hero',
     title: '',
@@ -75,6 +76,7 @@ function LandingPageManager() {
 
   const handleBlockTypeChange = (e) => {
     const newType = e.target.value;
+    setJsonError('');
     setFormData({
       ...formData,
       type: newType,
@@ -195,7 +197,12 @@ function LandingPageManager() {
               <div key={idx} className="array-item">
                 <div className="array-item-header">
                   <h5>Feature {idx + 1}</h5>
-                  <button type="button" onClick={() => removeArrayItem('features', idx)} className="btn-remove">
+                  <button 
+                    type="button" 
+                    onClick={() => removeArrayItem('features', idx)} 
+                    className="btn-remove"
+                    aria-label={`Remove feature ${idx + 1}`}
+                  >
                     Remove
                   </button>
                 </div>
@@ -277,6 +284,7 @@ function LandingPageManager() {
                     handleCustomDataChange('goals', newGoals);
                   }}
                   className="btn-remove-inline"
+                  aria-label={`Remove goal ${idx + 1}`}
                 >
                   ×
                 </button>
@@ -295,7 +303,12 @@ function LandingPageManager() {
               <div key={idx} className="array-item">
                 <div className="array-item-header">
                   <h5>Stat {idx + 1}</h5>
-                  <button type="button" onClick={() => removeArrayItem('stats', idx)} className="btn-remove">
+                  <button 
+                    type="button" 
+                    onClick={() => removeArrayItem('stats', idx)} 
+                    className="btn-remove"
+                    aria-label={`Remove statistic ${idx + 1}`}
+                  >
                     Remove
                   </button>
                 </div>
@@ -339,7 +352,12 @@ function LandingPageManager() {
               <div key={idx} className="array-item">
                 <div className="array-item-header">
                   <h5>Step {step.step || idx + 1}</h5>
-                  <button type="button" onClick={() => removeArrayItem('steps', idx)} className="btn-remove">
+                  <button 
+                    type="button" 
+                    onClick={() => removeArrayItem('steps', idx)} 
+                    className="btn-remove"
+                    aria-label={`Remove step ${step.step || idx + 1}`}
+                  >
                     Remove
                   </button>
                 </div>
@@ -348,7 +366,7 @@ function LandingPageManager() {
                   <input
                     type="number"
                     value={step.step || idx + 1}
-                    onChange={(e) => updateArrayItem('steps', idx, 'step', parseInt(e.target.value))}
+                    onChange={(e) => updateArrayItem('steps', idx, 'step', parseInt(e.target.value, 10))}
                   />
                 </div>
                 <div className="form-group">
@@ -380,12 +398,17 @@ function LandingPageManager() {
             ))}
             <button 
               type="button" 
-              onClick={() => addArrayItem('steps', { 
-                step: (custom_data.steps?.length || 0) + 1, 
-                title: '', 
-                description: '', 
-                duration: '' 
-              })}
+              onClick={() => {
+                const maxStep = custom_data.steps?.length > 0 
+                  ? Math.max(...custom_data.steps.map(s => s.step || 0))
+                  : 0;
+                addArrayItem('steps', { 
+                  step: maxStep + 1, 
+                  title: '', 
+                  description: '', 
+                  duration: '' 
+                });
+              }}
               className="btn-add-item"
             >
               + Add Step
@@ -401,7 +424,12 @@ function LandingPageManager() {
               <div key={idx} className="array-item">
                 <div className="array-item-header">
                   <h5>Testimonial {idx + 1}</h5>
-                  <button type="button" onClick={() => removeArrayItem('testimonials', idx)} className="btn-remove">
+                  <button 
+                    type="button" 
+                    onClick={() => removeArrayItem('testimonials', idx)} 
+                    className="btn-remove"
+                    aria-label={`Remove testimonial ${idx + 1}`}
+                  >
                     Remove
                   </button>
                 </div>
@@ -443,13 +471,18 @@ function LandingPageManager() {
             ))}
             <button 
               type="button" 
-              onClick={() => addArrayItem('testimonials', { 
-                id: (custom_data.testimonials?.length || 0) + 1,
-                name: '', 
-                role: '', 
-                quote: '', 
-                image: '' 
-              })}
+              onClick={() => {
+                const maxId = custom_data.testimonials?.length > 0 
+                  ? Math.max(...custom_data.testimonials.map(t => t.id || 0))
+                  : 0;
+                addArrayItem('testimonials', { 
+                  id: maxId + 1,
+                  name: '', 
+                  role: '', 
+                  quote: '', 
+                  image: '' 
+                });
+              }}
               className="btn-add-item"
             >
               + Add Testimonial
@@ -470,15 +503,20 @@ function LandingPageManager() {
                   try {
                     const parsed = JSON.parse(e.target.value);
                     setFormData({ ...formData, custom_data: parsed });
+                    setJsonError('');
                   } catch (err) {
-                    // Invalid JSON, keep editing
+                    setJsonError('Invalid JSON: ' + err.message);
                   }
                 }}
                 rows="8"
                 placeholder="{}"
-                style={{ fontFamily: 'monospace' }}
+                style={{ fontFamily: 'monospace', borderColor: jsonError ? '#dc3545' : '#ced4da' }}
               />
-              <small>Enter valid JSON for custom data</small>
+              {jsonError ? (
+                <small style={{ color: '#dc3545' }}>{jsonError}</small>
+              ) : (
+                <small>Enter valid JSON for custom data</small>
+              )}
             </div>
           </div>
         );

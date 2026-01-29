@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landing Page Manager - UI Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+        }
+
+        .page-header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-header h1 {
+            color: #333;
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-primary, .btn-save {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-save {
+            background: #28a745;
+            color: white;
+        }
+
+        .blocks-list {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .block-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .block-header {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .block-type {
+            padding: 0.25rem 0.75rem;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .block-card h3 {
+            margin: 0.5rem 0;
+            color: #333;
+        }
+
+        .block-content {
+            color: #666;
+            margin: 1rem 0;
+        }
+
+        .custom-data-preview {
+            margin: 0.75rem 0;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .custom-data-preview small {
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .block-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .block-actions button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-up, .btn-down {
+            background: #e7f3ff;
+            color: #004085;
+        }
+
+        .btn-edit {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            color: #333;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .custom-data-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .custom-data-section h4 {
+            margin: 1.5rem 0 1rem;
+            color: #495057;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+
+        .array-item {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .array-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .array-item-header h5 {
+            color: #667eea;
+        }
+
+        .btn-remove {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .btn-add-item {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .btn-submit {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #0c5460;
+            padding: 1rem;
+            margin: 2rem auto;
+            max-width: 900px;
+            border-radius: 5px;
+        }
+
+        .info-box h3 {
+            color: #0c5460;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="info-box">
+        <h3>📋 Landing Page Manager - UI Mockup</h3>
+        <p>This is a static HTML mockup showing the new Landing Page Manager interface with comprehensive CRUD functionality for all block types.</p>
+    </div>
+
+    <div class="page-header">
+        <div>
+            <h1>Landing Page Manager</h1>
+            <a href="#" class="back-link">← Back to Dashboard</a>
+        </div>
+        <div class="header-actions">
+            <button class="btn-primary" onclick="showModal()">+ Add Block</button>
+            <button class="btn-save">💾 Save Changes</button>
+        </div>
+    </div>
+
+    <div class="blocks-list">
+        <!-- Hero Block -->
+        <div class="block-card">
+            <div class="block-header">
+                <span class="block-type">HERO</span>
+            </div>
+            <h3>Revolutionizing Education Through Adaptive Learning</h3>
+            <p class="block-content">Personalized learning paths powered by AI with incentive-driven engagement...</p>
+            <div class="block-actions">
+                <button class="btn-up" disabled>↑</button>
+                <button class="btn-down">↓</button>
+                <button class="btn-edit" onclick="showModal()">Edit</button>
+                <button class="btn-delete">Delete</button>
+            </div>
+        </div>
+
+        <!-- Features Block -->
+        <div class="block-card">
+            <div class="block-header">
+                <span class="block-type">FEATURES</span>
+            </div>
+            <h3>Platform Features</h3>
+            <div class="custom-data-preview">
+                <small>✨ 3 feature(s)</small>
+            </div>
+            <div class="block-actions">
+                <button class="btn-up">↑</button>
+                <button class="btn-down">↓</button>
+                <button class="btn-edit" onclick="showFeaturesModal()">Edit</button>
+                <button class="btn-delete">Delete</button>
+            </div>
+        </div>
+
+        <!-- About Block -->
+        <div class="block-card">
+            <div class="block-header">
+                <span class="block-type">ABOUT</span>
+            </div>
+            <h3>About Play2Learn</h3>
+            <div class="custom-data-preview">
+                <small>📝 4 goal(s), 4 stat(s)</small>
+            </div>
+            <div class="block-actions">
+                <button class="btn-up">↑</button>
+                <button class="btn-down">↓</button>
+                <button class="btn-edit">Edit</button>
+                <button class="btn-delete">Delete</button>
+            </div>
+        </div>
+
+        <!-- Testimonials Block -->
+        <div class="block-card">
+            <div class="block-header">
+                <span class="block-type">TESTIMONIALS</span>
+            </div>
+            <h3>Success Stories</h3>
+            <p class="block-content">Hear what our users say about Play2Learn.</p>
+            <div class="custom-data-preview">
+                <small>💬 4 testimonial(s)</small>
+            </div>
+            <div class="block-actions">
+                <button class="btn-up">↑</button>
+                <button class="btn-down">↓</button>
+                <button class="btn-edit">Edit</button>
+                <button class="btn-delete">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Basic Block (Hero) -->
+    <div class="modal-overlay" id="basicModal">
+        <div class="modal-content">
+            <h2>Edit Block - Hero</h2>
+            <form>
+                <div class="form-group">
+                    <label>Block Type *</label>
+                    <select>
+                        <option selected>Hero</option>
+                        <option>Features</option>
+                        <option>About</option>
+                        <option>Roadmap</option>
+                        <option>Testimonials</option>
+                        <option>Pricing</option>
+                        <option>Contact</option>
+                        <option>Footer</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" value="Revolutionizing Education Through Adaptive Learning">
+                </div>
+
+                <div class="form-group">
+                    <label>Content</label>
+                    <textarea rows="4">Personalized learning paths powered by AI with incentive-driven engagement to maximize student success and teacher effectiveness.</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Image URL</label>
+                    <input type="text" placeholder="https://example.com/image.jpg">
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" checked> Visible
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-submit">Update</button>
+                    <button type="button" class="btn-cancel" onclick="hideModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Features Block -->
+    <div class="modal-overlay" id="featuresModal">
+        <div class="modal-content">
+            <h2>Edit Block - Features</h2>
+            <form>
+                <div class="form-group">
+                    <label>Block Type *</label>
+                    <select>
+                        <option>Hero</option>
+                        <option selected>Features</option>
+                        <option>About</option>
+                        <option>Roadmap</option>
+                        <option>Testimonials</option>
+                        <option>Pricing</option>
+                        <option>Contact</option>
+                        <option>Footer</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" value="Platform Features">
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" checked> Visible
+                    </label>
+                </div>
+
+                <div class="custom-data-section">
+                    <h4>Features List</h4>
+                    
+                    <!-- Feature 1 -->
+                    <div class="array-item">
+                        <div class="array-item-header">
+                            <h5>Feature 1</h5>
+                            <button type="button" class="btn-remove">Remove</button>
+                        </div>
+                        <div class="form-group">
+                            <label>Icon/Emoji</label>
+                            <input type="text" value="🎯" placeholder="e.g., 🎯">
+                        </div>
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" value="Adaptive Learning Paths">
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea rows="3">AI-powered personalized learning journeys based on individual student performance and learning styles.</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Feature 2 -->
+                    <div class="array-item">
+                        <div class="array-item-header">
+                            <h5>Feature 2</h5>
+                            <button type="button" class="btn-remove">Remove</button>
+                        </div>
+                        <div class="form-group">
+                            <label>Icon/Emoji</label>
+                            <input type="text" value="🏆" placeholder="e.g., 🎯">
+                        </div>
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" value="Incentive System">
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea rows="3">Gamified rewards and recognition system to motivate students and enhance engagement.</textarea>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-add-item">+ Add Feature</button>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-submit">Update</button>
+                    <button type="button" class="btn-cancel" onclick="hideFeaturesModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showModal() {
+            document.getElementById('basicModal').classList.add('active');
+        }
+
+        function hideModal() {
+            document.getElementById('basicModal').classList.remove('active');
+        }
+
+        function showFeaturesModal() {
+            document.getElementById('featuresModal').classList.add('active');
+        }
+
+        function hideFeaturesModal() {
+            document.getElementById('featuresModal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>
