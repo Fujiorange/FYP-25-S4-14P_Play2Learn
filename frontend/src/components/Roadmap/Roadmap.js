@@ -1,8 +1,9 @@
 import React from 'react';
 import './Roadmap.css';
 
-const Roadmap = () => {
-  const steps = [
+const Roadmap = ({ data }) => {
+  // Use custom data if available
+  const stepsData = data?.custom_data?.steps || [
     {
       step: 1,
       title: 'Assessment & Onboarding',
@@ -41,12 +42,14 @@ const Roadmap = () => {
     }
   ];
 
+  const sectionTitle = data?.title || 'Learning Journey Roadmap';
+
   return (
     <section id="roadmap" className="section roadmap">
       <div className="container">
-        <h2 className="section-title">Learning Journey Roadmap</h2>
+        <h2 className="section-title">{sectionTitle}</h2>
         <div className="roadmap-timeline">
-          {steps.map((step, index) => (
+          {stepsData.map((step, index) => (
             <div key={index} className="timeline-item">
               <div className="timeline-marker">{step.step}</div>
               <div className="timeline-content">

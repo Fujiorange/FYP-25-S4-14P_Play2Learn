@@ -1,15 +1,15 @@
 import React from 'react';
 import './Testimonial.css';
 
-const Testimonials = () => {
-  // Sample testimonial data (fictional for demo purposes)
-  const testimonials = [
+const Testimonials = ({ data }) => {
+  // Parse custom_data if available for testimonials array
+  const testimonialsData = data?.custom_data?.testimonials || [
     {
       id: 1,
       name: 'Alex Johnson',
       role: 'Parent of a 5-year-old',
       quote: 'Play2Learn has transformed my child\'s learning experience. The games are fun and educational, making homework feel like playtime!',
-      image: 'https://via.placeholder.com/100x100?text=AJ', // Placeholder image; replace with real URLs
+      image: 'https://via.placeholder.com/100x100?text=AJ',
     },
     {
       id: 2,
@@ -34,13 +34,16 @@ const Testimonials = () => {
     },
   ];
 
+  const sectionTitle = data?.title || 'Success Stories';
+  const sectionDescription = data?.content || 'Hear what our users say about Play2Learn.';
+
   return (
     <section id="testimonials" className="section testimonials">
       <div className="container">
-        <h2 className="section-title">Success Stories</h2>
-        <p>Hear what our users say about Play2Learn.</p>
+        <h2 className="section-title">{sectionTitle}</h2>
+        <p>{sectionDescription}</p>
         <div className="testimonials-grid">
-          {testimonials.map((testimonial) => (
+          {testimonialsData.map((testimonial) => (
             <div key={testimonial.id} className="testimonial-card">
               <img src={testimonial.image} alt={`${testimonial.name}'s photo`} className="testimonial-image" />
               <blockquote className="testimonial-quote">"{testimonial.quote}"</blockquote>

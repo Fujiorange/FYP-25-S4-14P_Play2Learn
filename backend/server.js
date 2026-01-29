@@ -15,6 +15,7 @@ const studentRoutes = require('./routes/mongoStudentRoutes');
 const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
 const p2lAdminRoutes = require('./routes/p2lAdminRoutes');
 const adaptiveQuizRoutes = require('./routes/adaptiveQuizRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 // ==================== CORS CONFIGURATION ====================
 const corsOptions = {
@@ -81,6 +82,7 @@ function authenticateToken(req, res, next) {
 
 // ==================== ROUTE IMPORTS & REGISTRATION ====================
 try {
+  app.use('/api/public', publicRoutes); // Public routes (no auth required)
   app.use('/api/mongo/auth', authRoutes); // User authentication
   app.use('/api/mongo/student', authenticateToken, studentRoutes); // Student-specific routes
   app.use('/api/mongo/school-admin', authenticateToken, schoolAdminRoutes); // School admin routes

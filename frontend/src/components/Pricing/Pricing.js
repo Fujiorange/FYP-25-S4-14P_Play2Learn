@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import './Pricing.css';
 
-const Pricing = () => {
+const Pricing = ({ data }) => {
   const [billingCycle, setBillingCycle] = useState('yearly');
 
-  const plans = [
+  // Use custom data if available, otherwise use defaults
+  const plansData = data?.custom_data?.plans || [
     {
       name: 'Starter',
       description: 'Perfect for small schools and institutions',
@@ -66,11 +67,14 @@ const Pricing = () => {
     }
   ];
 
+  const sectionTitle = data?.title || 'Subscription Plans';
+  const sectionSubtitle = data?.content || 'Flexible licensing options for schools of all sizes';
+
   return (
     <section id="pricing" className="section pricing">
       <div className="container">
-        <h2 className="section-title">Subscription Plans</h2>
-        <p className="pricing-subtitle">Flexible licensing options for schools of all sizes</p>
+        <h2 className="section-title">{sectionTitle}</h2>
+        <p className="pricing-subtitle">{sectionSubtitle}</p>
         
         <div className="billing-toggle">
           <button 
@@ -88,7 +92,7 @@ const Pricing = () => {
         </div>
 
         <div className="pricing-grid">
-          {plans.map((plan, index) => (
+          {plansData.map((plan, index) => (
             <div key={index} className={`pricing-card ${plan.popular ? 'popular' : ''}`}>
               {plan.popular && <div className="popular-badge">Most Popular</div>}
               

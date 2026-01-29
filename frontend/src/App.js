@@ -4,15 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import './App.css';
 
 // Landing Page Components
-import Header from './components/Header/Header';
-import Hero from './components/Hero/Hero';
-import Features from './components/Feature/Features';
-import About from './components/About/About';
-import Roadmap from './components/Roadmap/Roadmap';
-import Testimonials from './components/Testimonials/Testimonials';
-import Pricing from './components/Pricing/Pricing';
-import Contact from './components/Contact/Contact';
-import Footer from './components/Footer/Footer';
+import LandingPage from './components/LandingPage/LandingPage';
 
 // Auth Components
 import LoginPage from './components/LoginPage';
@@ -107,19 +99,7 @@ function App() {
           {/* ========== LANDING PAGE ========== */}
           <Route
             path="/"
-            element={
-              <>
-                <Header />
-                <Hero />
-                <Features />
-                <About />
-                <Roadmap />
-                <Testimonials />
-                <Pricing />
-                <Contact />
-                <Footer />
-              </>
-            }
+            element={<LandingPage />}
           />
 
           {/* ========== AUTHENTICATION ========== */}

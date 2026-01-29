@@ -1,8 +1,9 @@
 import React from 'react';
 import './Contact.css';
 
-const Contact = () => {
-  const faqs = [
+const Contact = ({ data }) => {
+  // Use custom data if available
+  const faqsData = data?.custom_data?.faqs || [
     {
       question: 'How long does implementation take?',
       answer: 'Typically 2-4 weeks depending on school size. We provide full onboarding support.'
@@ -25,10 +26,35 @@ const Contact = () => {
     }
   ];
 
+  const contactMethods = data?.custom_data?.contactMethods || [
+    {
+      icon: '📧',
+      title: 'Email',
+      details: ['hello@Play2Learn.com', 'support@Play2Learn.com']
+    },
+    {
+      icon: '📞',
+      title: 'Phone',
+      details: ['+65 6123 4567 (Sales)', '+65 6123 4568 (Support)']
+    },
+    {
+      icon: '📍',
+      title: 'Office',
+      details: ['123 Innovation Drive', 'Singapore 138543']
+    },
+    {
+      icon: '🕒',
+      title: 'Support Hours',
+      details: ['Monday - Friday: 9AM - 6PM SGT']
+    }
+  ];
+
+  const sectionTitle = data?.title || 'Contact & Support';
+
   return (
     <section id="contact" className="section contact">
       <div className="container">
-        <h2 className="section-title">Contact & Support</h2>
+        <h2 className="section-title">{sectionTitle}</h2>
         
         <div className="contact-content">
           <div className="contact-info">
@@ -36,40 +62,17 @@ const Contact = () => {
             <p>Reach out to us for demonstrations, pricing inquiries, or technical support.</p>
             
             <div className="contact-methods">
-              <div className="contact-method">
-                <div className="contact-icon">📧</div>
-                <div className="contact-details">
-                  <h4>Email</h4>
-                  <p>hello@Play2Learn.com</p>
-                  <p>support@Play2Learn.com</p>
+              {contactMethods.map((method, index) => (
+                <div key={index} className="contact-method">
+                  <div className="contact-icon">{method.icon}</div>
+                  <div className="contact-details">
+                    <h4>{method.title}</h4>
+                    {method.details.map((detail, i) => (
+                      <p key={i}>{detail}</p>
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              <div className="contact-method">
-                <div className="contact-icon">📞</div>
-                <div className="contact-details">
-                  <h4>Phone</h4>
-                  <p>+65 6123 4567 (Sales)</p>
-                  <p>+65 6123 4568 (Support)</p>
-                </div>
-              </div>
-
-              <div className="contact-method">
-                <div className="contact-icon">📍</div>
-                <div className="contact-details">
-                  <h4>Office</h4>
-                  <p>123 Innovation Drive</p>
-                  <p>Singapore 138543</p>
-                </div>
-              </div>
-
-              <div className="contact-method">
-                <div className="contact-icon">🕒</div>
-                <div className="contact-details">
-                  <h4>Support Hours</h4>
-                  <p>Monday - Friday: 9AM - 6PM SGT</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -106,7 +109,7 @@ const Contact = () => {
         <div className="faq-section">
           <h3>Frequently Asked Questions</h3>
           <div className="faq-list">
-            {faqs.map((faq, index) => (
+            {faqsData.map((faq, index) => (
               <div key={index} className="faq-item">
                 <h4>{faq.question}</h4>
                 <p>{faq.answer}</p>

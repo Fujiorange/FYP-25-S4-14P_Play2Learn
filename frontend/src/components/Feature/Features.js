@@ -1,8 +1,9 @@
 import React from 'react';
 import './Features.css';
 
-const Features = () => {
-  const features = [
+const Features = ({ data }) => {
+  // Parse custom_data if available for features array
+  const featuresData = data?.custom_data?.features || [
     {
       icon: '🎯',
       title: 'Adaptive Learning Paths',
@@ -20,12 +21,14 @@ const Features = () => {
     }
   ];
 
+  const sectionTitle = data?.title || 'Platform Features';
+
   return (
     <section id="features" className="section features">
       <div className="container">
-        <h2 className="section-title">Platform Features</h2>
+        <h2 className="section-title">{sectionTitle}</h2>
         <div className="features-grid">
-          {features.map((feature, index) => (
+          {featuresData.map((feature, index) => (
             <div key={index} className="feature-card">
               <div className="feature-icon">{feature.icon}</div>
               <h3>{feature.title}</h3>
