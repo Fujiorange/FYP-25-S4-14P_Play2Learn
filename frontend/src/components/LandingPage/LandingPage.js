@@ -16,7 +16,6 @@ import Footer from '../Footer/Footer';
 const LandingPage = () => {
   const [blocks, setBlocks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchLandingPage = async () => {
@@ -54,7 +53,6 @@ const LandingPage = () => {
           { type: 'contact', order: 7, is_visible: true },
           { type: 'footer', order: 8, is_visible: true }
         ]);
-        setError(err.message);
         setLoading(false);
       }
     };

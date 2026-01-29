@@ -4,7 +4,7 @@ const landingPageSchema = new mongoose.Schema({
   blocks: [{
     type: { 
       type: String, 
-      enum: ['hero', 'features', 'about', 'testimonials', 'pricing', 'contact', 'footer'],
+      enum: ['hero', 'features', 'about', 'roadmap', 'testimonials', 'pricing', 'contact', 'footer'],
       required: true 
     },
     title: { type: String, default: '' },

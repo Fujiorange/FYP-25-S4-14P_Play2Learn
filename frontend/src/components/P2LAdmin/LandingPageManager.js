@@ -137,6 +137,7 @@ function LandingPageManager() {
                   <option value="hero">Hero</option>
                   <option value="features">Features</option>
                   <option value="about">About</option>
+                  <option value="roadmap">Roadmap</option>
                   <option value="testimonials">Testimonials</option>
                   <option value="pricing">Pricing</option>
                   <option value="contact">Contact</option>
