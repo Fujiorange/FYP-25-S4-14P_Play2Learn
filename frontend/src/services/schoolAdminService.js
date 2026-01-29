@@ -6,8 +6,6 @@ const API_URL = process.env.REACT_APP_API_URL ||
     ? 'http://localhost:5000/api'
     : `${window.location.origin}/api`);
 
-console.log('🌐 School Admin Service API_URL:', API_URL);
-
 const schoolAdminService = {
   // Get auth token
   getToken() {

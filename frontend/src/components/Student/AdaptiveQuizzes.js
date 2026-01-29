@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdaptiveQuizzes.css';
 
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+
 function AdaptiveQuizzes() {
   const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState([]);
@@ -19,10 +23,10 @@ function AdaptiveQuizzes() {
   const fetchData = async () => {
     try {
       const [quizzesRes, attemptsRes] = await Promise.all([
-        fetch('http://localhost:5000/api/adaptive-quiz/quizzes', {
+        fetch(`${API_BASE_URL}/api/adaptive-quiz/quizzes`, {
           headers: { 'Authorization': `Bearer ${getToken()}` }
         }),
-        fetch('http://localhost:5000/api/adaptive-quiz/my-attempts', {
+        fetch(`${API_BASE_URL}/api/adaptive-quiz/my-attempts`, {
           headers: { 'Authorization': `Bearer ${getToken()}` }
         })
       ]);

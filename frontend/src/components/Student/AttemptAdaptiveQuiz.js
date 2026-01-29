@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './AttemptAdaptiveQuiz.css';
 
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+
 function AttemptAdaptiveQuiz() {
   const { quizId } = useParams();
   const navigate = useNavigate();
@@ -28,7 +32,7 @@ function AttemptAdaptiveQuiz() {
 
   const startQuiz = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/adaptive-quiz/quizzes/${quizId}/start`, {
+      const response = await fetch(`${API_BASE_URL}/api/adaptive-quiz/quizzes/${quizId}/start`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${getToken()}`,
@@ -60,7 +64,7 @@ function AttemptAdaptiveQuiz() {
   const fetchNextQuestion = async (attId) => {
     try {
       const response = await fetch(
-        `http://localhost:5000/api/adaptive-quiz/attempts/${attId}/next-question`,
+        `${API_BASE_URL}/api/adaptive-quiz/attempts/${attId}/next-question`,
         {
           headers: {
             'Authorization': `Bearer ${getToken()}`
@@ -101,7 +105,7 @@ function AttemptAdaptiveQuiz() {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/adaptive-quiz/attempts/${attemptId}/submit-answer`,
+        `${API_BASE_URL}/api/adaptive-quiz/attempts/${attemptId}/submit-answer`,
         {
           method: 'POST',
           headers: {
@@ -144,7 +148,7 @@ function AttemptAdaptiveQuiz() {
   const fetchResults = async (attId) => {
     try {
       const response = await fetch(
-        `http://localhost:5000/api/adaptive-quiz/attempts/${attId}/results`,
+        `${API_BASE_URL}/api/adaptive-quiz/attempts/${attId}/results`,
         {
           headers: {
             'Authorization': `Bearer ${getToken()}`
