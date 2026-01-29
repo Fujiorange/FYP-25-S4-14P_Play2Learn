@@ -56,4 +56,9 @@ userSchema.pre('save', function preSave() {
   this.updatedAt = Date.now();
 });
 
+// Add indexes for performance optimization
+userSchema.index({ email: 1 }); // Email is unique but adding explicit index
+userSchema.index({ schoolId: 1, role: 1 }); // For school admin queries
+userSchema.index({ role: 1 }); // For filtering by role
+
 module.exports = mongoose.model('User', userSchema);

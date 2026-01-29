@@ -22,4 +22,9 @@ questionSchema.pre('save', function() {
   this.updatedAt = Date.now();
 });
 
+// Add indexes for performance optimization
+questionSchema.index({ difficulty: 1, is_active: 1 }); // For quiz generation queries
+questionSchema.index({ subject: 1, difficulty: 1 }); // For subject-based filtering
+questionSchema.index({ created_by: 1, createdAt: -1 }); // For creator queries
+
 module.exports = mongoose.model('Question', questionSchema);

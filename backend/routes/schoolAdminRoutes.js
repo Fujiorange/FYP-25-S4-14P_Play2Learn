@@ -166,7 +166,7 @@ router.get('/dashboard-stats', authenticateToken, async (req, res) => {
 // ==================== GET USERS (FIXED!) ====================
 router.get('/users', authenticateToken, async (req, res) => {
   try {
-    const { gradeLevel, subject, role } = req.query;
+    const { gradeLevel, subject, role, page, limit } = req.query;
     
     const filter = {};
     
@@ -187,11 +187,22 @@ router.get('/users', authenticateToken, async (req, res) => {
 
     console.log('🔍 Fetching users with filter:', filter);
 
+    // Add pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 50; // Default 50 users per page
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count for pagination
+    const totalCount = await User.countDocuments(filter);
+
     const users = await User.find(filter)
       .select('-password')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
 
-    console.log(`✅ Found ${users.length} users`);
+    console.log(`✅ Found ${users.length} users (page ${pageNum} of ${Math.ceil(totalCount / limitNum)})`);
 
     res.json({
       success: true,
@@ -207,7 +218,13 @@ router.get('/users', authenticateToken, async (req, res) => {
         accountActive: user.accountActive,
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
-      }))
+      })),
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limitNum)
+      }
     });
   } catch (error) {
     console.error('❌ Get users error:', error);

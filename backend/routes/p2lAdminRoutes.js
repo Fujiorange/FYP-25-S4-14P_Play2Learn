@@ -419,7 +419,7 @@ router.post('/schools/:id/admins', authenticateP2LAdmin, async (req, res) => {
 // Get all questions
 router.get('/questions', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { subject, topic, difficulty, is_active } = req.query;
+    const { subject, topic, difficulty, is_active, page, limit } = req.query;
     
     const filter = {};
     if (subject) filter.subject = subject;
@@ -427,13 +427,30 @@ router.get('/questions', authenticateP2LAdmin, async (req, res) => {
     if (difficulty) filter.difficulty = parseInt(difficulty);
     if (is_active !== undefined) filter.is_active = is_active === 'true';
 
+    // Add pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 50; // Default 50 questions per page
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count for pagination
+    const totalCount = await Question.countDocuments(filter);
+
     const questions = await Question.find(filter)
       .populate('created_by', 'name email')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
 
     res.json({
       success: true,
-      data: questions
+      data: questions,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limitNum)
+      }
     });
   } catch (error) {
     console.error('Get questions error:', error);
@@ -447,20 +464,43 @@ router.get('/questions', authenticateP2LAdmin, async (req, res) => {
 // Get question statistics (counts by difficulty)
 router.get('/questions-stats', authenticateP2LAdmin, async (req, res) => {
   try {
-    const stats = {};
+    // Use aggregation pipeline for efficient stats calculation
+    const aggregateResults = await Question.aggregate([
+      {
+        $facet: {
+          byDifficulty: [
+            { $match: { is_active: true } },
+            {
+              $group: {
+                _id: '$difficulty',
+                count: { $sum: 1 }
+              }
+            }
+          ],
+          totalActive: [
+            { $match: { is_active: true } },
+            { $count: 'count' }
+          ],
+          totalInactive: [
+            { $match: { is_active: false } },
+            { $count: 'count' }
+          ]
+        }
+      }
+    ]);
     
-    // Count active questions for each difficulty level
+    // Format the results
+    const stats = {};
     for (let difficulty = 1; difficulty <= 5; difficulty++) {
-      const count = await Question.countDocuments({ 
-        difficulty, 
-        is_active: true 
-      });
-      stats[difficulty] = count;
+      stats[difficulty] = 0; // Initialize all difficulty levels
     }
     
-    // Also get total count
-    const totalActive = await Question.countDocuments({ is_active: true });
-    const totalInactive = await Question.countDocuments({ is_active: false });
+    aggregateResults[0].byDifficulty.forEach(item => {
+      stats[item._id] = item.count;
+    });
+    
+    const totalActive = aggregateResults[0].totalActive[0]?.count || 0;
+    const totalInactive = aggregateResults[0].totalInactive[0]?.count || 0;
     
     res.json({
       success: true,
@@ -745,20 +785,37 @@ router.post('/questions/upload-csv', authenticateP2LAdmin, upload.single('file')
 // Get all quizzes
 router.get('/quizzes', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { is_adaptive, is_active } = req.query;
+    const { is_adaptive, is_active, page, limit } = req.query;
     
     const filter = {};
     if (is_adaptive !== undefined) filter.is_adaptive = is_adaptive === 'true';
     if (is_active !== undefined) filter.is_active = is_active === 'true';
 
+    // Add pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20; // Default 20 quizzes per page
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count for pagination
+    const totalCount = await Quiz.countDocuments(filter);
+
     const quizzes = await Quiz.find(filter)
       .populate('created_by', 'name email')
       .populate('questions.question_id', 'text difficulty subject')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
 
     res.json({
       success: true,
-      data: quizzes
+      data: quizzes,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limitNum)
+      }
     });
   } catch (error) {
     console.error('Get quizzes error:', error);

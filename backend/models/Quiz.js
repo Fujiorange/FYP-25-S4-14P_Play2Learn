@@ -26,4 +26,8 @@ quizSchema.pre('save', function() {
   this.updatedAt = Date.now();
 });
 
+// Add indexes for performance optimization
+quizSchema.index({ created_by: 1, createdAt: -1 }); // For creator queries
+quizSchema.index({ is_adaptive: 1, is_active: 1 }); // For filtering active adaptive quizzes
+
 module.exports = mongoose.model('Quiz', quizSchema);
