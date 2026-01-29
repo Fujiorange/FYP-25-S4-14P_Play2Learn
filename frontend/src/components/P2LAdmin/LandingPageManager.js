@@ -9,6 +9,7 @@ function LandingPageManager() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [viewMode, setViewMode] = useState('edit'); // 'edit' or 'preview'
   const [formData, setFormData] = useState({
     type: 'hero',
     title: '',
@@ -105,6 +106,106 @@ function LandingPageManager() {
     setBlocks(newBlocks);
   };
 
+  // Render block preview based on type
+  const renderBlockPreview = (block) => {
+    if (!block.is_visible) return null;
+
+    switch (block.type) {
+      case 'hero':
+        return (
+          <section className="preview-hero">
+            <div className="preview-container">
+              <div className="preview-hero-content">
+                <h1>{block.title || 'Hero Title'}</h1>
+                <p>{block.content || 'Hero content will appear here'}</p>
+                {block.image_url && <img src={block.image_url} alt={block.title} />}
+              </div>
+            </div>
+          </section>
+        );
+      
+      case 'features':
+        return (
+          <section className="preview-features">
+            <div className="preview-container">
+              <h2>{block.title || 'Features'}</h2>
+              <div className="preview-features-content">
+                <p>{block.content || 'Features content will appear here'}</p>
+              </div>
+            </div>
+          </section>
+        );
+      
+      case 'about':
+        return (
+          <section className="preview-about">
+            <div className="preview-container">
+              <h2>{block.title || 'About Us'}</h2>
+              <div className="preview-about-content">
+                <p>{block.content || 'About content will appear here'}</p>
+                {block.image_url && <img src={block.image_url} alt={block.title} />}
+              </div>
+            </div>
+          </section>
+        );
+      
+      case 'testimonials':
+        return (
+          <section className="preview-testimonials">
+            <div className="preview-container">
+              <h2>{block.title || 'Testimonials'}</h2>
+              <div className="preview-testimonial-content">
+                <p>{block.content || 'Testimonials will appear here'}</p>
+              </div>
+            </div>
+          </section>
+        );
+      
+      case 'pricing':
+        return (
+          <section className="preview-pricing">
+            <div className="preview-container">
+              <h2>{block.title || 'Pricing'}</h2>
+              <div className="preview-pricing-content">
+                <p>{block.content || 'Pricing information will appear here'}</p>
+              </div>
+            </div>
+          </section>
+        );
+      
+      case 'contact':
+        return (
+          <section className="preview-contact">
+            <div className="preview-container">
+              <h2>{block.title || 'Contact Us'}</h2>
+              <div className="preview-contact-content">
+                <p>{block.content || 'Contact information will appear here'}</p>
+              </div>
+            </div>
+          </section>
+        );
+      
+      case 'footer':
+        return (
+          <footer className="preview-footer">
+            <div className="preview-container">
+              <p>{block.content || 'Footer content will appear here'}</p>
+            </div>
+          </footer>
+        );
+      
+      default:
+        return (
+          <section className="preview-default">
+            <div className="preview-container">
+              <h2>{block.title || 'Content Block'}</h2>
+              <p>{block.content || 'Content will appear here'}</p>
+            </div>
+          </section>
+        );
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
@@ -117,6 +218,20 @@ function LandingPageManager() {
           <Link to="/p2ladmin/dashboard" className="back-link">← Back to Dashboard</Link>
         </div>
         <div className="header-actions">
+          <div className="view-mode-toggle">
+            <button 
+              onClick={() => setViewMode('edit')} 
+              className={viewMode === 'edit' ? 'active' : ''}
+            >
+              ✏️ Edit Mode
+            </button>
+            <button 
+              onClick={() => setViewMode('preview')} 
+              className={viewMode === 'preview' ? 'active' : ''}
+            >
+              👁️ Preview
+            </button>
+          </div>
           <button onClick={handleAddBlock} className="btn-primary">
             + Add Block
           </button>
@@ -199,38 +314,61 @@ function LandingPageManager() {
         </div>
       )}
 
-      <div className="blocks-list">
-        {blocks.length === 0 ? (
-          <p className="no-data">No blocks added yet. Create your first block!</p>
-        ) : (
-          blocks.map((block, index) => (
-            <div key={index} className={`block-card ${!block.is_visible ? 'hidden' : ''}`}>
-              <div className="block-header">
-                <span className="block-type">{block.type.toUpperCase()}</span>
-                {!block.is_visible && <span className="hidden-badge">Hidden</span>}
-              </div>
-              
-              <h3>{block.title || 'No Title'}</h3>
-              <p className="block-content">{block.content?.substring(0, 100)}...</p>
-              
-              <div className="block-actions">
-                <button onClick={() => moveBlock(index, 'up')} disabled={index === 0}>
-                  ↑
-                </button>
-                <button onClick={() => moveBlock(index, 'down')} disabled={index === blocks.length - 1}>
-                  ↓
-                </button>
-                <button onClick={() => handleEditBlock(index)} className="btn-edit">
-                  Edit
-                </button>
-                <button onClick={() => handleDeleteBlock(index)} className="btn-delete">
-                  Delete
-                </button>
-              </div>
+      {viewMode === 'preview' ? (
+        <div className="landing-preview">
+          <div className="preview-notice">
+            <p>📋 Preview Mode - This is how your landing page will look to visitors</p>
+          </div>
+          {blocks.length === 0 ? (
+            <div className="preview-empty">
+              <p>No blocks to preview. Add some blocks to see the preview!</p>
             </div>
-          ))
-        )}
-      </div>
+          ) : (
+            <div className="preview-content">
+              {blocks
+                .sort((a, b) => a.order - b.order)
+                .map((block, index) => (
+                  <div key={index}>
+                    {renderBlockPreview(block)}
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="blocks-list">
+          {blocks.length === 0 ? (
+            <p className="no-data">No blocks added yet. Create your first block!</p>
+          ) : (
+            blocks.map((block, index) => (
+              <div key={index} className={`block-card ${!block.is_visible ? 'hidden' : ''}`}>
+                <div className="block-header">
+                  <span className="block-type">{block.type.toUpperCase()}</span>
+                  {!block.is_visible && <span className="hidden-badge">Hidden</span>}
+                </div>
+                
+                <h3>{block.title || 'No Title'}</h3>
+                <p className="block-content">{block.content?.substring(0, 100)}...</p>
+                
+                <div className="block-actions">
+                  <button onClick={() => moveBlock(index, 'up')} disabled={index === 0}>
+                    ↑
+                  </button>
+                  <button onClick={() => moveBlock(index, 'down')} disabled={index === blocks.length - 1}>
+                    ↓
+                  </button>
+                  <button onClick={() => handleEditBlock(index)} className="btn-edit">
+                    Edit
+                  </button>
+                  <button onClick={() => handleDeleteBlock(index)} className="btn-delete">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
