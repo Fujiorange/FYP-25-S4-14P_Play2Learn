@@ -25,10 +25,10 @@ const authenticateToken = async (req, res, next) => {
 router.get('/quizzes', authenticateToken, async (req, res) => {
   try {
     const quizzes = await Quiz.find({ 
-      is_adaptive: true, 
+      quiz_type: 'adaptive',
       is_active: true 
     })
-    .select('title description adaptive_config questions createdAt')
+    .select('title description adaptive_config questions createdAt quiz_type')
     .sort({ createdAt: -1 });
 
     // Count questions by difficulty for each quiz
@@ -78,7 +78,7 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
       });
     }
 
-    if (!quiz.is_adaptive) {
+    if (quiz.quiz_type !== 'adaptive') {
       return res.status(400).json({ 
         success: false, 
         error: 'This is not an adaptive quiz' 
