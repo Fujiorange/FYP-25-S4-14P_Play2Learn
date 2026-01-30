@@ -6,17 +6,6 @@ import './App.css';
 // Dynamic Landing Page Component
 import DynamicLandingPage from './components/DynamicLandingPage/DynamicLandingPage';
 
-// Landing Page Components (kept for fallback)
-import Header from './components/Header/Header';
-import Hero from './components/Hero/Hero';
-import Features from './components/Feature/Features';
-import About from './components/About/About';
-import Roadmap from './components/Roadmap/Roadmap';
-import Testimonials from './components/Testimonials/Testimonials';
-import Pricing from './components/Pricing/Pricing';
-import Contact from './components/Contact/Contact';
-import Footer from './components/Footer/Footer';
-
 // Auth Components
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
