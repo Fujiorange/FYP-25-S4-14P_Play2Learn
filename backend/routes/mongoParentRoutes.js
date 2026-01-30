@@ -12,6 +12,25 @@ const mongoose = require('mongoose');
 const User = mongoose.model('User');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
 
+// ==================== SCHOOL SCHEMA ====================
+if (!mongoose.models.School) {
+  const schoolSchema = new mongoose.Schema({
+    organization_name: { type: String, required: true },
+    organization_type: { type: String, default: 'school' },
+    plan: { type: String, default: 'starter' },
+    plan_info: { type: Object, default: {} },
+    contact: { type: String, default: '' },
+    is_active: { type: Boolean, default: true },
+    current_teachers: { type: Number, default: 0 },
+    current_students: { type: Number, default: 0 },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+  });
+  mongoose.model('School', schoolSchema);
+}
+
+const School = mongoose.model('School');
+
 // ==================== MATHSKILL SCHEMA ====================
 if (!mongoose.models.MathSkill) {
   const mathSkillSchema = new mongoose.Schema({
@@ -365,10 +384,29 @@ router.get('/children/summary', authenticateParent, async (req, res) => {
     }
 
     const studentIds = parent.linkedStudents.map(ls => ls.studentId);
+    
+    // ✅ Get students with schoolId (string field)
     const students = await User.find({
       _id: { $in: studentIds },
       role: 'Student'
-    }).select('name email class gradeLevel gender date_of_birth');
+    })
+    .select('name email class gradeLevel gender date_of_birth schoolId');
+
+    // ✅ Get unique school IDs and fetch school data manually
+    const schoolIds = [...new Set(students.map(s => s.schoolId).filter(id => id))];
+    
+    let schoolMap = {};
+    if (schoolIds.length > 0) {
+      // Convert string IDs to ObjectIds and fetch schools
+      const schools = await School.find({
+        _id: { $in: schoolIds.map(id => new mongoose.Types.ObjectId(id)) }
+      }).select('organization_name');
+      
+      // Create a map of schoolId -> school name
+      schools.forEach(school => {
+        schoolMap[school._id.toString()] = school.organization_name;
+      });
+    }
 
     const childrenSummary = students.map(student => ({
       studentId: student._id,
@@ -376,8 +414,10 @@ router.get('/children/summary', authenticateParent, async (req, res) => {
       email: student.email,
       class: student.class || 'N/A',
       gradeLevel: student.gradeLevel || 'Primary 1',
+      schoolName: student.schoolId ? (schoolMap[student.schoolId] || 'N/A') : 'N/A', // ✅ Real school from database!
       gender: student.gender,
-      dateOfBirth: student.date_of_birth
+      dateOfBirth: student.date_of_birth,
+      overallGrade: 'N/A' // Can be calculated from mathProfile later if needed
     }));
 
     res.json({

@@ -27,9 +27,8 @@ export default function ViewChildren() {
             name: child.name,
             grade: child.gradeLevel || 'Primary 1',
             class: child.class || 'N/A',
-            school: 'Springfield Elementary', // Could be from school data later
-            overallGrade: child.overallGrade || 'N/A',
-            attendance: child.attendance || '95%'
+            school: child.schoolName || 'N/A', // ✅ NOW FROM DATABASE!
+            overallGrade: child.overallGrade || 'N/A'
           }));
           
           setChildren(formattedChildren);
@@ -115,10 +114,6 @@ export default function ViewChildren() {
                 <div style={styles.infoRow}>
                   <span style={styles.infoLabel}>School</span>
                   <span style={styles.infoValue}>{child.school}</span>
-                </div>
-                <div style={styles.infoRow}>
-                  <span style={styles.infoLabel}>Attendance</span>
-                  <span style={{...styles.infoValue, color: '#10b981'}}>{child.attendance}</span>
                 </div>
 
                 <div style={styles.buttonGroup}>
