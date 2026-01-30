@@ -185,7 +185,7 @@ const DynamicLandingPage = () => {
                       {testimonial.image && (
                         <img 
                           src={testimonial.image} 
-                          alt={`${testimonial.name}'s photo`} 
+                          alt={testimonial.name} 
                           className="testimonial-image" 
                         />
                       )}
