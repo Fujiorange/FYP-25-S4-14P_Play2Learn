@@ -1,7 +1,12 @@
 // Landing Page Manager Component
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getLandingPage, saveLandingPage } from '../../services/p2lAdminService';
+import { 
+  getLandingPage, 
+  saveLandingPage,
+  getTestimonials,
+  updateTestimonial 
+} from '../../services/p2lAdminService';
 import './LandingPageManager.css';
 
 function LandingPageManager() {
@@ -10,6 +15,13 @@ function LandingPageManager() {
   const [showForm, setShowForm] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [viewMode, setViewMode] = useState('edit'); // 'edit' or 'preview'
+  const [testimonials, setTestimonials] = useState([]);
+  const [testimonialFilters, setTestimonialFilters] = useState({
+    minRating: 4,
+    sentiment: '',
+    approved: 'false',
+    userRole: ''
+  });
   const [formData, setFormData] = useState({
     type: 'hero',
     title: '',
@@ -32,6 +44,26 @@ function LandingPageManager() {
       console.error('Failed to fetch landing page:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTestimonials = async () => {
+    try {
+      const response = await getTestimonials(testimonialFilters);
+      if (response.success) {
+        setTestimonials(response.testimonials || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch testimonials:', error);
+    }
+  };
+
+  const handleTestimonialApproval = async (id, approved, displayOnLanding) => {
+    try {
+      await updateTestimonial(id, { approved, display_on_landing: displayOnLanding });
+      fetchTestimonials(); // Refresh list
+    } catch (error) {
+      console.error('Failed to update testimonial:', error);
     }
   };
 
@@ -259,23 +291,30 @@ function LandingPageManager() {
                 placeholder="About Play2Learn"
               />
             </div>
-            <div className="form-group">
-              <label>Mission 🎯</label>
-              <textarea
-                value={customData.mission || ''}
-                onChange={(e) => handleCustomDataChange('mission', e.target.value)}
-                rows="2"
-                placeholder="To transform education by providing..."
-              />
-            </div>
-            <div className="form-group">
-              <label>Vision 👁️</label>
-              <textarea
-                value={customData.vision || ''}
-                onChange={(e) => handleCustomDataChange('vision', e.target.value)}
-                rows="2"
-                placeholder="A world where every learner achieves..."
-              />
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+              gap: '16px',
+              marginBottom: '20px'
+            }}>
+              <div className="form-group">
+                <label>Mission 🎯</label>
+                <textarea
+                  value={customData.mission || ''}
+                  onChange={(e) => handleCustomDataChange('mission', e.target.value)}
+                  rows="3"
+                  placeholder="To transform education by providing..."
+                />
+              </div>
+              <div className="form-group">
+                <label>Vision 👁️</label>
+                <textarea
+                  value={customData.vision || ''}
+                  onChange={(e) => handleCustomDataChange('vision', e.target.value)}
+                  rows="3"
+                  placeholder="A world where every learner achieves..."
+                />
+              </div>
             </div>
             <div className="form-section">
               <div className="section-header">
@@ -288,27 +327,33 @@ function LandingPageManager() {
                   + Add Goal
                 </button>
               </div>
-              {goals.map((goal, index) => (
-                <div key={index} className="array-item-simple">
-                  <input
-                    type="text"
-                    value={goal}
-                    onChange={(e) => {
-                      const newGoals = [...goals];
-                      newGoals[index] = e.target.value;
-                      handleCustomDataChange('goals', newGoals);
-                    }}
-                    placeholder="Increase student engagement by 70%..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeArrayItem('goals', index)}
-                    className="btn-remove-item"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+                gap: '12px' 
+              }}>
+                {goals.map((goal, index) => (
+                  <div key={index} className="array-item-simple">
+                    <input
+                      type="text"
+                      value={goal}
+                      onChange={(e) => {
+                        const newGoals = [...goals];
+                        newGoals[index] = e.target.value;
+                        handleCustomDataChange('goals', newGoals);
+                      }}
+                      placeholder="Increase student engagement by 70%..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('goals', index)}
+                      className="btn-remove-item"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="form-section">
               <div className="section-header">
@@ -321,29 +366,35 @@ function LandingPageManager() {
                   + Add Stat
                 </button>
               </div>
-              {stats.map((stat, index) => (
-                <div key={index} className="array-item-inline">
-                  <input
-                    type="text"
-                    value={stat.value || ''}
-                    onChange={(e) => handleArrayItemChange('stats', index, 'value', e.target.value)}
-                    placeholder="50+"
-                  />
-                  <input
-                    type="text"
-                    value={stat.label || ''}
-                    onChange={(e) => handleArrayItemChange('stats', index, 'label', e.target.value)}
-                    placeholder="Schools Partnered"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeArrayItem('stats', index)}
-                    className="btn-remove-item"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', 
+                gap: '12px' 
+              }}>
+                {stats.map((stat, index) => (
+                  <div key={index} className="array-item-inline">
+                    <input
+                      type="text"
+                      value={stat.value || ''}
+                      onChange={(e) => handleArrayItemChange('stats', index, 'value', e.target.value)}
+                      placeholder="50+"
+                    />
+                    <input
+                      type="text"
+                      value={stat.label || ''}
+                      onChange={(e) => handleArrayItemChange('stats', index, 'label', e.target.value)}
+                      placeholder="Schools Partnered"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('stats', index)}
+                      className="btn-remove-item"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         );
@@ -427,7 +478,6 @@ function LandingPageManager() {
         );
 
       case 'testimonials':
-        const testimonials = customData.testimonials || [];
         return (
           <>
             <div className="form-group">
@@ -448,67 +498,170 @@ function LandingPageManager() {
                 placeholder="Hear what our users say about Play2Learn."
               />
             </div>
+            
             <div className="form-section">
               <div className="section-header">
-                <h4>Testimonials</h4>
+                <h4>📊 Testimonial Filter & Management</h4>
                 <button
                   type="button"
-                  onClick={() => addArrayItem('testimonials', { name: '', role: '', quote: '', image: '' })}
+                  onClick={fetchTestimonials}
                   className="btn-add-item"
+                  style={{ background: '#3b82f6' }}
                 >
-                  + Add Testimonial
+                  🔍 Load Testimonials
                 </button>
               </div>
-              {testimonials.map((testimonial, index) => (
-                <div key={index} className="array-item">
-                  <div className="item-header">
-                    <h5>Testimonial {index + 1}</h5>
-                    <button
-                      type="button"
-                      onClick={() => removeArrayItem('testimonials', index)}
-                      className="btn-remove-item"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="form-group">
-                    <label>Name</label>
-                    <input
-                      type="text"
-                      value={testimonial.name || ''}
-                      onChange={(e) => handleArrayItemChange('testimonials', index, 'name', e.target.value)}
-                      placeholder="Alex Johnson"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Role</label>
-                    <input
-                      type="text"
-                      value={testimonial.role || ''}
-                      onChange={(e) => handleArrayItemChange('testimonials', index, 'role', e.target.value)}
-                      placeholder="Parent of a 5-year-old"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Quote</label>
-                    <textarea
-                      value={testimonial.quote || ''}
-                      onChange={(e) => handleArrayItemChange('testimonials', index, 'quote', e.target.value)}
-                      rows="3"
-                      placeholder="Play2Learn has transformed my child's learning experience..."
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Image URL</label>
-                    <input
-                      type="text"
-                      value={testimonial.image || ''}
-                      onChange={(e) => handleArrayItemChange('testimonials', index, 'image', e.target.value)}
-                      placeholder="https://example.com/avatar.jpg"
-                    />
-                  </div>
+              
+              <div className="testimonial-filters" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                gap: '16px', 
+                marginBottom: '20px',
+                padding: '16px',
+                background: '#f9fafb',
+                borderRadius: '8px'
+              }}>
+                <div className="form-group">
+                  <label>Minimum Rating</label>
+                  <select
+                    value={testimonialFilters.minRating}
+                    onChange={(e) => setTestimonialFilters({ ...testimonialFilters, minRating: e.target.value })}
+                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                  >
+                    <option value="">All Ratings</option>
+                    <option value="5">⭐⭐⭐⭐⭐ (5 stars)</option>
+                    <option value="4">⭐⭐⭐⭐+ (4+ stars)</option>
+                    <option value="3">⭐⭐⭐+ (3+ stars)</option>
+                  </select>
                 </div>
-              ))}
+                
+                <div className="form-group">
+                  <label>Sentiment</label>
+                  <select
+                    value={testimonialFilters.sentiment}
+                    onChange={(e) => setTestimonialFilters({ ...testimonialFilters, sentiment: e.target.value })}
+                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                  >
+                    <option value="">All Sentiments</option>
+                    <option value="positive">😊 Positive</option>
+                    <option value="neutral">😐 Neutral</option>
+                    <option value="negative">😞 Negative</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Approval Status</label>
+                  <select
+                    value={testimonialFilters.approved}
+                    onChange={(e) => setTestimonialFilters({ ...testimonialFilters, approved: e.target.value })}
+                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                  >
+                    <option value="">All</option>
+                    <option value="false">Pending Approval</option>
+                    <option value="true">Approved</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>User Type</label>
+                  <select
+                    value={testimonialFilters.userRole}
+                    onChange={(e) => setTestimonialFilters({ ...testimonialFilters, userRole: e.target.value })}
+                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                  >
+                    <option value="">All Users</option>
+                    <option value="Student">👨‍🎓 Students</option>
+                    <option value="Parent">👨‍👩‍👧 Parents</option>
+                    <option value="Teacher">👨‍🏫 Teachers</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="testimonials-list" style={{ 
+                maxHeight: '500px', 
+                overflowY: 'auto',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                padding: '12px'
+              }}>
+                {testimonials.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                    <p>Click "Load Testimonials" to view and manage testimonials.</p>
+                  </div>
+                ) : (
+                  testimonials.map((testimonial) => (
+                    <div 
+                      key={testimonial.id} 
+                      className="testimonial-item"
+                      style={{
+                        padding: '16px',
+                        marginBottom: '12px',
+                        background: testimonial.approved ? '#f0fdf4' : '#fef3c7',
+                        border: `2px solid ${testimonial.approved ? '#86efac' : '#fcd34d'}`,
+                        borderRadius: '8px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
+                        <div>
+                          <strong style={{ fontSize: '16px' }}>{testimonial.student_name}</strong>
+                          <span style={{ marginLeft: '8px', padding: '2px 8px', background: '#e0e7ff', color: '#4338ca', borderRadius: '12px', fontSize: '12px' }}>
+                            {testimonial.user_role}
+                          </span>
+                          <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
+                            {'⭐'.repeat(testimonial.rating)} ({testimonial.rating}/5)
+                            <span style={{ marginLeft: '12px', padding: '2px 8px', background: testimonial.sentiment_label === 'positive' ? '#d1fae5' : testimonial.sentiment_label === 'negative' ? '#fee2e2' : '#e5e7eb', borderRadius: '12px', fontSize: '11px' }}>
+                              {testimonial.sentiment_label === 'positive' ? '😊' : testimonial.sentiment_label === 'negative' ? '😞' : '😐'} {testimonial.sentiment_label}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleTestimonialApproval(testimonial.id, !testimonial.approved, testimonial.display_on_landing)}
+                            style={{
+                              padding: '6px 12px',
+                              background: testimonial.approved ? '#ef4444' : '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            {testimonial.approved ? '❌ Unapprove' : '✅ Approve'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleTestimonialApproval(testimonial.id, testimonial.approved, !testimonial.display_on_landing)}
+                            disabled={!testimonial.approved}
+                            style={{
+                              padding: '6px 12px',
+                              background: testimonial.display_on_landing ? '#f59e0b' : '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: testimonial.approved ? 'pointer' : 'not-allowed',
+                              fontSize: '12px',
+                              opacity: testimonial.approved ? 1 : 0.5
+                            }}
+                          >
+                            {testimonial.display_on_landing ? '🌐 On Landing' : '📄 Add to Landing'}
+                          </button>
+                        </div>
+                      </div>
+                      {testimonial.title && (
+                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{testimonial.title}</div>
+                      )}
+                      <div style={{ fontSize: '14px', color: '#374151', lineHeight: '1.6' }}>
+                        {testimonial.message}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '8px' }}>
+                        {new Date(testimonial.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </>
         );
@@ -689,50 +842,56 @@ function LandingPageManager() {
                   + Add Contact Method
                 </button>
               </div>
-              {contactMethods.map((method, index) => (
-                <div key={index} className="array-item">
-                  <div className="item-header">
-                    <h5>Contact Method {index + 1}</h5>
-                    <button
-                      type="button"
-                      onClick={() => removeArrayItem('contactMethods', index)}
-                      className="btn-remove-item"
-                    >
-                      ×
-                    </button>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+                gap: '16px' 
+              }}>
+                {contactMethods.map((method, index) => (
+                  <div key={index} className="array-item">
+                    <div className="item-header">
+                      <h5>Contact Method {index + 1}</h5>
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem('contactMethods', index)}
+                        className="btn-remove-item"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="form-group">
+                      <label>Icon (emoji)</label>
+                      <input
+                        type="text"
+                        value={method.icon || ''}
+                        onChange={(e) => handleArrayItemChange('contactMethods', index, 'icon', e.target.value)}
+                        placeholder="📧"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Title</label>
+                      <input
+                        type="text"
+                        value={method.title || ''}
+                        onChange={(e) => handleArrayItemChange('contactMethods', index, 'title', e.target.value)}
+                        placeholder="Email"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Details (one per line)</label>
+                      <textarea
+                        value={(method.details || []).join('\n')}
+                        onChange={(e) => {
+                          const details = e.target.value.split('\n').filter(d => d.trim());
+                          handleArrayItemChange('contactMethods', index, 'details', details);
+                        }}
+                        rows="2"
+                        placeholder="hello@Play2Learn.com&#10;support@Play2Learn.com"
+                      />
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label>Icon (emoji)</label>
-                    <input
-                      type="text"
-                      value={method.icon || ''}
-                      onChange={(e) => handleArrayItemChange('contactMethods', index, 'icon', e.target.value)}
-                      placeholder="📧"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Title</label>
-                    <input
-                      type="text"
-                      value={method.title || ''}
-                      onChange={(e) => handleArrayItemChange('contactMethods', index, 'title', e.target.value)}
-                      placeholder="Email"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Details (one per line)</label>
-                    <textarea
-                      value={(method.details || []).join('\n')}
-                      onChange={(e) => {
-                        const details = e.target.value.split('\n').filter(d => d.trim());
-                        handleArrayItemChange('contactMethods', index, 'details', details);
-                      }}
-                      rows="2"
-                      placeholder="hello@Play2Learn.com&#10;support@Play2Learn.com"
-                    />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
             <div className="form-section">
               <div className="section-header">
@@ -745,25 +904,30 @@ function LandingPageManager() {
                   + Add FAQ
                 </button>
               </div>
-              {faqs.map((faq, index) => (
-                <div key={index} className="array-item">
-                  <div className="item-header">
-                    <h5>FAQ {index + 1}</h5>
-                    <button
-                      type="button"
-                      onClick={() => removeArrayItem('faqs', index)}
-                      className="btn-remove-item"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="form-group">
-                    <label>Question</label>
-                    <input
-                      type="text"
-                      value={faq.question || ''}
-                      onChange={(e) => handleArrayItemChange('faqs', index, 'question', e.target.value)}
-                      placeholder="How long does implementation take?"
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', 
+                gap: '16px' 
+              }}>
+                {faqs.map((faq, index) => (
+                  <div key={index} className="array-item">
+                    <div className="item-header">
+                      <h5>FAQ {index + 1}</h5>
+                      <button
+                        type="button"
+                        onClick={() => removeArrayItem('faqs', index)}
+                        className="btn-remove-item"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="form-group">
+                      <label>Question</label>
+                      <input
+                        type="text"
+                        value={faq.question || ''}
+                        onChange={(e) => handleArrayItemChange('faqs', index, 'question', e.target.value)}
+                        placeholder="How long does implementation take?"
                     />
                   </div>
                   <div className="form-group">
@@ -851,14 +1015,45 @@ function LandingPageManager() {
         );
       
       case 'about':
+        const aboutData = block.custom_data || {};
         return (
           <section className="preview-about">
             <div className="preview-container">
               <h2>{block.title || 'About Us'}</h2>
-              <div className="preview-about-content">
-                <p>{block.content || 'About content will appear here'}</p>
-                {block.image_url && <img src={block.image_url} alt={block.title || 'About section image'} />}
+              <div className="preview-about-content" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+                {aboutData.mission && (
+                  <div style={{ padding: '16px', background: '#f0fdf4', borderRadius: '8px' }}>
+                    <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>🎯 Mission</h3>
+                    <p>{aboutData.mission}</p>
+                  </div>
+                )}
+                {aboutData.vision && (
+                  <div style={{ padding: '16px', background: '#eff6ff', borderRadius: '8px' }}>
+                    <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>👁️ Vision</h3>
+                    <p>{aboutData.vision}</p>
+                  </div>
+                )}
               </div>
+              {aboutData.goals && aboutData.goals.length > 0 && (
+                <div style={{ marginTop: '24px' }}>
+                  <h3 style={{ fontSize: '20px', marginBottom: '12px' }}>Goals</h3>
+                  <ul style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px', listStyle: 'none', padding: 0 }}>
+                    {aboutData.goals.map((goal, index) => (
+                      <li key={index} style={{ padding: '12px', background: '#fef3c7', borderRadius: '6px' }}>✓ {goal}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {aboutData.stats && aboutData.stats.length > 0 && (
+                <div style={{ marginTop: '24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+                  {aboutData.stats.map((stat, index) => (
+                    <div key={index} style={{ textAlign: 'center', padding: '16px', background: '#e0e7ff', borderRadius: '8px' }}>
+                      <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#4338ca' }}>{stat.value}</div>
+                      <div style={{ fontSize: '14px', color: '#6b7280' }}>{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         );
@@ -868,8 +1063,12 @@ function LandingPageManager() {
           <section className="preview-testimonials">
             <div className="preview-container">
               <h2>{block.title || 'Testimonials'}</h2>
-              <div className="preview-testimonial-content">
-                <p>{block.content || 'Testimonials will appear here'}</p>
+              <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '24px' }}>{block.content}</p>
+              <div style={{ textAlign: 'center', padding: '40px', background: '#f9fafb', borderRadius: '8px' }}>
+                <p style={{ color: '#6b7280' }}>
+                  💡 Testimonials are managed dynamically from student and parent submissions.
+                  <br/>Use the filter system above to approve and display testimonials on the landing page.
+                </p>
               </div>
             </div>
           </section>
@@ -888,13 +1087,37 @@ function LandingPageManager() {
         );
       
       case 'contact':
+        const contactData = block.custom_data || {};
         return (
           <section className="preview-contact">
             <div className="preview-container">
               <h2>{block.title || 'Contact Us'}</h2>
-              <div className="preview-contact-content">
-                <p>{block.content || 'Contact information will appear here'}</p>
-              </div>
+              {contactData.contactMethods && contactData.contactMethods.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+                  {contactData.contactMethods.map((method, index) => (
+                    <div key={index} style={{ padding: '20px', background: '#f9fafb', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>{method.icon}</div>
+                      <h3 style={{ fontSize: '18px', marginBottom: '8px', fontWeight: '600' }}>{method.title}</h3>
+                      {method.details && method.details.map((detail, idx) => (
+                        <div key={idx} style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>{detail}</div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {contactData.faqs && contactData.faqs.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: '24px', marginBottom: '16px', textAlign: 'center' }}>Frequently Asked Questions</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px' }}>
+                    {contactData.faqs.map((faq, index) => (
+                      <div key={index} style={{ padding: '16px', background: '#eff6ff', borderRadius: '8px' }}>
+                        <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px', color: '#1e40af' }}>Q: {faq.question}</h4>
+                        <p style={{ fontSize: '14px', color: '#374151' }}>A: {faq.answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         );

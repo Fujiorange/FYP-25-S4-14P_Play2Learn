@@ -241,6 +241,29 @@ export const getHealthStatus = async () => {
   return apiCall('/api/p2ladmin/health');
 };
 
+// ==================== TESTIMONIALS ====================
+export const getTestimonials = async (filters = {}) => {
+  const queryString = new URLSearchParams(filters).toString();
+  return apiCall(`/api/p2ladmin/testimonials${queryString ? `?${queryString}` : ''}`);
+};
+
+export const updateTestimonial = async (id, updates) => {
+  return apiCall(`/api/p2ladmin/testimonials/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+};
+
+export const deleteTestimonial = async (id) => {
+  return apiCall(`/api/p2ladmin/testimonials/${id}`, {
+    method: 'DELETE',
+  });
+};
+
+export const getLandingPageTestimonials = async () => {
+  return apiCall('/api/p2ladmin/testimonials/landing-page');
+};
+
 export default {
   seedP2LAdmin,
   registerP2LAdmin,
@@ -268,4 +291,8 @@ export default {
   deleteQuiz,
   runAdaptiveQuiz,
   getHealthStatus,
+  getTestimonials,
+  updateTestimonial,
+  deleteTestimonial,
+  getLandingPageTestimonials,
 };
