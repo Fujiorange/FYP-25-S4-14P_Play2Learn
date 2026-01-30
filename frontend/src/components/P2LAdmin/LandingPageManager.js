@@ -389,7 +389,7 @@ function LandingPageManager() {
                     <input
                       type="number"
                       value={step.step || ''}
-                      onChange={(e) => handleArrayItemChange('steps', index, 'step', parseInt(e.target.value))}
+                      onChange={(e) => handleArrayItemChange('steps', index, 'step', parseInt(e.target.value, 10) || 0)}
                       placeholder="1"
                     />
                   </div>
@@ -591,7 +591,8 @@ function LandingPageManager() {
                         type="number"
                         value={plan.price?.monthly || ''}
                         onChange={(e) => {
-                          const newPlan = { ...plan, price: { ...plan.price, monthly: parseFloat(e.target.value) } };
+                          const value = parseFloat(e.target.value);
+                          const newPlan = { ...plan, price: { ...plan.price, monthly: isNaN(value) ? 0 : value } };
                           const newPlans = [...plans];
                           newPlans[index] = newPlan;
                           handleCustomDataChange('plans', newPlans);
@@ -605,7 +606,8 @@ function LandingPageManager() {
                         type="number"
                         value={plan.price?.yearly || ''}
                         onChange={(e) => {
-                          const newPlan = { ...plan, price: { ...plan.price, yearly: parseFloat(e.target.value) } };
+                          const value = parseFloat(e.target.value);
+                          const newPlan = { ...plan, price: { ...plan.price, yearly: isNaN(value) ? 0 : value } };
                           const newPlans = [...plans];
                           newPlans[index] = newPlan;
                           handleCustomDataChange('plans', newPlans);
@@ -620,7 +622,7 @@ function LandingPageManager() {
                       <input
                         type="number"
                         value={plan.teachers || ''}
-                        onChange={(e) => handleArrayItemChange('plans', index, 'teachers', parseInt(e.target.value))}
+                        onChange={(e) => handleArrayItemChange('plans', index, 'teachers', parseInt(e.target.value, 10) || 0)}
                         placeholder="50"
                       />
                     </div>
@@ -629,7 +631,7 @@ function LandingPageManager() {
                       <input
                         type="number"
                         value={plan.students || ''}
-                        onChange={(e) => handleArrayItemChange('plans', index, 'students', parseInt(e.target.value))}
+                        onChange={(e) => handleArrayItemChange('plans', index, 'students', parseInt(e.target.value, 10) || 0)}
                         placeholder="500"
                       />
                     </div>

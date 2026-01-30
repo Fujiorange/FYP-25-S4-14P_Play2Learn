@@ -182,18 +182,20 @@ const DynamicLandingPage = () => {
                 <div className="testimonials-grid">
                   {testimonials.map((testimonial, tIdx) => (
                     <div key={tIdx} className="testimonial-card">
-                      {testimonial.image && (
-                        <img 
-                          src={testimonial.image} 
-                          alt={testimonial.name} 
-                          className="testimonial-image" 
-                        />
-                      )}
-                      <blockquote className="testimonial-quote">"{testimonial.quote}"</blockquote>
-                      <cite className="testimonial-cite">
-                        <strong>{testimonial.name}</strong>
-                        {testimonial.role && `, ${testimonial.role}`}
-                      </cite>
+                      <blockquote className="testimonial-quote">
+                        {testimonial.image && (
+                          <img 
+                            src={testimonial.image} 
+                            alt={`Portrait of ${testimonial.name}`} 
+                            className="testimonial-image" 
+                          />
+                        )}
+                        <p>"{testimonial.quote}"</p>
+                        <cite className="testimonial-cite">
+                          <strong>{testimonial.name}</strong>
+                          {testimonial.role && `, ${testimonial.role}`}
+                        </cite>
+                      </blockquote>
                     </div>
                   ))}
                 </div>
