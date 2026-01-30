@@ -3,7 +3,10 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 
-// Landing Page Components
+// Dynamic Landing Page Component
+import DynamicLandingPage from './components/DynamicLandingPage/DynamicLandingPage';
+
+// Landing Page Components (kept for fallback)
 import Header from './components/Header/Header';
 import Hero from './components/Hero/Hero';
 import Features from './components/Feature/Features';
@@ -107,19 +110,7 @@ function App() {
           {/* ========== LANDING PAGE ========== */}
           <Route
             path="/"
-            element={
-              <>
-                <Header />
-                <Hero />
-                <Features />
-                <About />
-                <Roadmap />
-                <Testimonials />
-                <Pricing />
-                <Contact />
-                <Footer />
-              </>
-            }
+            element={<DynamicLandingPage />}
           />
 
           {/* ========== AUTHENTICATION ========== */}

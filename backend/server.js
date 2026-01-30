@@ -79,6 +79,42 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// ==================== PUBLIC LANDING PAGE ENDPOINT ====================
+// Public endpoint to fetch landing page blocks (no authentication required)
+const LandingPage = require('./models/LandingPage');
+
+app.get('/api/public/landing-page', async (req, res) => {
+  try {
+    // Get the active landing page or the most recent one
+    let landingPage = await LandingPage.findOne({ is_active: true });
+    
+    if (!landingPage) {
+      // If no active page, get the most recent one
+      landingPage = await LandingPage.findOne().sort({ createdAt: -1 });
+    }
+    
+    if (!landingPage) {
+      // If no landing page exists at all, return empty structure
+      return res.json({
+        success: true,
+        blocks: [],
+        message: 'No landing page found'
+      });
+    }
+
+    res.json({
+      success: true,
+      blocks: landingPage.blocks || []
+    });
+  } catch (error) {
+    console.error('Get public landing page error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch landing page' 
+    });
+  }
+});
+
 // ==================== ROUTE IMPORTS & REGISTRATION ====================
 try {
   app.use('/api/mongo/auth', authRoutes); // User authentication
