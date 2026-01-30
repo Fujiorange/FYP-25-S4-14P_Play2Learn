@@ -246,8 +246,7 @@ const studentService = {
       const token = localStorage.getItem('token');
       if (!token) return { success: false, error: 'Not authenticated' };
 
-      // NOTE: Backend file you shared uses /quiz-results
-      const response = await fetch(`${API_URL}/mongo/student/quiz-results`, {
+      const response = await fetch(`${API_URL}/mongo/student/quiz/results`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -264,7 +263,7 @@ const studentService = {
       const token = localStorage.getItem('token');
       if (!token) return { success: false, error: 'Not authenticated' };
 
-      const response = await fetch(`${API_URL}/mongo/student/quiz-history`, {
+      const response = await fetch(`${API_URL}/mongo/student/quiz/history`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -375,6 +374,75 @@ const studentService = {
   },
 
   // ==================== TESTIMONIALS ====================
+  
+  /**
+   * Create a new testimonial (called by WriteTestimonial.js)
+   * @param {Object} formData - { title, rating, testimonial, displayName, allowPublic }
+   * @returns {Promise<Object>} - { success, testimonial?, error? }
+   */
+  async createTestimonial(formData) {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('❌ No authentication token');
+        return { success: false, error: 'Not authenticated. Please log in.' };
+      }
+
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) {
+        console.error('❌ No user data found');
+        return { success: false, error: 'User data not found' };
+      }
+
+      console.log('📤 Submitting testimonial:', {
+        title: formData.title,
+        rating: formData.rating,
+        displayName: formData.displayName
+      });
+
+      const response = await fetch(`${API_URL}/mongo/student/testimonials`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          rating: formData.rating,
+          testimonial: formData.testimonial, // Backend accepts both 'message' and 'testimonial'
+          message: formData.testimonial,      // Send both for compatibility
+          displayName: formData.displayName,
+          student_name: formData.displayName,
+          student_email: user.email,
+        }),
+      });
+
+      const json = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Testimonial submission failed:', json);
+        return {
+          success: false,
+          error: json.error || json.message || 'Failed to submit testimonial'
+        };
+      }
+
+      console.log('✅ Testimonial submitted successfully:', json);
+      return {
+        success: true,
+        testimonial: json.testimonial,
+        message: json.message || 'Thank you for your feedback!'
+      };
+
+    } catch (error) {
+      console.error('❌ Error submitting testimonial:', error);
+      return {
+        success: false,
+        error: 'Network error. Please check your connection and try again.'
+      };
+    }
+  },
+
   async submitTestimonial(testimonialData) {
     try {
       const token = localStorage.getItem('token');

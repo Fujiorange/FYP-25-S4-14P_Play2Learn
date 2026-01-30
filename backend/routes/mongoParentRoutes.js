@@ -583,6 +583,9 @@ router.post('/testimonials', authenticateParent, async (req, res) => {
       userId: parent._id,
       userName: parent.name,
       userEmail: parent.email,
+      student_name: parent.name, // ✅ Added for compatibility with student schema
+      student_email: parent.email, // ✅ Added for compatibility
+      approved: false, // ✅ Added for compatibility
       userRole: 'Parent',
       rating,
       title,

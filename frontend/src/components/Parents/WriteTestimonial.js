@@ -1,6 +1,7 @@
 // frontend/src/pages/Parent/WriteTestimonial.js - COMPLETE VERSION
 // ✅ Actually saves to database via API
-// ✅ No more fake submission
+// ✅ Updated to use createTestimonial() method
+// ✅ Consistent with student testimonial flow
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -47,8 +48,8 @@ export default function WriteTestimonial() {
     setMessage({ type: '', text: '' });
 
     try {
-      // ✅ FIXED: Actually call API to save to database
-      const result = await parentService.submitTestimonial(formData);
+      // ✅ Using createTestimonial() for better error handling and logging
+      const result = await parentService.createTestimonial(formData);
 
       if (result.success) {
         setMessage({ 
@@ -112,7 +113,7 @@ export default function WriteTestimonial() {
     <div style={styles.container}>
       <div style={styles.content}>
         <div style={styles.header}>
-          <h1 style={styles.title}>✍️ Write a Testimonial</h1>
+          <h1 style={styles.title}>✏️ Write a Testimonial</h1>
           <button style={styles.backButton} onClick={() => navigate('/parent')}>← Back to Dashboard</button>
         </div>
 
