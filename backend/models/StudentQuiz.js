@@ -2,14 +2,15 @@ const mongoose = require('mongoose');
 
 const studentQuizSchema = new mongoose.Schema({
   student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  quiz_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' }, // Reference to P2L Admin created quiz
   quiz_type: { type: String, enum: ['placement', 'regular'], required: true },
   profile_level: { type: Number, required: true },
   questions: [
     {
       question_text: String,
       operation: String,
-      correct_answer: Number,
-      student_answer: Number,
+      correct_answer: mongoose.Schema.Types.Mixed, // Can be String or Number
+      student_answer: mongoose.Schema.Types.Mixed,
       is_correct: Boolean
     }
   ],
