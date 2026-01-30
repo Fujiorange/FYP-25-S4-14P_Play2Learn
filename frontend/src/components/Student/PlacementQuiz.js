@@ -8,7 +8,7 @@ export default function PlacementQuiz() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [quizData, setQuizData] = useState(null);
-  const [answers, setAnswers] = useState(Array(15).fill(''));
+  const [answers, setAnswers] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -54,7 +54,7 @@ export default function PlacementQuiz() {
   };
 
   const handleNext = () => {
-    if (currentQuestion < 14) {
+    if (currentQuestion < quizData.total_questions - 1) {
       setCurrentQuestion(currentQuestion + 1);
     }
   };
@@ -227,14 +227,14 @@ export default function PlacementQuiz() {
                   onClick={() => handleAnswerChange(currentQuestion, choice)}
                   onMouseEnter={(e) => {
                     if (answers[currentQuestion] !== choice) {
-                      e.target.style.borderColor = '#3b82f6';
-                      e.target.style.background = '#f9fafb';
+                      e.currentTarget.style.borderColor = '#3b82f6';
+                      e.currentTarget.style.background = '#f9fafb';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (answers[currentQuestion] !== choice) {
-                      e.target.style.borderColor = '#e5e7eb';
-                      e.target.style.background = 'white';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.background = 'white';
                     }
                   }}
                   >
@@ -255,7 +255,7 @@ export default function PlacementQuiz() {
                 <label style={styles.answerLabel}>Your Answer:</label>
                 <input
                   type="text"
-                  value={answers[currentQuestion]}
+                  value={answers[currentQuestion] || ''}
                   onChange={(e) => handleAnswerChange(currentQuestion, e.target.value)}
                   placeholder="Enter your answer"
                   style={styles.answerInput}
@@ -283,12 +283,12 @@ export default function PlacementQuiz() {
             <button
               style={{
                 ...styles.navButton,
-                ...(currentQuestion === 14 ? styles.navButtonDisabled : {})
+                ...(currentQuestion === quizData.total_questions - 1 ? styles.navButtonDisabled : {})
               }}
               onClick={handleNext}
-              disabled={currentQuestion === 14}
-              onMouseEnter={(e) => currentQuestion < 14 && (e.target.style.background = '#4b5563')}
-              onMouseLeave={(e) => currentQuestion < 14 && (e.target.style.background = '#6b7280')}
+              disabled={currentQuestion === quizData.total_questions - 1}
+              onMouseEnter={(e) => currentQuestion < quizData.total_questions - 1 && (e.target.style.background = '#4b5563')}
+              onMouseLeave={(e) => currentQuestion < quizData.total_questions - 1 && (e.target.style.background = '#6b7280')}
             >
               Next →
             </button>

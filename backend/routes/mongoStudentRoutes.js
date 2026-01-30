@@ -470,16 +470,32 @@ router.post("/placement-quiz/submit", async (req, res) => {
       return res.status(404).json({ success: false, error: "Placement quiz not found" });
     }
 
-    let score = 0;
     const totalQuestions = quiz.questions.length;
+    
+    // Validate answers array length
+    if (!Array.isArray(answers) || answers.length !== totalQuestions) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Expected ${totalQuestions} answers, but received ${answers?.length || 0}` 
+      });
+    }
+
+    let score = 0;
     
     quiz.questions.forEach((q, i) => {
       const studentAnswer = answers[i];
       q.student_answer = studentAnswer;
-      // Compare answers as strings (case-insensitive and trimmed)
-      const correctAnswer = String(q.correct_answer).trim().toLowerCase();
-      const givenAnswer = String(studentAnswer).trim().toLowerCase();
-      q.is_correct = givenAnswer === correctAnswer;
+      
+      // Handle undefined/null answers explicitly
+      if (studentAnswer === undefined || studentAnswer === null || studentAnswer === '') {
+        q.is_correct = false;
+      } else {
+        // Compare answers as strings (case-insensitive and trimmed)
+        const correctAnswer = String(q.correct_answer).trim().toLowerCase();
+        const givenAnswer = String(studentAnswer).trim().toLowerCase();
+        q.is_correct = givenAnswer === correctAnswer;
+      }
+      
       if (q.is_correct) score++;
     });
 

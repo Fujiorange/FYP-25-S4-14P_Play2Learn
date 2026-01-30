@@ -812,9 +812,17 @@ router.post('/quizzes', authenticateP2LAdmin, async (req, res) => {
     // Populate questions with full details from Question references
     const populatedQuestions = [];
     if (questions && questions.length > 0) {
+      // Fetch all questions in parallel for better performance
+      const questionIds = questions.map(q => q.question_id).filter(id => id);
+      const questionDocs = await Question.find({ _id: { $in: questionIds } });
+      
+      // Create a map for quick lookup
+      const questionMap = new Map(questionDocs.map(doc => [doc._id.toString(), doc]));
+      
+      // Populate questions in order, log warnings for missing questions
       for (const q of questions) {
         if (q.question_id) {
-          const questionDoc = await Question.findById(q.question_id);
+          const questionDoc = questionMap.get(q.question_id.toString());
           if (questionDoc) {
             populatedQuestions.push({
               question_id: questionDoc._id,
@@ -823,17 +831,25 @@ router.post('/quizzes', authenticateP2LAdmin, async (req, res) => {
               answer: questionDoc.answer,
               difficulty: questionDoc.difficulty
             });
+          } else {
+            console.warn(`⚠️ Question not found: ${q.question_id}`);
           }
         }
       }
+      
+      if (populatedQuestions.length !== questionIds.length) {
+        console.warn(`⚠️ Some questions were not found. Expected ${questionIds.length}, got ${populatedQuestions.length}`);
+      }
     }
+
+    const finalQuizType = quiz_type || (is_adaptive ? 'adaptive' : 'placement');
 
     const quiz = new Quiz({
       title,
       description: description || '',
-      quiz_type: quiz_type || (is_adaptive ? 'adaptive' : 'placement'),
+      quiz_type: finalQuizType,
       questions: populatedQuestions,
-      is_adaptive: is_adaptive !== undefined ? is_adaptive : true,
+      is_adaptive: is_adaptive !== undefined ? is_adaptive : (finalQuizType === 'adaptive'),
       is_active: is_active !== undefined ? is_active : true,
       created_by: req.user._id
     });
@@ -857,7 +873,7 @@ router.post('/quizzes', authenticateP2LAdmin, async (req, res) => {
 // Update quiz
 router.put('/quizzes/:id', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { title, description, questions, is_adaptive, is_active } = req.body;
+    const { title, description, questions, is_adaptive, is_active, quiz_type } = req.body;
     
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) {
@@ -873,6 +889,7 @@ router.put('/quizzes/:id', authenticateP2LAdmin, async (req, res) => {
     if (questions) quiz.questions = questions;
     if (is_adaptive !== undefined) quiz.is_adaptive = is_adaptive;
     if (is_active !== undefined) quiz.is_active = is_active;
+    if (quiz_type !== undefined) quiz.quiz_type = quiz_type;
 
     await quiz.save();
 
