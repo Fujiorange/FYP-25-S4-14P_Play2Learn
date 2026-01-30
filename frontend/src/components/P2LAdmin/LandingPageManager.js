@@ -928,19 +928,20 @@ function LandingPageManager() {
                         value={faq.question || ''}
                         onChange={(e) => handleArrayItemChange('faqs', index, 'question', e.target.value)}
                         placeholder="How long does implementation take?"
-                    />
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Answer</label>
+                      <textarea
+                        value={faq.answer || ''}
+                        onChange={(e) => handleArrayItemChange('faqs', index, 'answer', e.target.value)}
+                        rows="2"
+                        placeholder="Typically 2-4 weeks depending on school size..."
+                      />
+                    </div>
                   </div>
-                  <div className="form-group">
-                    <label>Answer</label>
-                    <textarea
-                      value={faq.answer || ''}
-                      onChange={(e) => handleArrayItemChange('faqs', index, 'answer', e.target.value)}
-                      rows="2"
-                      placeholder="Typically 2-4 weeks depending on school size..."
-                    />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </>
         );
