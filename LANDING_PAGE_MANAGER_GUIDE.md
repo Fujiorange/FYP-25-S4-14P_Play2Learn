@@ -1,8 +1,34 @@
-# Landing Page Manager - Preview Mode Guide
+# Landing Page Manager - User Guide
+
+## Important: Viewing Your Changes
+
+After adding or modifying blocks in the Landing Page Manager, your changes will appear on the **live website homepage** at:
+- **Live Site**: https://play2learn-test.onrender.com/
+
+### How to See Your Changes:
+
+1. **In the Manager**:
+   - Use **Preview Mode** (👁️ Preview button) to see how blocks will look
+   - This shows a preview within the admin interface
+
+2. **On the Live Website**:
+   - Click **💾 Save Changes** to save your blocks to the database
+   - Visit the live website: https://play2learn-test.onrender.com/
+   - The homepage will now display your blocks dynamically
+   - If no blocks are saved, the site shows the default static content
+
+### Important Notes:
+- **You MUST click "Save Changes"** for blocks to appear on the live site
+- Changes appear immediately after saving (no deployment needed)
+- The live homepage fetches blocks from the database automatically
+- Hidden blocks (is_visible = false) won't appear on the live site
 
 ## What's New
 
-The Landing Page Manager now includes a **Preview Mode** that allows administrators to view the entire landing page as it will appear to visitors, not just edit individual blocks.
+The Landing Page Manager now includes:
+1. **Dynamic Landing Page**: Blocks you create appear on the live website
+2. **Preview Mode**: View how the page will look before saving
+3. **Dual View Modes**: Edit and Preview modes for better workflow
 
 ## Features
 
@@ -111,14 +137,19 @@ When deploying the frontend to Render:
 
 ### API Endpoints
 
-The landing page manager uses these API endpoints (already implemented):
-- `GET /api/p2ladmin/landing` - Fetch landing page blocks
+The landing page system uses these API endpoints:
+
+**Admin Endpoints (Authenticated):**
+- `GET /api/p2ladmin/landing` - Fetch landing page blocks for editing
 - `POST /api/p2ladmin/landing` - Save landing page blocks
 - `PUT /api/p2ladmin/landing/:id` - Update landing page blocks
 
+**Public Endpoint (No Authentication):**
+- `GET /api/public/landing-page` - Fetch landing page blocks for display on live site
+
 ### No Additional Configuration Required
 
-The preview mode is a frontend-only feature that doesn't require:
+The dynamic landing page feature doesn't require:
 - Additional database tables
 - New environment variables
 - Special server configuration
@@ -128,10 +159,26 @@ The preview mode is a frontend-only feature that doesn't require:
 
 ### Implementation
 
+**Admin Interface:**
 - **Component**: `frontend/src/components/P2LAdmin/LandingPageManager.js`
 - **Styles**: `frontend/src/components/P2LAdmin/LandingPageManager.css`
 - **State Management**: React hooks (useState)
 - **API Integration**: Existing p2lAdminService
+
+**Live Landing Page:**
+- **Component**: `frontend/src/components/DynamicLandingPage/DynamicLandingPage.js`
+- **Styles**: `frontend/src/components/DynamicLandingPage/DynamicLandingPage.css`
+- **Route**: `/` (homepage)
+- **API**: Fetches from `/api/public/landing-page`
+- **Fallback**: Shows static components if no blocks are configured
+
+### How It Works
+
+1. **Admin creates blocks** in the Landing Page Manager (`/p2ladmin/landing-page`)
+2. **Blocks are saved** to MongoDB via `POST /api/p2ladmin/landing`
+3. **Live site fetches blocks** from `GET /api/public/landing-page` when visitors access `/`
+4. **DynamicLandingPage component** renders blocks based on their type and order
+5. **If no blocks exist**, the site falls back to static components
 
 ### Preview Rendering
 
