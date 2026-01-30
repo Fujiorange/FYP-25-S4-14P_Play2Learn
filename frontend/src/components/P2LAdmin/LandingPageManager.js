@@ -43,6 +43,35 @@ function LandingPageManager() {
     });
   };
 
+  const handleCustomDataChange = (field, value) => {
+    setFormData({
+      ...formData,
+      custom_data: {
+        ...formData.custom_data,
+        [field]: value
+      }
+    });
+  };
+
+  const handleArrayItemChange = (arrayName, index, field, value) => {
+    const array = [...(formData.custom_data[arrayName] || [])];
+    array[index] = {
+      ...array[index],
+      [field]: value
+    };
+    handleCustomDataChange(arrayName, array);
+  };
+
+  const addArrayItem = (arrayName, defaultItem) => {
+    const array = [...(formData.custom_data[arrayName] || []), defaultItem];
+    handleCustomDataChange(arrayName, array);
+  };
+
+  const removeArrayItem = (arrayName, index) => {
+    const array = (formData.custom_data[arrayName] || []).filter((_, i) => i !== index);
+    handleCustomDataChange(arrayName, array);
+  };
+
   const handleAddBlock = () => {
     setEditingIndex(null);
     setFormData({
@@ -104,6 +133,689 @@ function LandingPageManager() {
     [newBlocks[index], newBlocks[targetIndex]] = [newBlocks[targetIndex], newBlocks[index]];
     newBlocks.forEach((block, i) => block.order = i);
     setBlocks(newBlocks);
+  };
+
+  // Render type-specific form fields
+  const renderTypeSpecificFields = () => {
+    const type = formData.type;
+    const customData = formData.custom_data || {};
+
+    switch (type) {
+      case 'hero':
+        return (
+          <>
+            <div className="form-group">
+              <label>Title *</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Revolutionizing Education Through Adaptive Learning"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Content *</label>
+              <textarea
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                rows="3"
+                placeholder="Personalized learning paths powered by AI..."
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Image URL</label>
+              <input
+                type="text"
+                value={formData.image_url}
+                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                placeholder="https://example.com/hero-image.jpg"
+              />
+            </div>
+          </>
+        );
+
+      case 'features':
+        const features = customData.features || [];
+        return (
+          <>
+            <div className="form-group">
+              <label>Section Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Platform Features"
+              />
+            </div>
+            <div className="form-section">
+              <div className="section-header">
+                <h4>Features List</h4>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('features', { icon: '🎯', title: '', description: '' })}
+                  className="btn-add-item"
+                >
+                  + Add Feature
+                </button>
+              </div>
+              {features.map((feature, index) => (
+                <div key={index} className="array-item">
+                  <div className="item-header">
+                    <h5>Feature {index + 1}</h5>
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('features', index)}
+                      className="btn-remove-item"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="form-group">
+                    <label>Icon (emoji)</label>
+                    <input
+                      type="text"
+                      value={feature.icon || ''}
+                      onChange={(e) => handleArrayItemChange('features', index, 'icon', e.target.value)}
+                      placeholder="🎯"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Title</label>
+                    <input
+                      type="text"
+                      value={feature.title || ''}
+                      onChange={(e) => handleArrayItemChange('features', index, 'title', e.target.value)}
+                      placeholder="Adaptive Learning Paths"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Description</label>
+                    <textarea
+                      value={feature.description || ''}
+                      onChange={(e) => handleArrayItemChange('features', index, 'description', e.target.value)}
+                      rows="2"
+                      placeholder="AI-powered personalized learning journeys..."
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+
+      case 'about':
+        const stats = customData.stats || [];
+        const goals = customData.goals || [];
+        return (
+          <>
+            <div className="form-group">
+              <label>Section Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="About Play2Learn"
+              />
+            </div>
+            <div className="form-group">
+              <label>Mission 🎯</label>
+              <textarea
+                value={customData.mission || ''}
+                onChange={(e) => handleCustomDataChange('mission', e.target.value)}
+                rows="2"
+                placeholder="To transform education by providing..."
+              />
+            </div>
+            <div className="form-group">
+              <label>Vision 👁️</label>
+              <textarea
+                value={customData.vision || ''}
+                onChange={(e) => handleCustomDataChange('vision', e.target.value)}
+                rows="2"
+                placeholder="A world where every learner achieves..."
+              />
+            </div>
+            <div className="form-section">
+              <div className="section-header">
+                <h4>Goals 🎯</h4>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('goals', '')}
+                  className="btn-add-item"
+                >
+                  + Add Goal
+                </button>
+              </div>
+              {goals.map((goal, index) => (
+                <div key={index} className="array-item-simple">
+                  <input
+                    type="text"
+                    value={goal}
+                    onChange={(e) => {
+                      const newGoals = [...goals];
+                      newGoals[index] = e.target.value;
+                      handleCustomDataChange('goals', newGoals);
+                    }}
+                    placeholder="Increase student engagement by 70%..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeArrayItem('goals', index)}
+                    className="btn-remove-item"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="form-section">
+              <div className="section-header">
+                <h4>Statistics</h4>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('stats', { value: '', label: '' })}
+                  className="btn-add-item"
+                >
+                  + Add Stat
+                </button>
+              </div>
+              {stats.map((stat, index) => (
+                <div key={index} className="array-item-inline">
+                  <input
+                    type="text"
+                    value={stat.value || ''}
+                    onChange={(e) => handleArrayItemChange('stats', index, 'value', e.target.value)}
+                    placeholder="50+"
+                  />
+                  <input
+                    type="text"
+                    value={stat.label || ''}
+                    onChange={(e) => handleArrayItemChange('stats', index, 'label', e.target.value)}
+                    placeholder="Schools Partnered"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeArrayItem('stats', index)}
+                    className="btn-remove-item"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+
+      case 'roadmap':
+        const steps = customData.steps || [];
+        return (
+          <>
+            <div className="form-group">
+              <label>Section Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Learning Journey Roadmap"
+              />
+            </div>
+            <div className="form-section">
+              <div className="section-header">
+                <h4>Roadmap Steps</h4>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('steps', { step: steps.length + 1, title: '', description: '', duration: '' })}
+                  className="btn-add-item"
+                >
+                  + Add Step
+                </button>
+              </div>
+              {steps.map((step, index) => (
+                <div key={index} className="array-item">
+                  <div className="item-header">
+                    <h5>Step {step.step || index + 1}</h5>
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('steps', index)}
+                      className="btn-remove-item"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="form-group">
+                    <label>Step Number</label>
+                    <input
+                      type="number"
+                      value={step.step || ''}
+                      onChange={(e) => handleArrayItemChange('steps', index, 'step', parseInt(e.target.value))}
+                      placeholder="1"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Title</label>
+                    <input
+                      type="text"
+                      value={step.title || ''}
+                      onChange={(e) => handleArrayItemChange('steps', index, 'title', e.target.value)}
+                      placeholder="Assessment & Onboarding"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Description</label>
+                    <textarea
+                      value={step.description || ''}
+                      onChange={(e) => handleArrayItemChange('steps', index, 'description', e.target.value)}
+                      rows="2"
+                      placeholder="Initial student assessment to determine..."
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Duration</label>
+                    <input
+                      type="text"
+                      value={step.duration || ''}
+                      onChange={(e) => handleArrayItemChange('steps', index, 'duration', e.target.value)}
+                      placeholder="1-2 weeks"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+
+      case 'testimonials':
+        const testimonials = customData.testimonials || [];
+        return (
+          <>
+            <div className="form-group">
+              <label>Section Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Success Stories"
+              />
+            </div>
+            <div className="form-group">
+              <label>Subtitle</label>
+              <input
+                type="text"
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                placeholder="Hear what our users say about Play2Learn."
+              />
+            </div>
+            <div className="form-section">
+              <div className="section-header">
+                <h4>Testimonials</h4>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('testimonials', { name: '', role: '', quote: '', image: '' })}
+                  className="btn-add-item"
+                >
+                  + Add Testimonial
+                </button>
+              </div>
+              {testimonials.map((testimonial, index) => (
+                <div key={index} className="array-item">
+                  <div className="item-header">
+                    <h5>Testimonial {index + 1}</h5>
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('testimonials', index)}
+                      className="btn-remove-item"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="form-group">
+                    <label>Name</label>
+                    <input
+                      type="text"
+                      value={testimonial.name || ''}
+                      onChange={(e) => handleArrayItemChange('testimonials', index, 'name', e.target.value)}
+                      placeholder="Alex Johnson"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Role</label>
+                    <input
+                      type="text"
+                      value={testimonial.role || ''}
+                      onChange={(e) => handleArrayItemChange('testimonials', index, 'role', e.target.value)}
+                      placeholder="Parent of a 5-year-old"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Quote</label>
+                    <textarea
+                      value={testimonial.quote || ''}
+                      onChange={(e) => handleArrayItemChange('testimonials', index, 'quote', e.target.value)}
+                      rows="3"
+                      placeholder="Play2Learn has transformed my child's learning experience..."
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Image URL</label>
+                    <input
+                      type="text"
+                      value={testimonial.image || ''}
+                      onChange={(e) => handleArrayItemChange('testimonials', index, 'image', e.target.value)}
+                      placeholder="https://example.com/avatar.jpg"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+
+      case 'pricing':
+        const plans = customData.plans || [];
+        return (
+          <>
+            <div className="form-group">
+              <label>Section Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Subscription Plans"
+              />
+            </div>
+            <div className="form-group">
+              <label>Subtitle</label>
+              <input
+                type="text"
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                placeholder="Flexible licensing options for schools of all sizes"
+              />
+            </div>
+            <div className="form-section">
+              <div className="section-header">
+                <h4>Pricing Plans</h4>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('plans', { 
+                    name: '', 
+                    description: '', 
+                    price: { yearly: 0, monthly: 0 },
+                    teachers: 0,
+                    students: 0,
+                    features: [],
+                    popular: false
+                  })}
+                  className="btn-add-item"
+                >
+                  + Add Plan
+                </button>
+              </div>
+              {plans.map((plan, index) => (
+                <div key={index} className="array-item">
+                  <div className="item-header">
+                    <h5>Plan {index + 1}</h5>
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('plans', index)}
+                      className="btn-remove-item"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="form-group">
+                    <label>Plan Name</label>
+                    <input
+                      type="text"
+                      value={plan.name || ''}
+                      onChange={(e) => handleArrayItemChange('plans', index, 'name', e.target.value)}
+                      placeholder="Starter"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Description</label>
+                    <input
+                      type="text"
+                      value={plan.description || ''}
+                      onChange={(e) => handleArrayItemChange('plans', index, 'description', e.target.value)}
+                      placeholder="Perfect for small schools and institutions"
+                    />
+                  </div>
+                  <div className="form-group-inline">
+                    <div className="form-group">
+                      <label>Monthly Price ($)</label>
+                      <input
+                        type="number"
+                        value={plan.price?.monthly || ''}
+                        onChange={(e) => {
+                          const newPlan = { ...plan, price: { ...plan.price, monthly: parseFloat(e.target.value) } };
+                          const newPlans = [...plans];
+                          newPlans[index] = newPlan;
+                          handleCustomDataChange('plans', newPlans);
+                        }}
+                        placeholder="250"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Yearly Price ($)</label>
+                      <input
+                        type="number"
+                        value={plan.price?.yearly || ''}
+                        onChange={(e) => {
+                          const newPlan = { ...plan, price: { ...plan.price, yearly: parseFloat(e.target.value) } };
+                          const newPlans = [...plans];
+                          newPlans[index] = newPlan;
+                          handleCustomDataChange('plans', newPlans);
+                        }}
+                        placeholder="2500"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group-inline">
+                    <div className="form-group">
+                      <label>Max Teachers</label>
+                      <input
+                        type="number"
+                        value={plan.teachers || ''}
+                        onChange={(e) => handleArrayItemChange('plans', index, 'teachers', parseInt(e.target.value))}
+                        placeholder="50"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Max Students</label>
+                      <input
+                        type="number"
+                        value={plan.students || ''}
+                        onChange={(e) => handleArrayItemChange('plans', index, 'students', parseInt(e.target.value))}
+                        placeholder="500"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={plan.popular || false}
+                        onChange={(e) => handleArrayItemChange('plans', index, 'popular', e.target.checked)}
+                      />
+                      {' '}Mark as Popular
+                    </label>
+                  </div>
+                  <div className="form-group">
+                    <label>Features (one per line)</label>
+                    <textarea
+                      value={(plan.features || []).join('\n')}
+                      onChange={(e) => {
+                        const features = e.target.value.split('\n').filter(f => f.trim());
+                        handleArrayItemChange('plans', index, 'features', features);
+                      }}
+                      rows="4"
+                      placeholder="Basic adaptive learning paths&#10;Standard analytics dashboard&#10;Email support"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+
+      case 'contact':
+        const contactMethods = customData.contactMethods || [];
+        const faqs = customData.faqs || [];
+        return (
+          <>
+            <div className="form-group">
+              <label>Section Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Contact & Support"
+              />
+            </div>
+            <div className="form-section">
+              <div className="section-header">
+                <h4>Contact Methods</h4>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('contactMethods', { icon: '📧', title: '', details: [] })}
+                  className="btn-add-item"
+                >
+                  + Add Contact Method
+                </button>
+              </div>
+              {contactMethods.map((method, index) => (
+                <div key={index} className="array-item">
+                  <div className="item-header">
+                    <h5>Contact Method {index + 1}</h5>
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('contactMethods', index)}
+                      className="btn-remove-item"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="form-group">
+                    <label>Icon (emoji)</label>
+                    <input
+                      type="text"
+                      value={method.icon || ''}
+                      onChange={(e) => handleArrayItemChange('contactMethods', index, 'icon', e.target.value)}
+                      placeholder="📧"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Title</label>
+                    <input
+                      type="text"
+                      value={method.title || ''}
+                      onChange={(e) => handleArrayItemChange('contactMethods', index, 'title', e.target.value)}
+                      placeholder="Email"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Details (one per line)</label>
+                    <textarea
+                      value={(method.details || []).join('\n')}
+                      onChange={(e) => {
+                        const details = e.target.value.split('\n').filter(d => d.trim());
+                        handleArrayItemChange('contactMethods', index, 'details', details);
+                      }}
+                      rows="2"
+                      placeholder="hello@Play2Learn.com&#10;support@Play2Learn.com"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="form-section">
+              <div className="section-header">
+                <h4>FAQs</h4>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('faqs', { question: '', answer: '' })}
+                  className="btn-add-item"
+                >
+                  + Add FAQ
+                </button>
+              </div>
+              {faqs.map((faq, index) => (
+                <div key={index} className="array-item">
+                  <div className="item-header">
+                    <h5>FAQ {index + 1}</h5>
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('faqs', index)}
+                      className="btn-remove-item"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="form-group">
+                    <label>Question</label>
+                    <input
+                      type="text"
+                      value={faq.question || ''}
+                      onChange={(e) => handleArrayItemChange('faqs', index, 'question', e.target.value)}
+                      placeholder="How long does implementation take?"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Answer</label>
+                    <textarea
+                      value={faq.answer || ''}
+                      onChange={(e) => handleArrayItemChange('faqs', index, 'answer', e.target.value)}
+                      rows="2"
+                      placeholder="Typically 2-4 weeks depending on school size..."
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+
+      case 'footer':
+        return (
+          <>
+            <div className="form-group">
+              <label>Footer Content</label>
+              <textarea
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                rows="3"
+                placeholder="© 2024 Play2Learn. All rights reserved."
+              />
+            </div>
+          </>
+        );
+
+      default:
+        return (
+          <>
+            <div className="form-group">
+              <label>Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label>Content</label>
+              <textarea
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                rows="4"
+              />
+            </div>
+          </>
+        );
+    }
   };
 
   // Render block preview based on type
@@ -252,6 +964,7 @@ function LandingPageManager() {
                   <option value="hero">Hero</option>
                   <option value="features">Features</option>
                   <option value="about">About</option>
+                  <option value="roadmap">Roadmap</option>
                   <option value="testimonials">Testimonials</option>
                   <option value="pricing">Pricing</option>
                   <option value="contact">Contact</option>
@@ -259,35 +972,7 @@ function LandingPageManager() {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label>Title</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Content</label>
-                <textarea
-                  name="content"
-                  value={formData.content}
-                  onChange={handleInputChange}
-                  rows="4"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Image URL</label>
-                <input
-                  type="text"
-                  name="image_url"
-                  value={formData.image_url}
-                  onChange={handleInputChange}
-                />
-              </div>
+              {renderTypeSpecificFields()}
 
               <div className="form-group">
                 <label>
