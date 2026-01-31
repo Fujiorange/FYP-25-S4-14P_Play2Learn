@@ -56,7 +56,7 @@ const maintenanceSchema = new mongoose.Schema({
   }
 });
 
-maintenanceSchema.pre('save', function preSave() {
+maintenanceSchema.pre('save', function() {
   this.updatedAt = Date.now();
 });
 

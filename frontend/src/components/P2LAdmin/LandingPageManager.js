@@ -1161,11 +1161,18 @@ function LandingPageManager() {
                       <div style={{ marginBottom: '16px' }}>
                         <span style={{ fontSize: '36px', fontWeight: '800', color: '#111827' }}>${plan.price?.monthly || 0}</span>
                         <span style={{ fontSize: '16px', color: '#6b7280' }}>/month</span>
-                        {plan.price?.yearly && (
-                          <div style={{ fontSize: '14px', color: '#059669', marginTop: '4px' }}>
-                            or ${plan.price.yearly}/year (save ${(plan.price.monthly * 12 - plan.price.yearly).toFixed(0)})
-                          </div>
-                        )}
+                        {plan.price?.yearly && (() => {
+                          const savings = plan.price.monthly * 12 - plan.price.yearly;
+                          return (
+                            <div style={{ fontSize: '14px', color: '#059669', marginTop: '4px' }}>
+                              {savings > 0 ? (
+                                <>or ${plan.price.yearly}/year (save ${savings.toFixed(0)})</>
+                              ) : (
+                                <>or ${plan.price.yearly}/year</>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div style={{ padding: '12px', background: 'white', borderRadius: '8px', marginBottom: '16px' }}>
                         <div style={{ fontSize: '14px', color: '#374151' }}>Up to {plan.teachers} teachers</div>

@@ -95,6 +95,8 @@ function SchoolAdminManagement() {
   const cancelForm = () => {
     setShowForm(false);
     setAdminForms([{ name: '', email: '', contact: '' }]);
+    setCreatedAdmins([]);
+    setViewedPasswords({});
   };
   
   const handleViewPassword = (adminId) => {
