@@ -99,10 +99,11 @@ function analyzeSentiment(message, rating) {
   const finalScore = (textScore * 0.6) + (ratingContribution * 0.4);
   
   // Determine label based on final score
+  // Wider neutral zone for more accurate detection
   let sentimentLabel = 'neutral';
-  if (finalScore > 1) {
+  if (finalScore > 2) {
     sentimentLabel = 'positive';
-  } else if (finalScore < -1) {
+  } else if (finalScore < -2) {
     sentimentLabel = 'negative';
   }
   
