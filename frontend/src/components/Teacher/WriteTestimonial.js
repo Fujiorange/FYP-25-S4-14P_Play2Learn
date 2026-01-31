@@ -31,10 +31,41 @@ export default function WriteTestimonial() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setMessage({ type: 'success', text: 'Thank you! Your testimonial has been submitted.' });
-    setSubmitting(false);
-    setTimeout(() => navigate('/teacher'), 2000);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 
+        (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+      
+      const response = await fetch(`${API_BASE_URL}/api/mongo/teacher/testimonials`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          rating: formData.rating,
+          testimonial: formData.testimonial,
+          displayName: formData.displayName,
+          allowPublic: formData.allowPublic
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Thank you! Your testimonial has been submitted successfully.' });
+        setTimeout(() => navigate('/teacher'), 2000);
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Failed to submit testimonial. Please try again.' });
+      }
+    } catch (error) {
+      console.error('Error submitting testimonial:', error);
+      setMessage({ type: 'error', text: 'Failed to submit testimonial. Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const styles = {
@@ -54,6 +85,7 @@ export default function WriteTestimonial() {
     submitButton: { padding: '12px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' },
     message: { padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', marginBottom: '16px' },
     successMessage: { background: '#d1fae5', color: '#065f46', border: '1px solid #34d399' },
+    errorMessage: { background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' },
     loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
     loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
   };
@@ -67,7 +99,14 @@ export default function WriteTestimonial() {
           <h1 style={styles.title}>⭐ Write Testimonial</h1>
           <button style={styles.backButton} onClick={() => navigate('/teacher')}>← Back to Dashboard</button>
         </div>
-        {message.text && <div style={{...styles.message, ...styles.successMessage}}>{message.text}</div>}
+        {message.text && (
+          <div style={{
+            ...styles.message, 
+            ...(message.type === 'success' ? styles.successMessage : styles.errorMessage)
+          }}>
+            {message.text}
+          </div>
+        )}
         <form style={styles.form} onSubmit={handleSubmit}>
           <div style={styles.formGroup}>
             <label style={styles.label}>Title *</label>

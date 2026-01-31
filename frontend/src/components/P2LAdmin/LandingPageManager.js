@@ -38,6 +38,15 @@ function LandingPageManager() {
     fetchLandingPage();
   }, []);
 
+  // Auto-fetch testimonials when filters change
+  useEffect(() => {
+    // Only fetch if we have already loaded testimonials at least once
+    // This prevents fetching on initial mount before user clicks "Load Testimonials"
+    if (testimonials.length > 0 || loadingTestimonials) {
+      fetchTestimonials();
+    }
+  }, [testimonialFilters.minRating, testimonialFilters.sentiment, testimonialFilters.approved, testimonialFilters.userRole]);
+
   const fetchLandingPage = async () => {
     try {
       const response = await getLandingPage();
