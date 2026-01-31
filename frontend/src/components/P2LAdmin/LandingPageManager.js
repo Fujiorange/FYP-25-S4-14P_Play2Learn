@@ -1,5 +1,5 @@
 // Landing Page Manager Component
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   getLandingPage, 
@@ -24,6 +24,7 @@ function LandingPageManager() {
     approved: '',
     userRole: ''
   });
+  const testimonialsLoadedRef = useRef(false); // Track if testimonials have been loaded
   const [formData, setFormData] = useState({
     type: 'hero',
     title: '',
@@ -42,10 +43,10 @@ function LandingPageManager() {
   useEffect(() => {
     // Only fetch if we have already loaded testimonials at least once
     // This prevents fetching on initial mount before user clicks "Load Testimonials"
-    if (testimonials.length > 0 || loadingTestimonials) {
+    if (testimonialsLoadedRef.current) {
       fetchTestimonials();
     }
-  }, [testimonialFilters.minRating, testimonialFilters.sentiment, testimonialFilters.approved, testimonialFilters.userRole]);
+  }, [fetchTestimonials]);
 
   const fetchLandingPage = async () => {
     try {
@@ -58,9 +59,10 @@ function LandingPageManager() {
     }
   };
 
-  const fetchTestimonials = async () => {
+  const fetchTestimonials = useCallback(async () => {
     setLoadingTestimonials(true);
     setTestimonialError('');
+    testimonialsLoadedRef.current = true; // Mark that we've loaded testimonials
     try {
       const response = await getTestimonials(testimonialFilters);
       if (response.success) {
@@ -74,7 +76,7 @@ function LandingPageManager() {
     } finally {
       setLoadingTestimonials(false);
     }
-  };
+  }, [testimonialFilters]);
 
   const handleTestimonialApproval = async (id, approved, displayOnLanding) => {
     try {
