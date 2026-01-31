@@ -1407,6 +1407,62 @@ router.delete('/landing', authenticateP2LAdmin, async (req, res) => {
   }
 });
 
+// Get pricing plans from landing page
+router.get('/landing/pricing-plans', authenticateP2LAdmin, async (req, res) => {
+  try {
+    // Get the active landing page
+    let landingPage = await LandingPage.findOne({ is_active: true });
+    
+    if (!landingPage) {
+      // If no active page, get the most recent one
+      landingPage = await LandingPage.findOne().sort({ createdAt: -1 });
+    }
+    
+    if (!landingPage) {
+      return res.json({
+        success: true,
+        plans: [],
+        message: 'No landing page found'
+      });
+    }
+
+    // Find the pricing block
+    const pricingBlock = landingPage.blocks.find(block => block.type === 'pricing');
+    
+    if (!pricingBlock || !pricingBlock.custom_data || !pricingBlock.custom_data.plans) {
+      return res.json({
+        success: true,
+        plans: [],
+        message: 'No pricing block found in landing page'
+      });
+    }
+
+    // Extract and transform pricing plans to match school management format
+    const plans = pricingBlock.custom_data.plans.map(plan => ({
+      id: plan.name.toLowerCase().replace(/\s+/g, '-'), // e.g., "starter", "professional", "enterprise"
+      name: plan.name,
+      description: plan.description,
+      price: plan.price?.yearly || 0, // Use yearly price
+      teacher_limit: plan.teachers || 0,
+      student_limit: plan.students || 0,
+      features: plan.features || [],
+      popular: plan.popular || false
+    }));
+
+    res.json({
+      success: true,
+      plans: plans,
+      message: `Found ${plans.length} pricing plan(s)`
+    });
+  } catch (error) {
+    console.error('Get pricing plans error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch pricing plans from landing page' 
+    });
+  }
+});
+
 // ==================== TESTIMONIAL MANAGEMENT ====================
 
 // Get testimonials for landing page display (MUST be before /:id route)

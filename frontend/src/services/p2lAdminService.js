@@ -103,6 +103,11 @@ export const deleteLandingPage = async () => {
   });
 };
 
+// Get pricing plans from landing page
+export const getLandingPagePricingPlans = async () => {
+  return apiCall('/api/p2ladmin/landing/pricing-plans');
+};
+
 // ==================== SCHOOLS ====================
 export const getSchools = async () => {
   return apiCall('/api/p2ladmin/schools');
