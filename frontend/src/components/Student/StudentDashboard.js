@@ -153,6 +153,9 @@ export default function StudentDashboard() {
       description: 'See your unlocked math skills',
       icon: '📊',
       action: () => navigate('/student/skills'),
+    },
+    // 2️⃣ View Results
+    {
       id: 'results',
       title: 'View Results',
       description: 'Review your quiz results and history',
@@ -232,10 +235,6 @@ export default function StudentDashboard() {
       action: () => navigate('/student/shop'),
     },
     // 1️⃣2️⃣ My Badges
-    {
-      id: 'badges',
-      title: 'My Badges',
-      description: 'View your earned achievement badges',
     {
       id: 'badges',
       title: 'Badges & Shop',
