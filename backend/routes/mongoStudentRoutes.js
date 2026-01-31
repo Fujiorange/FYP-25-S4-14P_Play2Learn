@@ -115,6 +115,8 @@ function getProfileConfig(profile) {
     10: { range: [1, 100] },
   };
   return configs[profile] || configs[1];
+}
+
 if (!mongoose.models.Quiz) {
   mongoose.model("Quiz", new mongoose.Schema({
     student_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -139,12 +141,10 @@ if (!mongoose.models.Quiz) {
     created_at: { type: Date, default: Date.now }, // Support old schema
   }, {
     collection: 'quiz_attempts' // ⭐ CRITICAL FIX: Query the correct collection!
-  });
-  mongoose.model("Quiz", quizSchema);
   }));
 }
 if (!mongoose.models.MathSkill) {
-  mongoose.model("MathSkill", new mongoose.Schema({
+  const mathSkillSchema = new mongoose.Schema({
     student_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     skill_name: { type: String, required: true },
     current_level: { type: Number, default: 0 },
@@ -187,7 +187,6 @@ if (!mongoose.models.Testimonial) {
     created_at: { type: Date, default: Date.now },
   });
   mongoose.model("Testimonial", testimonialSchema);
-  }));
 }
 
 function shuffleInPlace(arr) {
@@ -207,6 +206,9 @@ function buildOperationSequence(profile) {
       ...Array(subCount).fill("subtraction"),
     ];
     return shuffleInPlace(ops);
+  }
+}
+
 // ==================== SCHEMA COMPATIBILITY HELPER ====================
 /**
  * Check if a quiz is completed - handles BOTH old and new schemas
@@ -250,6 +252,10 @@ function shuffleInPlace(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function generateQuestion(profile) {
   const ops = ["+", "-", "*", "/"];
   let maxNum, op;
@@ -268,13 +274,13 @@ function generateQuestion(profile) {
     case "/": n2 = Math.floor(Math.random() * 10) + 1; ans = Math.floor(Math.random() * 10) + 1; n1 = n2 * ans; break;
   }
 
-  const ops = ["addition", "subtraction", "multiplication", "division"];
+  const operations = ["addition", "subtraction", "multiplication", "division"];
   const counts = { addition: 3, subtraction: 3, multiplication: 3, division: 3 };
-  const pick = shuffleInPlace([...ops]).slice(0, 3);
+  const pick = shuffleInPlace([...operations]).slice(0, 3);
   pick.forEach((k) => (counts[k] += 1));
 
   const seq = [];
-  ops.forEach((k) => {
+  operations.forEach((k) => {
     for (let i = 0; i < counts[k]; i++) seq.push(k);
   });
 
@@ -399,7 +405,6 @@ router.get("/dashboard", async (req, res) => {
       });
     }
 
-    const completedQuizzes = await StudentQuiz.countDocuments({ 
     // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
     const allQuizzes = await Quiz.find({ 
       student_id: studentId,
@@ -434,16 +439,6 @@ router.get("/dashboard", async (req, res) => {
     console.error("❌ Dashboard error:", error);
     res.status(500).json({ success: false, error: "Failed to load dashboard" });
   }
-    const sid = req.user.userId;
-    const oid = toObjectId(sid);
-    let mp = await MathProfile.findOne({ student_id: oid }) || await MathProfile.findOne({ student_id: sid });
-    if (!mp) mp = await MathProfile.create({ student_id: oid || sid, current_profile: 1, placement_completed: false, total_points: 0 });
-    const quizCount = await Quiz.countDocuments({ $or: [{ student_id: oid }, { student_id: sid }], quiz_type: "regular" });
-    const user = await User.findById(oid || sid);
-    const { effective } = computeEffectiveStreak(mp);
-    await syncPoints(sid, req.user.email, mp);
-    res.json({ success: true, dashboard: { totalPoints: mp.total_points || 0, completedQuizzes: quizCount, currentProfile: mp.current_profile || 1, gradeLevel: user?.gradeLevel || 'Primary 1', streak: effective, placementCompleted: mp.placement_completed }, data: { points: mp.total_points || 0, quizzesTaken: quizCount, level: mp.current_profile || 1, streak: effective } });
-  } catch (e) { console.error("Dashboard error:", e); res.status(500).json({ success: false, error: "Failed" }); }
 });
 
 // ==================== MATH PROFILE ENDPOINT (FIXED!) ====================
@@ -593,22 +588,6 @@ router.post("/placement-quiz/generate", async (req, res) => {
       })),
       score: 0,
       total_questions: placementQuiz.questions.length,
-    // Use profile 7 for placement quiz to include all 4 operations (+ - * /)
-    // This properly assesses student's full math capabilities
-    const profile = 7;
-    const cfg = getProfileConfig(profile);
-    const opSeq = buildOperationSequence(profile);
-    const questions = opSeq.map((op) => generateQuestion(cfg.range, op));
-
-    const quiz = await Quiz.create({
-      student_id: studentId,
-      quiz_type: "placement",
-      profile_level: profile,
-      questions,
-      score: 0,
-      total_questions: 15,
-      percentage: 0,
-      points_earned: 0,
     });
 
     res.json({
@@ -627,15 +606,6 @@ router.post("/placement-quiz/generate", async (req, res) => {
     console.error("❌ Generate placement quiz error:", error);
     res.status(500).json({ success: false, error: "Failed to generate placement quiz" });
   }
-    const sid = req.user.userId;
-    const oid = toObjectId(sid);
-    let mp = await MathProfile.findOne({ student_id: oid }) || await MathProfile.findOne({ student_id: sid });
-    if (!mp) mp = await MathProfile.create({ student_id: oid || sid, current_profile: 1, placement_completed: false, total_points: 0 });
-    if (mp.placement_completed) return res.status(400).json({ success: false, error: "Already completed", profile: mp.current_profile });
-    const questions = Array.from({ length: 15 }, () => generateQuestion(5));
-    const quiz = await Quiz.create({ student_id: oid || sid, quiz_type: "placement", profile_level: 5, questions, score: 0, total_questions: 15 });
-    res.json({ success: true, quiz_id: quiz._id, questions: questions.map(q => ({ question_text: q.question_text, operation: q.operation })), total_questions: 15 });
-  } catch (e) { console.error("Placement generate error:", e); res.status(500).json({ success: false, error: "Failed" }); }
 });
 
 // ==================== PLACEMENT QUIZ - SUBMIT ====================
@@ -874,91 +844,6 @@ router.post("/quiz/submit", async (req, res) => {
     console.error("❌ Submit quiz error:", error);
     res.status(500).json({ success: false, error: "Failed to submit quiz" });
   }
-
-    const mathProfile = await MathProfile.findOne({ student_id: studentId });
-    const oldProfile = mathProfile.current_profile;
-
-    let newProfile = oldProfile;
-    let profileChanged = false;
-    let changeType = null;
-
-    if (quiz.percentage >= 70) {
-      mathProfile.consecutive_fails = 0;
-
-      if (mathProfile.current_profile < 10) {
-        newProfile = mathProfile.current_profile + 1;
-        mathProfile.current_profile = newProfile;
-        profileChanged = true;
-        changeType = "advance";
-      }
-    } else if (quiz.percentage < 50) {
-      mathProfile.consecutive_fails += 1;
-
-      if (mathProfile.consecutive_fails >= 6 && mathProfile.current_profile > 1) {
-        newProfile = mathProfile.current_profile - 1;
-        mathProfile.current_profile = newProfile;
-        mathProfile.consecutive_fails = 0;
-        profileChanged = true;
-        changeType = "demote";
-      } else if (mathProfile.consecutive_fails >= 6 && mathProfile.current_profile === 1) {
-        // ⭐ NEW FIX: At Profile 1 (lowest), reset counter but stay at Profile 1
-        mathProfile.consecutive_fails = 0;
-      }
-    } else {
-      mathProfile.consecutive_fails = 0;
-    }
-
-    mathProfile.total_points += quiz.points_earned;
-    updateStreakOnCompletion(mathProfile);
-    await mathProfile.save();
-
-    await updateSkillsFromQuiz(studentId, quiz.questions, quiz.percentage, mathProfile.current_profile);
-
-    res.json({
-      success: true,
-      result: {
-        score,
-        total: 15,
-        percentage: quiz.percentage,
-        points_earned: quiz.points_earned,
-        old_profile: oldProfile,
-        new_profile: newProfile,
-        profile_changed: profileChanged,
-        change_type: changeType,
-        consecutive_fails: mathProfile.consecutive_fails,
-      },
-    });
-  } catch (error) {
-    console.error("❌ Submit quiz error:", error);
-    res.status(500).json({ success: false, error: "Failed to submit quiz" });
-  }
-    let mp = await MathProfile.findOne({ student_id: oid }) || await MathProfile.findOne({ student_id: sid });
-    const oldP = mp.current_profile;
-    let newP = oldP, changed = false, changeType = null;
-    if (quiz.percentage >= 70) { mp.consecutive_fails = 0; if (mp.current_profile < 10) { newP = mp.current_profile + 1; mp.current_profile = newP; changed = true; changeType = "advance"; } }
-    else if (quiz.percentage < 50) { mp.consecutive_fails += 1; if (mp.consecutive_fails >= 6 && mp.current_profile > 1) { newP = mp.current_profile - 1; mp.current_profile = newP; mp.consecutive_fails = 0; changed = true; changeType = "demote"; } }
-    else { mp.consecutive_fails = 0; }
-    mp.total_points += quiz.points_earned;
-    const lastQ = mp.last_quiz_date;
-    if (lastQ) {
-      const ld = new Date(lastQ); ld.setHours(0,0,0,0);
-      const td = new Date(); td.setHours(0,0,0,0);
-      const diff = Math.floor((td - ld) / 86400000);
-      if (diff === 1) mp.streak = (mp.streak || 0) + 1;
-      else if (diff > 1) mp.streak = 1;
-    } else mp.streak = 1;
-    mp.last_quiz_date = new Date();
-    await mp.save();
-    await syncPoints(sid, req.user.email, mp);
-    const db = mongoose.connection.db;
-    const q = { $or: [] };
-    if (oid) q.$or.push({ user_id: oid });
-    if (req.user.email) q.$or.push({ email: req.user.email });
-    if (q.$or.length > 0) await db.collection('students').updateOne(q, { $inc: { total_quizzes: 1 } });
-    const badges = await checkBadges(sid, req.user.email);
-    console.log(`🎮 Quiz: ${req.user.email} scored ${score}/15 (${quiz.percentage}%), +${quiz.points_earned} pts`);
-    res.json({ success: true, result: { score, total: 15, percentage: quiz.percentage, points_earned: quiz.points_earned, old_profile: oldP, new_profile: newP, profile_changed: changed, change_type: changeType, total_points: mp.total_points, new_badges: badges.map(b => ({ name: b.name, icon: b.icon })) } });
-  } catch (e) { console.error("Quiz submit error:", e); res.status(500).json({ success: false, error: "Failed" }); }
 });
 
 // Quiz Results
@@ -1013,11 +898,6 @@ router.get("/quiz-results", async (req, res) => {
     console.error("❌ Math progress error:", error);
     res.status(500).json({ success: false, error: "Failed to load progress data" });
   }
-    const sid = req.user.userId;
-    const oid = toObjectId(sid);
-    const quizzes = await Quiz.find({ $or: [{ student_id: oid }, { student_id: sid }], quiz_type: "regular" }).sort({ completed_at: -1 });
-    res.json({ success: true, results: quizzes.map(q => ({ id: q._id, profile: q.profile_level, score: q.score, total: q.total_questions || 15, percentage: q.percentage, points: q.points_earned, date: q.completed_at })) });
-  } catch (e) { res.status(500).json({ success: false, error: "Failed" }); }
 });
 
 // Leaderboard
@@ -1051,10 +931,6 @@ router.get("/leaderboard", async (req, res) => {
     console.error("❌ Quiz results error:", error);
     res.status(500).json({ success: false, error: "Failed to load quiz results" });
   }
-    const db = mongoose.connection.db;
-    const students = await db.collection('students').find({}).sort({ points: -1 }).limit(10).toArray();
-    res.json({ success: true, leaderboard: students.map((s, i) => ({ rank: i + 1, name: s.name || 'Unknown', points: s.points || 0, level: s.level || 1, class: s.class || '-' })) });
-  } catch (e) { res.status(500).json({ success: false, error: "Failed" }); }
 });
 
 // ==================== MATH PROGRESS ====================
@@ -1104,47 +980,6 @@ router.get("/math-progress", async (req, res) => {
     console.error("❌ Math progress error:", error);
     res.status(500).json({ success: false, error: "Failed to load progress data" });
   }
-    
-    // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
-    const allQuizzes = await Quiz.find({ 
-      student_id: studentId, 
-      quiz_type: "regular" 
-    }).sort({ completed_at: -1 });
-
-    // Filter: Only include quizzes that have been submitted (have student answers)
-    const quizzes = allQuizzes.filter(isQuizCompleted);
-
-    res.json({
-      success: true,
-      history: quizzes.map((q) => ({
-        id: q._id,
-        profile: q.profile_level,
-        profile_level: q.profile_level,
-        date: q.completed_at.toLocaleDateString(),
-        time: q.completed_at.toLocaleTimeString(),
-        score: q.score,
-        maxScore: q.total_questions,
-        totalQuestions: q.total_questions,
-        percentage: q.percentage,
-        points_earned: q.points_earned,
-      })),
-    });
-  } catch (error) {
-    console.error("❌ Quiz history error:", error);
-    res.status(500).json({ success: false, error: "Failed to load quiz history" });
-  }
-    const db = mongoose.connection.db;
-    const oid = toObjectId(req.user.userId);
-    const q = { $or: [] };
-    if (oid) q.$or.push({ user_id: oid });
-    if (req.user.email) q.$or.push({ email: req.user.email });
-    const student = q.$or.length > 0 ? await db.collection('students').findOne(q) : null;
-    const all = await db.collection('badges').find({ isActive: true }).toArray();
-    if (!student) return res.json({ success: true, badges: all.map(b => ({ ...b, earned: false })), earnedBadges: [], totalPoints: 0 });
-    const earned = (student.badges || []).map(id => id.toString());
-    const badges = all.map(b => ({ ...b, earned: earned.includes(b._id.toString()) }));
-    res.json({ success: true, badges, earnedBadges: badges.filter(b => b.earned), totalPoints: student.points || 0 });
-  } catch (e) { res.status(500).json({ success: false, error: "Failed" }); }
 });
 
 // ==================== QUIZ RESULTS / HISTORY ====================
@@ -1170,60 +1005,6 @@ router.get("/quiz-results", async (req, res) => {
     console.error("❌ Quiz results error:", error);
     res.status(500).json({ success: false, error: "Failed to load quiz results" });
   }
-    const currentUserId = req.user.userId;
-    
-    // Get current user's class
-    const currentUser = await User.findById(currentUserId);
-    if (!currentUser) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    const userClass = currentUser.class;
-
-    // If user has no class, return empty leaderboard
-    if (!userClass) {
-      return res.json({
-        success: true,
-        leaderboard: [],
-      });
-    }
-
-    // Find all students in the same class
-    const studentsInClass = await User.find({
-      class: userClass,
-      role: { $in: ['student', 'Student'] }, // Case-insensitive role check
-    });
-
-    const studentIds = studentsInClass.map((s) => s._id);
-
-    // Get math profiles for students in the same class
-    const students = await MathProfile.find({
-      student_id: { $in: studentIds },
-    })
-      .populate("student_id", "name email")
-      .sort({ total_points: -1 })
-      .limit(20);
-
-    res.json({
-      success: true,
-      leaderboard: students.map((p, idx) => ({
-        rank: idx + 1,
-        name: p.student_id ? p.student_id.name : "Unknown",
-        points: p.total_points,
-        level: p.current_profile,
-        profile: p.current_profile,
-        achievements: 0,
-        isCurrentUser: p.student_id && p.student_id._id.toString() === currentUserId,
-      })),
-    });
-  } catch (error) {
-    console.error("❌ Leaderboard error:", error);
-    res.status(500).json({ success: false, error: "Failed to load leaderboard" });
-  }
-    const oid = toObjectId(req.user.userId);
-    const mp = await MathProfile.findOne({ student_id: oid }) || await MathProfile.findOne({ student_id: req.user.userId });
-    res.json({ success: true, points: mp?.total_points || 0, level: mp?.current_profile || 1 });
-  } catch (e) { res.status(500).json({ success: false, error: "Failed" }); }
 });
 
 router.get("/quiz-history", async (req, res) => {
@@ -1250,73 +1031,6 @@ router.get("/quiz-history", async (req, res) => {
     console.error("❌ Quiz history error:", error);
     res.status(500).json({ success: false, error: "Failed to load quiz history" });
   }
-    const { subject, category, message, description, student_name, student_email } = req.body;
-
-    const finalSubject = subject || 'Support Request';
-    const finalMessage = message || description || '';
-
-    if (!finalMessage) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Message is required" 
-      });
-    }
-
-    // ✅ FIX: Map 'normal' to 'medium' for backward compatibility
-    const priorityMap = {
-      'normal': 'medium',
-      'low': 'low',
-      'medium': 'medium',
-      'high': 'high',
-      'urgent': 'urgent'
-    };
-
-    // ✅ Get student's schoolId for admin filtering
-    const student = await User.findById(studentId).select('schoolId');
-    const schoolId = student?.schoolId || null;
-    const finalPriority = priorityMap[req.body.priority] || 'medium';
-
-    const ticket = await SupportTicket.create({
-      student_id: studentId,
-      student_name: student_name || req.user.name || 'Unknown',
-      student_email: student_email || req.user.email || 'unknown@email.com',
-      school_id: schoolId,
-      subject: finalSubject,
-      category: category || 'general',
-      message: finalMessage,
-      status: 'open',
-      priority: finalPriority,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Support ticket created successfully",
-      ticketId: ticket._id,
-      ticket: {
-        id: ticket._id,
-        subject: ticket.subject,
-        category: ticket.category,
-        status: ticket.status,
-        created_at: ticket.created_at,
-      }
-    });
-  } catch (error) {
-    console.error("❌ Create support ticket error:", error);
-    res.status(500).json({ success: false, error: "Failed to create support ticket" });
-  }
-    const db = mongoose.connection.db;
-    const oid = toObjectId(req.user.userId);
-    const mp = await MathProfile.findOne({ student_id: oid }) || await MathProfile.findOne({ student_id: req.user.userId });
-    const pts = mp?.total_points || 0;
-    const q = { $or: [] };
-    if (oid) q.$or.push({ user_id: oid });
-    if (req.user.email) q.$or.push({ email: req.user.email });
-    const student = q.$or.length > 0 ? await db.collection('students').findOne(q) : null;
-    const purchases = student ? await db.collection('purchases').find({ student_id: student._id }).toArray() : [];
-    const owned = purchases.map(p => p.item_id.toString());
-    const items = await db.collection('shop_items').find({ isActive: true }).sort({ cost: 1 }).toArray();
-    res.json({ success: true, items: items.map(i => ({ ...i, owned: owned.includes(i._id.toString()), canAfford: pts >= i.cost })), studentPoints: pts });
-  } catch (e) { res.status(500).json({ success: false, error: "Failed" }); }
 });
 
 // ==================== LEADERBOARD ====================
