@@ -259,6 +259,11 @@ export const getHealthStatus = async () => {
   return apiCall('/api/p2ladmin/health');
 };
 
+// ==================== DASHBOARD STATISTICS ====================
+export const getDashboardStats = async () => {
+  return apiCall('/api/p2ladmin/dashboard-stats');
+};
+
 // ==================== TESTIMONIALS ====================
 export const getTestimonials = async (filters = {}) => {
   const queryString = new URLSearchParams(filters).toString();

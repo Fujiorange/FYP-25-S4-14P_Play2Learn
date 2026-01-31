@@ -174,6 +174,35 @@ router.get('/health', async (req, res) => {
   }
 });
 
+// ==================== Dashboard Statistics ====================
+router.get('/dashboard-stats', authenticateP2LAdmin, async (req, res) => {
+  try {
+    // Get counts for dashboard
+    const [schoolsCount, adminsCount, questionsCount, quizzesCount] = await Promise.all([
+      School.countDocuments(),
+      User.countDocuments({ role: 'schooladmin' }),
+      Question.countDocuments({ is_active: true }),
+      Quiz.countDocuments()
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        schools: schoolsCount,
+        admins: adminsCount,
+        questions: questionsCount,
+        quizzes: quizzesCount
+      }
+    });
+  } catch (error) {
+    console.error('Get dashboard stats error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch dashboard statistics' 
+    });
+  }
+});
+
 // ==================== SCHOOL MANAGEMENT ROUTES ====================
 
 // Get all schools
