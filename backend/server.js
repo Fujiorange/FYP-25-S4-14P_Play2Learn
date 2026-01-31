@@ -16,7 +16,6 @@ const studentRoutes = require('./routes/mongoStudentRoutes');
 const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
 const p2lAdminRoutes = require('./routes/p2lAdminRoutes');
 const adaptiveQuizRoutes = require('./routes/adaptiveQuizRoutes');
-const path = require('path');
 
 // ==================== CORS CONFIGURATION ====================
 const corsOptions = {
@@ -115,11 +114,7 @@ app.get('/api/public/landing-page', async (req, res) => {
       error: 'Failed to fetch landing page' 
     });
   }
-// ==================== STATIC FILES (PRODUCTION) ====================
-if (process.env.NODE_ENV === 'production') {
-  // Serve static frontend files
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
-}
+});
 
 // ==================== REQUEST LOGGING ====================
 app.use((req, res, next) => {
@@ -142,29 +137,20 @@ try {
 // ==================== STATIC FILE SERVING ====================
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-  });
+}
+
 // ==================== ROUTE IMPORTS ====================
 try {
-  const mongoAuthRoutes = require('./routes/mongoAuthRoutes');
-  const mongoStudentRoutes = require('./routes/mongoStudentRoutes');
+  const mongoParentRoutes = require('./routes/mongoParentRoutes');
   const mongoTeacherRoutes = require('./routes/mongoTeacherRoutes');
-  const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
-  const mongoParentRoutes = require('./routes/mongoParentRoutes'); // ✅ ADDED
   
-  app.use('/api/mongo/auth', mongoAuthRoutes);
-  app.use('/api/auth', mongoAuthRoutes); // Backward compatibility
-  app.use('/api/mongo/student', authenticateToken, mongoStudentRoutes);
-  app.use('/school-admin', schoolAdminRoutes);
-  app.use('/api/mongo/parent', mongoParentRoutes); // ✅ ADDED - Parent routes
+  app.use('/api/mongo/parent', mongoParentRoutes); // Parent routes
   app.use('/api/mongo/teacher', authenticateToken, mongoTeacherRoutes);
-  app.use('/api/mongo/school-admin', schoolAdminRoutes);
   
-  console.log('✅ Routes loaded successfully');
-  console.log('✅ Parent routes: /api/mongo/parent/*'); // ✅ ADDED
+  console.log('✅ Additional routes loaded successfully');
+  console.log('✅ Parent routes: /api/mongo/parent/*');
 } catch (error) {
-  console.error('❌ Error loading routes:', error.message);
+  console.error('❌ Error loading additional routes:', error.message);
   console.log('⚠️  Some routes may not be available');
 }
 
@@ -246,9 +232,26 @@ async function startServer() {
     console.log('📊 Database:', mongoose.connection.db.databaseName);
     console.log('🏢 Host:', mongoose.connection.host);
     
-    app.listen(PORT, () => {
-      console.log(`✅ Server running on port ${PORT}`);
+    const server = app.listen(PORT, () => {
+      console.log('╔═══════════════════════════════════════════════╗');
+      console.log('║          🚀 Play2Learn Server               ║');
+      console.log(`║          📍 Port: ${PORT}                       ║`);
+      console.log(`║          🌍 URL: ${process.env.NODE_ENV === 'production' ? 'https://play2learn-test.onrender.com' : `http://localhost:${PORT}`} ║`);
+      console.log('║          🗄️  Database: ✅ Connected           ║');
+      console.log('║          🔐 JWT: ' + 
+        (process.env.JWT_SECRET ? '✅ Set' : '❌ Using default') + 
+        '                   ║');
+      console.log('╚═══════════════════════════════════════════════╝');
       console.log('✅ Ready to accept connections');
+    });
+    
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+      console.log('SIGTERM received. Shutting down gracefully...');
+      server.close(() => {
+        console.log('Server closed.');
+        process.exit(0);
+      });
     });
   } catch (err) {
     console.error('❌ MongoDB Connection Failed:', err.message);
@@ -256,27 +259,5 @@ async function startServer() {
     process.exit(1);
   }
 }
-const server = app.listen(PORT, () => {
-  console.log('╔═══════════════════════════════════════════════╗');
-  console.log('║          🚀 Play2Learn Server               ║');
-  console.log(`║          📍 Port: ${PORT}                       ║`);
-  console.log(`║          🌍 URL: ${process.env.NODE_ENV === 'production' ? 'https://play2learn-test.onrender.com' : `http://localhost:${PORT}`} ║`);
-  console.log('║          🗄️  Database: ' + 
-    (mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Disconnected') + 
-    '           ║');
-  console.log('║          🔐 JWT: ' + 
-    (process.env.JWT_SECRET ? '✅ Set' : '❌ Using default') + 
-    '                   ║');
-  console.log('╚═══════════════════════════════════════════════╝');
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed.');
-    process.exit(0);
-  });
-});
 
 startServer();

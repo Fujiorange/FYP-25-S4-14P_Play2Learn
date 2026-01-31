@@ -17,7 +17,6 @@ const sentiment = new Sentiment();
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
-const User = mongoose.model('User');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
 
 // ==================== SCHOOL SCHEMA ====================
@@ -90,8 +89,6 @@ if (!mongoose.models.Quiz) {
   mongoose.model('Quiz', quizSchema);
 }
 
-const Quiz = mongoose.model('Quiz');
-
 // ==================== SUPPORT TICKET SCHEMA ====================
 const supportTicketSchema = new mongoose.Schema({
   ticketId: { type: String, required: true, unique: true },
@@ -126,8 +123,6 @@ const testimonialSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
-
-const Testimonial = mongoose.models.Testimonial || mongoose.model('Testimonial', testimonialSchema);
 
 // ==================== FEEDBACK SCHEMA ====================
 const feedbackSchema = new mongoose.Schema({
