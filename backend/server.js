@@ -16,7 +16,6 @@ const studentRoutes = require('./routes/mongoStudentRoutes');
 const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
 const p2lAdminRoutes = require('./routes/p2lAdminRoutes');
 const adaptiveQuizRoutes = require('./routes/adaptiveQuizRoutes');
-const path = require('path');
 
 // ==================== CORS CONFIGURATION ====================
 const corsOptions = {
@@ -115,6 +114,8 @@ app.get('/api/public/landing-page', async (req, res) => {
       error: 'Failed to fetch landing page' 
     });
   }
+});
+
 // ==================== STATIC FILES (PRODUCTION) ====================
 if (process.env.NODE_ENV === 'production') {
   // Serve static frontend files
@@ -145,6 +146,8 @@ if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
   });
+}
+
 // ==================== ROUTE IMPORTS ====================
 try {
   const mongoAuthRoutes = require('./routes/mongoAuthRoutes');
