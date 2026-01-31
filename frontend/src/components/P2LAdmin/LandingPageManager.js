@@ -8,6 +8,7 @@ import {
   updateTestimonial 
 } from '../../services/p2lAdminService';
 import './LandingPageManager.css';
+import '../DynamicLandingPage/DynamicLandingPage.css'; // Import actual landing page CSS for preview mode
 
 function LandingPageManager() {
   const [blocks, setBlocks] = useState([]);
@@ -1028,25 +1029,45 @@ function LandingPageManager() {
     switch (block.type) {
       case 'hero':
         return (
-          <section className="preview-hero">
-            <div className="preview-container">
-              <div className="preview-hero-content">
-                <h1>{block.title || 'Hero Title'}</h1>
-                <p>{block.content || 'Hero content will appear here'}</p>
-                {block.image_url && <img src={block.image_url} alt={block.title || 'Hero section image'} />}
+          <section className="hero dynamic-hero">
+            <div className="container">
+              <div className="hero-content">
+                <div className="hero-text">
+                  <h1>{block.title || 'Hero Title'}</h1>
+                  <p>{block.content || 'Hero content will appear here'}</p>
+                </div>
+                {block.image_url && (
+                  <div className="hero-image">
+                    <img src={block.image_url} alt={block.title || 'Hero section'} />
+                  </div>
+                )}
               </div>
             </div>
           </section>
         );
       
       case 'features':
+        const featuresData = block.custom_data || {};
+        const features = featuresData.features || [];
         return (
-          <section className="preview-features">
-            <div className="preview-container">
-              <h2>{block.title || 'Features'}</h2>
-              <div className="preview-features-content">
-                <p>{block.content || 'Features content will appear here'}</p>
-              </div>
+          <section className="section features dynamic-features">
+            <div className="container">
+              <h2 className="section-title">{block.title || 'Features'}</h2>
+              {features.length > 0 ? (
+                <div className="features-grid">
+                  {features.map((feature, fIdx) => (
+                    <div key={fIdx} className="feature-card">
+                      <div className="feature-icon">{feature.icon || '🎯'}</div>
+                      <h3>{feature.title}</h3>
+                      <p>{feature.description}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="features-content">
+                  <p>{block.content || 'Features content will appear here'}</p>
+                </div>
+              )}
             </div>
           </section>
         );
@@ -1054,10 +1075,11 @@ function LandingPageManager() {
       case 'about':
         const aboutData = block.custom_data || {};
         return (
-          <section className="preview-about">
-            <div className="preview-container">
+          <section className="section about dynamic-about">
+            <div className="container">
               <h2>{block.title || 'About Us'}</h2>
-              <div className="preview-about-content" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+              <h2 className="section-title">{block.title || 'About Us'}</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
                 {aboutData.mission && (
                   <div style={{ padding: '16px', background: '#f0fdf4', borderRadius: '8px' }}>
                     <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>🎯 Mission</h3>
@@ -1097,9 +1119,9 @@ function LandingPageManager() {
       
       case 'testimonials':
         return (
-          <section className="preview-testimonials">
-            <div className="preview-container">
-              <h2>{block.title || 'Testimonials'}</h2>
+          <section className="section testimonials dynamic-testimonials">
+            <div className="container">
+              <h2 className="section-title">{block.title || 'Testimonials'}</h2>
               <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '24px' }}>{block.content}</p>
               <div style={{ textAlign: 'center', padding: '40px', background: '#f9fafb', borderRadius: '8px' }}>
                 <p style={{ color: '#6b7280' }}>
@@ -1113,10 +1135,10 @@ function LandingPageManager() {
       
       case 'pricing':
         return (
-          <section className="preview-pricing">
-            <div className="preview-container">
-              <h2>{block.title || 'Pricing'}</h2>
-              <div className="preview-pricing-content">
+          <section className="section pricing dynamic-pricing">
+            <div className="container">
+              <h2 className="section-title">{block.title || 'Pricing'}</h2>
+              <div className="pricing-content">
                 <p>{block.content || 'Pricing information will appear here'}</p>
               </div>
             </div>
@@ -1126,9 +1148,9 @@ function LandingPageManager() {
       case 'contact':
         const contactData = block.custom_data || {};
         return (
-          <section className="preview-contact">
-            <div className="preview-container">
-              <h2>{block.title || 'Contact Us'}</h2>
+          <section className="section contact dynamic-contact">
+            <div className="container">
+              <h2 className="section-title">{block.title || 'Contact Us'}</h2>
               {contactData.contactMethods && contactData.contactMethods.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '32px' }}>
                   {contactData.contactMethods.map((method, index) => (
@@ -1161,8 +1183,8 @@ function LandingPageManager() {
       
       case 'footer':
         return (
-          <footer className="preview-footer">
-            <div className="preview-container">
+          <footer className="footer dynamic-footer">
+            <div className="container">
               <p>{block.content || 'Footer content will appear here'}</p>
             </div>
           </footer>
@@ -1170,9 +1192,9 @@ function LandingPageManager() {
       
       default:
         return (
-          <section className="preview-default">
-            <div className="preview-container">
-              <h2>{block.title || 'Content Block'}</h2>
+          <section className="section">
+            <div className="container">
+              <h2 className="section-title">{block.title || 'Content Block'}</h2>
               <p>{block.content || 'Content will appear here'}</p>
             </div>
           </section>
