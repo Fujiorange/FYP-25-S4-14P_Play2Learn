@@ -47,36 +47,31 @@ function SchoolManagement() {
           setFormData(prev => ({ ...prev, plan: response.plans[0].id }));
         }
       } else {
-        // Fallback to hardcoded plans if no landing page plans found
-        console.warn('No pricing plans found in landing page, using fallback constants');
-        const fallbackPlans = Object.entries(LICENSE_PLANS).map(([key, value]) => ({
-          id: key,
-          name: value.name,
-          teacher_limit: value.teacher_limit,
-          student_limit: value.student_limit,
-          price: value.price
-        }));
-        setPricingPlans(fallbackPlans);
-        if (!formData.plan) {
-          setFormData(prev => ({ ...prev, plan: 'starter' }));
-        }
+        // Use fallback plans
+        useFallbackPlans();
       }
     } catch (error) {
       console.error('Failed to fetch pricing plans:', error);
-      // Fallback to hardcoded plans
-      const fallbackPlans = Object.entries(LICENSE_PLANS).map(([key, value]) => ({
-        id: key,
-        name: value.name,
-        teacher_limit: value.teacher_limit,
-        student_limit: value.student_limit,
-        price: value.price
-      }));
-      setPricingPlans(fallbackPlans);
-      if (!formData.plan) {
-        setFormData(prev => ({ ...prev, plan: 'starter' }));
-      }
+      // Use fallback plans
+      useFallbackPlans();
     } finally {
       setLoadingPlans(false);
+    }
+  };
+
+  // Helper function to use fallback pricing plans
+  const useFallbackPlans = () => {
+    console.warn('No pricing plans found in landing page, using fallback constants');
+    const fallbackPlans = Object.entries(LICENSE_PLANS).map(([key, value]) => ({
+      id: key,
+      name: value.name,
+      teacher_limit: value.teacher_limit,
+      student_limit: value.student_limit,
+      price: value.price
+    }));
+    setPricingPlans(fallbackPlans);
+    if (!formData.plan) {
+      setFormData(prev => ({ ...prev, plan: 'starter' }));
     }
   };
 
@@ -222,7 +217,7 @@ function SchoolManagement() {
                   >
                     {pricingPlans.map(plan => (
                       <option key={plan.id} value={plan.id}>
-                        {plan.name} - {plan.teacher_limit} Teachers, {plan.student_limit} Students (${plan.price.toLocaleString()})
+                        {plan.name} - {plan.teacher_limit} Teachers, {plan.student_limit} Students (${(plan.price || 0).toLocaleString()})
                       </option>
                     ))}
                   </select>

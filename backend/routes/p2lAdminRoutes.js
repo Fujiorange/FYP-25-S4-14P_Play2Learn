@@ -1438,16 +1438,34 @@ router.get('/landing/pricing-plans', authenticateP2LAdmin, async (req, res) => {
     }
 
     // Extract and transform pricing plans to match school management format
-    const plans = pricingBlock.custom_data.plans.map(plan => ({
-      id: plan.name.toLowerCase().replace(/\s+/g, '-'), // e.g., "starter", "professional", "enterprise"
-      name: plan.name,
-      description: plan.description,
-      price: plan.price?.yearly || 0, // Use yearly price
-      teacher_limit: plan.teachers || 0,
-      student_limit: plan.students || 0,
-      features: plan.features || [],
-      popular: plan.popular || false
-    }));
+    const plans = pricingBlock.custom_data.plans.map(plan => {
+      // Generate consistent ID - try to match known plan types, otherwise use normalized name
+      const normalizedName = (plan.name || '').toLowerCase().trim();
+      let planId;
+      
+      // Match against known plan types for consistency
+      if (normalizedName.includes('starter') || normalizedName.includes('basic')) {
+        planId = 'starter';
+      } else if (normalizedName.includes('professional') || normalizedName.includes('pro')) {
+        planId = 'professional';
+      } else if (normalizedName.includes('enterprise') || normalizedName.includes('business')) {
+        planId = 'enterprise';
+      } else {
+        // Fallback: sanitize name to create ID
+        planId = normalizedName.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      }
+      
+      return {
+        id: planId,
+        name: plan.name,
+        description: plan.description,
+        price: plan.price?.yearly || 0, // Use yearly price
+        teacher_limit: plan.teachers || 0,
+        student_limit: plan.students || 0,
+        features: plan.features || [],
+        popular: plan.popular || false
+      };
+    });
 
     res.json({
       success: true,
