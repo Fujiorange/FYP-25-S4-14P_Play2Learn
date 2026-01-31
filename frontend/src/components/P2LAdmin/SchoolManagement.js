@@ -48,19 +48,19 @@ function SchoolManagement() {
         }
       } else {
         // Use fallback plans
-        useFallbackPlans();
+        setFallbackPlans();
       }
     } catch (error) {
       console.error('Failed to fetch pricing plans:', error);
       // Use fallback plans
-      useFallbackPlans();
+      setFallbackPlans();
     } finally {
       setLoadingPlans(false);
     }
   };
 
   // Helper function to use fallback pricing plans
-  const useFallbackPlans = () => {
+  const setFallbackPlans = () => {
     console.warn('No pricing plans found in landing page, using fallback constants');
     const fallbackPlans = Object.entries(LICENSE_PLANS).map(([key, value]) => ({
       id: key,
