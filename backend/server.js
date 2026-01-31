@@ -1,4 +1,5 @@
 // backend/server.js - Play2Learn Backend
+// backend/server.js - Play2Learn Backend - WITH PARENT ROUTES
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
@@ -15,6 +16,7 @@ const studentRoutes = require('./routes/mongoStudentRoutes');
 const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
 const p2lAdminRoutes = require('./routes/p2lAdminRoutes');
 const adaptiveQuizRoutes = require('./routes/adaptiveQuizRoutes');
+const path = require('path');
 
 // ==================== CORS CONFIGURATION ====================
 const corsOptions = {
@@ -113,6 +115,16 @@ app.get('/api/public/landing-page', async (req, res) => {
       error: 'Failed to fetch landing page' 
     });
   }
+// ==================== STATIC FILES (PRODUCTION) ====================
+if (process.env.NODE_ENV === 'production') {
+  // Serve static frontend files
+  app.use(express.static(path.join(__dirname, '../frontend/build')));
+}
+
+// ==================== REQUEST LOGGING ====================
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString().split('T')[1]} - ${req.method} ${req.path}`);
+  next();
 });
 
 // ==================== ROUTE IMPORTS & REGISTRATION ====================
@@ -133,6 +145,27 @@ if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
   });
+// ==================== ROUTE IMPORTS ====================
+try {
+  const mongoAuthRoutes = require('./routes/mongoAuthRoutes');
+  const mongoStudentRoutes = require('./routes/mongoStudentRoutes');
+  const mongoTeacherRoutes = require('./routes/mongoTeacherRoutes');
+  const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
+  const mongoParentRoutes = require('./routes/mongoParentRoutes'); // ✅ ADDED
+  
+  app.use('/api/mongo/auth', mongoAuthRoutes);
+  app.use('/api/auth', mongoAuthRoutes); // Backward compatibility
+  app.use('/api/mongo/student', authenticateToken, mongoStudentRoutes);
+  app.use('/school-admin', schoolAdminRoutes);
+  app.use('/api/mongo/parent', mongoParentRoutes); // ✅ ADDED - Parent routes
+  app.use('/api/mongo/teacher', authenticateToken, mongoTeacherRoutes);
+  app.use('/api/mongo/school-admin', schoolAdminRoutes);
+  
+  console.log('✅ Routes loaded successfully');
+  console.log('✅ Parent routes: /api/mongo/parent/*'); // ✅ ADDED
+} catch (error) {
+  console.error('❌ Error loading routes:', error.message);
+  console.log('⚠️  Some routes may not be available');
 }
 
 // ==================== TEST ENDPOINT ====================
@@ -146,6 +179,52 @@ app.get('/api/test', (req, res) => {
 });
 
 // ==================== ERROR HANDLING ====================
+app.get('/api/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState;
+  const statusText = ['Disconnected', 'Connected', 'Connecting', 'Disconnecting'][dbStatus];
+  
+  res.json({ 
+    success: dbStatus === 1, 
+    message: dbStatus === 1 ? 'Server is healthy' : 'Server running (no DB)',
+    database: {
+      status: statusText,
+      connected: dbStatus === 1,
+      type: process.env.MONGODB_URI ? 'MongoDB Atlas' : 'Local MongoDB'
+    },
+    server: {
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Play2Learn API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      test: '/api/test',
+      health: '/api/health',
+      auth: '/api/auth/*',
+      student: '/api/mongo/student/*',
+      parent: '/api/mongo/parent/*', // ✅ ADDED
+      admin: '/school-admin/*'
+    },
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// ==================== PRODUCTION FALLBACK ====================
+if (process.env.NODE_ENV === 'production') {
+  // Serve index.html for all unknown routes (SPA support)
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+  });
+}
+
+// ==================== ERROR HANDLERS ====================
 app.use((req, res) => {
   res.status(404).json({
     error: `Route not found: ${req.originalUrl}`,
@@ -177,5 +256,27 @@ async function startServer() {
     process.exit(1);
   }
 }
+const server = app.listen(PORT, () => {
+  console.log('╔═══════════════════════════════════════════════╗');
+  console.log('║          🚀 Play2Learn Server               ║');
+  console.log(`║          📍 Port: ${PORT}                       ║`);
+  console.log(`║          🌍 URL: ${process.env.NODE_ENV === 'production' ? 'https://play2learn-test.onrender.com' : `http://localhost:${PORT}`} ║`);
+  console.log('║          🗄️  Database: ' + 
+    (mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Disconnected') + 
+    '           ║');
+  console.log('║          🔐 JWT: ' + 
+    (process.env.JWT_SECRET ? '✅ Set' : '❌ Using default') + 
+    '                   ║');
+  console.log('╚═══════════════════════════════════════════════╝');
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed.');
+    process.exit(0);
+  });
+});
 
 startServer();

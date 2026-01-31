@@ -41,8 +41,8 @@ export default function AttemptQuiz() {
           return;
         }
 
-        // Backend daily limit is 3 quizzes/day in your mongoStudentRoutes.js
-        const dailyLimit = 3;
+        // Backend daily limit is 2 quizzes/day in your mongoStudentRoutes.js
+        const dailyLimit = 2;
 
         const quizzesToday = Number.isFinite(mp.quizzes_today) ? mp.quizzes_today : 0;
         const attemptsRemaining = Number.isFinite(mp.quizzes_remaining)

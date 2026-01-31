@@ -43,30 +43,82 @@ export default function UpdatePicture() {
 
   const handleUpload = async () => {
     if (!selectedFile) return;
+    
     setUploading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const mockUrl = URL.createObjectURL(selectedFile);
-    const user = authService.getCurrentUser();
-    const updatedUser = { ...user, profile_picture: mockUrl };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setCurrentPicture(mockUrl);
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setMessage({ type: 'success', text: 'Profile picture updated successfully!' });
-    setUploading(false);
+    setMessage({ type: '', text: '' });
+
+    try {
+      // Convert file to base64 for storage
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedFile);
+      });
+
+      // ✅ FIXED: Actually call the API to update database
+      const result = await authService.updateProfilePicture(base64);
+
+      if (result.success) {
+        setCurrentPicture(base64);
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        setMessage({ type: 'success', text: 'Profile picture updated successfully!' });
+        
+        // Update localStorage with new user data from server
+        if (result.user) {
+          localStorage.setItem('user', JSON.stringify(result.user));
+        }
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: result.error || 'Failed to update profile picture. Please try again.' 
+        });
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      setMessage({ 
+        type: 'error', 
+        text: 'Failed to upload picture. Please try again.' 
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleRemove = async () => {
     setUploading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const user = authService.getCurrentUser();
-    const updatedUser = { ...user, profile_picture: null };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setCurrentPicture(null);
-    setPreviewUrl(null);
-    setSelectedFile(null);
-    setMessage({ type: 'success', text: 'Profile picture removed successfully!' });
-    setUploading(false);
+    setMessage({ type: '', text: '' });
+
+    try {
+      // ✅ FIXED: Actually call the API to remove picture from database
+      const result = await authService.updateProfilePicture(null);
+
+      if (result.success) {
+        setCurrentPicture(null);
+        setPreviewUrl(null);
+        setSelectedFile(null);
+        setMessage({ type: 'success', text: 'Profile picture removed successfully!' });
+        
+        // Update localStorage
+        if (result.user) {
+          localStorage.setItem('user', JSON.stringify(result.user));
+        }
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: result.error || 'Failed to remove profile picture.' 
+        });
+      }
+    } catch (error) {
+      console.error('Remove error:', error);
+      setMessage({ 
+        type: 'error', 
+        text: 'Failed to remove picture. Please try again.' 
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const styles = {
@@ -100,21 +152,69 @@ export default function UpdatePicture() {
           <h1 style={styles.title}>Update Profile Picture</h1>
           <button style={styles.backButton} onClick={() => navigate('/parent/profile')}>← Back to Profile</button>
         </div>
-        {message.text && <div style={{...styles.message, ...(message.type === 'success' ? styles.successMessage : styles.errorMessage)}}>{message.text}</div>}
+        
+        {message.text && (
+          <div style={{
+            ...styles.message, 
+            ...(message.type === 'success' ? styles.successMessage : styles.errorMessage)
+          }}>
+            {message.text}
+          </div>
+        )}
+        
         <div style={styles.previewSection}>
           <div style={styles.previewCircle}>
-            {(previewUrl || currentPicture) ? (<img src={previewUrl || currentPicture} alt="Profile" style={styles.previewImage} />) : (<span style={styles.placeholderIcon}>👤</span>)}
+            {(previewUrl || currentPicture) ? (
+              <img src={previewUrl || currentPicture} alt="Profile" style={styles.previewImage} />
+            ) : (
+              <span style={styles.placeholderIcon}>👤</span>
+            )}
           </div>
         </div>
-        <div style={styles.uploadSection} onClick={() => document.getElementById('fileInput').click()} onMouseEnter={(e) => e.currentTarget.style.borderColor = '#10b981'} onMouseLeave={(e) => e.currentTarget.style.borderColor = '#d1d5db'}>
+        
+        <div 
+          style={styles.uploadSection} 
+          onClick={() => document.getElementById('fileInput').click()} 
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#10b981'} 
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = '#d1d5db'}
+        >
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>📸</div>
-          <p style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>Click to upload a photo</p>
+          <p style={{ fontSize: '16px', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
+            Click to upload a photo
+          </p>
           <p style={{ fontSize: '14px', color: '#6b7280' }}>PNG, JPG, GIF up to 5MB</p>
-          <input id="fileInput" type="file" accept="image/*" onChange={handleFileChange} style={styles.fileInput} />
+          <input 
+            id="fileInput" 
+            type="file" 
+            accept="image/*" 
+            onChange={handleFileChange} 
+            style={styles.fileInput} 
+          />
         </div>
+        
         <div style={styles.buttonGroup}>
-          <button onClick={handleUpload} disabled={!selectedFile || uploading} style={{...styles.uploadButton, opacity: (!selectedFile || uploading) ? 0.5 : 1}}>{uploading ? '⏳ Uploading...' : '📤 Upload Picture'}</button>
-          <button onClick={handleRemove} disabled={!currentPicture || uploading} style={{...styles.removeButton, opacity: (!currentPicture || uploading) ? 0.5 : 1}}>🗑️ Remove Picture</button>
+          <button 
+            onClick={handleUpload} 
+            disabled={!selectedFile || uploading} 
+            style={{
+              ...styles.uploadButton, 
+              opacity: (!selectedFile || uploading) ? 0.5 : 1,
+              cursor: (!selectedFile || uploading) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {uploading ? '⏳ Uploading...' : '📤 Upload Picture'}
+          </button>
+          <button 
+            onClick={handleRemove} 
+            disabled={!currentPicture || uploading} 
+            style={{
+              ...styles.removeButton, 
+              opacity: (!currentPicture || uploading) ? 0.5 : 1,
+              cursor: (!currentPicture || uploading) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            🗑️ Remove Picture
+          </button>
         </div>
       </div>
     </div>

@@ -51,6 +51,13 @@ import StudentWriteTestimonial from './components/Student/WriteTestimonial';
 import StudentCreateSupportTicket from './components/Student/CreateSupportTicket';
 import StudentTrackSupportTicket from './components/Student/TrackSupportTicket';
 
+// ⭐ NEW IMPORT - Student Announcements
+import StudentViewAnnouncements from './components/Student/ViewAnnouncements';
+
+// â­ NEW IMPORTS - Student Rewards System
+import StudentViewRewardShop from './components/Student/ViewRewardShop';
+import StudentViewBadges from './components/Student/ViewBadges';
+
 // Parent Components
 import ParentDashboard from './components/Parents/ParentDashboard';
 import ParentViewProfile from './components/Parents/ViewProfile';
@@ -64,6 +71,10 @@ import ParentChatWithTeacher from './components/Parents/ChatWithTeacher';
 import ParentWriteTestimonial from './components/Parents/WriteTestimonial';
 import ParentCreateSupportTicket from './components/Parents/CreateSupportTicket';
 import ParentTrackSupportTicket from './components/Parents/TrackSupportTicket';
+
+// ⭐ NEW IMPORTS - Parent Modules
+import ParentViewChildSkillMatrix from './components/Parents/ViewChildSkillMatrix';
+import ParentViewAnnouncements from './components/Parents/ViewAnnouncements';
 
 // SchoolAdmin Components
 import SchoolAdminDashboard from './components/SchoolAdmin/SchoolAdminDashboard';
@@ -138,6 +149,13 @@ function App() {
           <Route path="/student/skills" element={<DisplaySkillMatrix />} />
           <Route path="/student/subjects" element={<ViewDetailedSubjectInfo />} />
 
+          {/* ⭐ NEW ROUTE - Student Announcements */}
+          <Route path="/student/announcements" element={<StudentViewAnnouncements />} />
+
+          {/* â­ NEW ROUTES - Student Rewards System */}
+          <Route path="/student/shop" element={<StudentViewRewardShop />} />
+          <Route path="/student/badges" element={<StudentViewBadges />} />
+
           {/* ========== QUIZ ROUTES ========== */}
           <Route path="/student/quiz/attempt" element={<AttemptQuiz />} />
           <Route path="/student/quiz/placement" element={<PlacementQuiz />} />
@@ -166,6 +184,11 @@ function App() {
           <Route path="/parent/children" element={<ParentViewChildren />} />
           <Route path="/parent/children/performance" element={<ParentViewChildPerformance />} />
           <Route path="/parent/children/progress" element={<ParentViewChildProgress />} />
+          
+          {/* ⭐ Parent Module Routes */}
+          <Route path="/parent/children/skills" element={<ParentViewChildSkillMatrix />} />
+          <Route path="/parent/announcements" element={<ParentViewAnnouncements />} />
+          
           <Route path="/parent/feedback" element={<ParentViewFeedback />} />
           <Route path="/parent/chat" element={<ParentChatWithTeacher />} />
           <Route path="/parent/testimonial" element={<ParentWriteTestimonial />} />

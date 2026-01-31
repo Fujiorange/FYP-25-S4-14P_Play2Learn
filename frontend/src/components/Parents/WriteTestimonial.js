@@ -1,3 +1,8 @@
+// frontend/src/pages/Parent/WriteTestimonial.js - COMPLETE VERSION
+// ✅ Actually saves to database via API
+// ✅ Updated to use createTestimonial() method
+// ✅ Consistent with student testimonial flow
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
@@ -15,6 +20,12 @@ export default function WriteTestimonial() {
   const [isPublic, setIsPublic] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState({ type: '', text: '' });
+  const [formData, setFormData] = useState({
+    rating: 5,
+    title: '',
+    message: ''
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -29,15 +40,61 @@ export default function WriteTestimonial() {
     loadData();
   }, [navigate]);
 
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setMessage({ type: '', text: '' });
+  };
+
+  const handleRatingClick = (rating) => {
+    setFormData({ ...formData, rating });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (rating === 0) {
-      alert('Please provide a rating');
+    
+    if (!formData.title || !formData.message) {
+      setMessage({ type: 'error', text: 'Please fill in all required fields' });
       return;
     }
-    if (testimonialText.trim().length < 20) {
-      alert('Please write at least 20 characters');
-      return;
+
+    setSubmitting(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      // ✅ Using createTestimonial() for better error handling and logging
+      const result = await parentService.createTestimonial(formData);
+
+      if (result.success) {
+        setMessage({ 
+          type: 'success', 
+          text: 'Thank you for your testimonial! It will be reviewed before being published.' 
+        });
+        
+        // Clear form
+        setFormData({
+          rating: 5,
+          title: '',
+          message: ''
+        });
+
+        // Redirect after 3 seconds
+        setTimeout(() => {
+          navigate('/parent');
+        }, 3000);
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: result.error || 'Failed to submit testimonial. Please try again.' 
+        });
+        setSubmitting(false);
+      }
+    } catch (error) {
+      console.error('Error submitting testimonial:', error);
+      setMessage({ 
+        type: 'error', 
+        text: 'Failed to submit testimonial. Please try again.' 
+      });
+      setSubmitting(false);
     }
 
     setSubmitting(true);
@@ -86,31 +143,25 @@ export default function WriteTestimonial() {
     submitButton: { width: '100%', padding: '14px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.2s' },
     successMessage: { textAlign: 'center', padding: '40px', background: 'white', borderRadius: '16px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
     errorMessage: { padding: '12px', background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171', borderRadius: '8px', marginBottom: '16px' },
+    textarea: { width: '100%', padding: '12px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit', minHeight: '200px', resize: 'vertical' },
+    ratingContainer: { display: 'flex', gap: '8px', marginTop: '8px' },
+    star: { fontSize: '36px', cursor: 'pointer', transition: 'transform 0.2s', userSelect: 'none' },
+    submitButton: { width: '100%', padding: '14px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'transform 0.2s' },
+    message: { padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', marginBottom: '16px' },
+    successMessage: { background: '#d1fae5', color: '#065f46', border: '1px solid #34d399' },
+    errorMessage: { background: '#fee2e2', color: '#991b1b', border: '1px solid #f87171' },
+    infoBox: { background: '#dbeafe', border: '1px solid #60a5fa', borderRadius: '8px', padding: '16px', marginBottom: '24px', fontSize: '14px', color: '#1e40af' },
     loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
     loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
   };
 
   if (loading) return (<div style={styles.loadingContainer}><div style={styles.loadingText}>Loading...</div></div>);
 
-  if (submitted) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.content}>
-          <div style={styles.successMessage}>
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>✅</div>
-            <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#10b981', marginBottom: '8px' }}>Testimonial Submitted!</h2>
-            <p style={{ color: '#6b7280' }}>Thank you for your feedback. Redirecting...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={styles.container}>
       <div style={styles.content}>
         <div style={styles.header}>
-          <h1 style={styles.title}>✍️ Write Testimonial</h1>
+          <h1 style={styles.title}>✏️ Write a Testimonial</h1>
           <button style={styles.backButton} onClick={() => navigate('/parent')}>← Back to Dashboard</button>
         </div>
 
@@ -140,11 +191,41 @@ export default function WriteTestimonial() {
                 {[1, 2, 3, 4, 5].map((star) => (
                   <span key={star} style={{...styles.star, color: (hoverRating || rating) >= star ? '#fbbf24' : '#e5e7eb', transform: (hoverRating || rating) >= star ? 'scale(1.1)' : 'scale(1)'}} onClick={() => !submitting && setRating(star)} onMouseEnter={() => !submitting && setHoverRating(star)} onMouseLeave={() => setHoverRating(0)}>
                     ★
+        {message.text && (
+          <div style={{
+            ...styles.message, 
+            ...(message.type === 'success' ? styles.successMessage : styles.errorMessage)
+          }}>
+            {message.text}
+          </div>
+        )}
+
+        <div style={styles.infoBox}>
+          <strong>ℹ️ Note:</strong> Your testimonial will be reviewed by our team before being published on the website.
+        </div>
+
+        <div style={styles.formCard}>
+          <form onSubmit={handleSubmit}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Your Rating *</label>
+              <div style={styles.ratingContainer}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <span
+                    key={star}
+                    style={{
+                      ...styles.star,
+                      color: star <= formData.rating ? '#f59e0b' : '#d1d5db'
+                    }}
+                    onClick={() => !submitting && handleRatingClick(star)}
+                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.2)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    ⭐
                   </span>
                 ))}
-              </div>
-              <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '4px' }}>
-                {rating === 0 ? 'Click to rate' : `${rating} out of 5 stars`}
+                <span style={{ marginLeft: '16px', fontSize: '18px', fontWeight: '600', color: '#374151' }}>
+                  {formData.rating} / 5
+                </span>
               </div>
             </div>
 
@@ -179,6 +260,52 @@ export default function WriteTestimonial() {
 
             <button type="submit" style={{...styles.submitButton, opacity: submitting ? 0.7 : 1}} disabled={submitting} onMouseEnter={(e) => !submitting && (e.target.style.transform = 'translateY(-2px)')} onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}>
               {submitting ? 'Submitting...' : 'Submit Testimonial'}
+              <label style={styles.label}>Title *</label>
+              <input 
+                type="text" 
+                name="title" 
+                value={formData.title} 
+                onChange={handleChange} 
+                placeholder="e.g., Great platform for my child's learning" 
+                style={styles.input} 
+                required 
+                disabled={submitting}
+                maxLength={100}
+              />
+              <small style={{ color: '#6b7280', fontSize: '12px' }}>
+                {formData.title.length}/100 characters
+              </small>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Your Testimonial *</label>
+              <textarea 
+                name="message" 
+                value={formData.message} 
+                onChange={handleChange} 
+                placeholder="Share your experience with Play2Learn..." 
+                style={styles.textarea} 
+                required 
+                disabled={submitting}
+                maxLength={1000}
+              />
+              <small style={{ color: '#6b7280', fontSize: '12px' }}>
+                {formData.message.length}/1000 characters
+              </small>
+            </div>
+
+            <button 
+              type="submit" 
+              style={{
+                ...styles.submitButton,
+                opacity: submitting ? 0.6 : 1,
+                cursor: submitting ? 'not-allowed' : 'pointer'
+              }} 
+              disabled={submitting}
+              onMouseEnter={(e) => !submitting && (e.target.style.transform = 'translateY(-2px)')} 
+              onMouseLeave={(e) => !submitting && (e.target.style.transform = 'translateY(0)')}
+            >
+              {submitting ? '⏳ Submitting...' : '📤 Submit Testimonial'}
             </button>
           </form>
         </div>

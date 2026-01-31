@@ -1,25 +1,5 @@
-// src/services/parentService.js
-// Parent Service for MongoDB Operations
-
-const API_URL =
-  process.env.REACT_APP_API_URL ||
-  (window.location.hostname === 'localhost'
-    ? 'http://localhost:5000/api'
-    : `${window.location.origin}/api`);
-
-const parentService = {
-  // ==================== TESTIMONIALS ====================
-  async createTestimonial(testimonialData) {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/mongo/parent/testimonials`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
 // frontend/src/services/parentService.js - WITH SKILL MATRIX METHOD
 // ✅ UPDATED: Added getChildSkills(studentId) method
-// ✅ UPDATED: Added createTestimonial(formData) method for WriteTestimonial.js
 // ✅ Includes everything from Phase 2 + new skills method
 
 import authService from './authService';
@@ -233,64 +213,6 @@ class ParentService {
 
   // ==================== TESTIMONIALS (PHASE 2) ====================
   
-  /**
-   * Create a new testimonial (used by WriteTestimonial.js)
-   * @param {Object} formData - { rating, title, message }
-   * @returns {Promise<Object>} - { success, testimonial?, error? }
-   */
-  async createTestimonial(formData) {
-    try {
-      const token = authService.getToken();
-      
-      if (!token) {
-        console.error('❌ No authentication token');
-        return { success: false, error: 'Not authenticated. Please log in.' };
-      }
-
-      console.log('📤 Parent submitting testimonial:', {
-        title: formData.title,
-        rating: formData.rating
-      });
-
-      const response = await fetch(`${API_BASE_URL}/testimonials`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          rating: formData.rating,
-          title: formData.title,
-          message: formData.message
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error('❌ Testimonial submission failed:', data);
-        return {
-          success: false,
-          error: data.error || 'Failed to submit testimonial'
-        };
-      }
-
-      console.log('✅ Testimonial submitted successfully:', data);
-      return {
-        success: true,
-        testimonial: data.testimonial,
-        message: data.message || 'Thank you for your feedback!'
-      };
-
-    } catch (error) {
-      console.error('❌ Error submitting testimonial:', error);
-      return {
-        success: false,
-        error: 'Network error. Please check your connection and try again.'
-      };
-    }
-  }
-
   async submitTestimonial(testimonialData) {
     try {
       const token = authService.getToken();
@@ -305,32 +227,6 @@ class ParentService {
       });
 
       const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('createTestimonial error:', error);
-      return { success: false, error: 'Failed to submit testimonial' };
-    }
-  },
-
-  async getTestimonials() {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/mongo/parent/testimonials`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch testimonials');
-      return await response.json();
-    } catch (error) {
-      console.error('getTestimonials error:', error);
-      return { success: false, error: 'Failed to load testimonials' };
-    }
-  }
-};
-
-export default parentService;
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to submit testimonial');

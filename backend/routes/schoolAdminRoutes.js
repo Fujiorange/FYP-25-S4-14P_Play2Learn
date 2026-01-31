@@ -2,6 +2,12 @@
 // ✅ Queries USERS collection correctly for dashboard stats
 // ✅ Parent CSV import with linkedStudents integration
 // ✅ FIXED: Student credentials email now sends correct parameters
+// backend/routes/schoolAdminRoutes.js - COMPLETE VERSION WITH EMAIL FIX + ANNOUNCEMENTS
+// ✅ Queries USERS collection correctly for dashboard stats
+// ✅ Parent CSV import with linkedStudents integration
+// ✅ FIXED: Student credentials email now sends correct parameters
+// ⭐ NEW: Added announcement routes from Wei Xiang's implementation
+// backend/routes/schoolAdminRoutes.js - COMPREHENSIVE FIX
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -103,6 +109,13 @@ async function checkLicenseAvailability(schoolId, role) {
   
   // Parent or other roles don't have limits
   return { available: true, school };
+// ⭐ Helper to get MongoDB database (for announcements)
+const getDb = () => mongoose.connection.db;
+
+// ==================== PASSWORD GENERATOR ====================
+function generateTempPassword(userType) {
+  const crypto = require('crypto');
+  return `${userType.substring(0, 3).toUpperCase()}${new Date().getFullYear()}${crypto.randomBytes(3).toString('hex')}!`;
 }
 
 // ==================== DASHBOARD STATS (FIXED!) ====================
@@ -209,6 +222,184 @@ router.get('/users', authenticateToken, async (req, res) => {
         createdAt: user.createdAt,
       }))
     });
+// Update user - FIXED to sync students collection
+router.put('/users/:id', authenticateToken, async (req, res) => {
+  try {
+    // Parse CSV
+    await new Promise((resolve, reject) => {
+      fs.createReadStream(req.file.path)
+        .pipe(csv())
+        .on('data', (row) => {
+          students.push({
+            name: row.Name || row.name || '',
+            email: row.Email || row.email || '',
+            class: row.Class || row.class || '',
+            gradeLevel: row.GradeLevel || row.gradeLevel || row['Grade Level'] || row.grade_level || '',
+            parentEmail: row.ParentEmail || row.parentEmail || row['Parent Email'] || row.parent_email || '',
+            contact: row.ContactNumber || row.contactNumber || row['Contact Number'] || row.contact || '',
+            gender: row.Gender || row.gender || '',
+            dateOfBirth: row.DateOfBirth || row.dateOfBirth || row['Date of Birth'] || row.date_of_birth || ''
+          });
+        })
+        .on('end', () => {
+          console.log(`✅ Found ${students.length} students in CSV`);
+          resolve();
+        })
+        .on('error', (error) => {
+          console.error('❌ CSV parsing error:', error);
+          reject(error);
+        });
+    });
+
+    console.log('\n🔄 Processing students...\n');
+
+    // ✅ FIX: Only create user in 'users' collection, NO separate student profile
+    for (const studentData of students) {
+      try {
+        console.log(`👤 Processing: ${studentData.name} (${studentData.email})`);
+        
+        // Validate required fields
+        if (!studentData.name || !studentData.email) {
+          console.log(`⚠️  Skipping - Missing required fields`);
+          results.failed++;
+          results.errors.push({ 
+            email: studentData.email || 'unknown', 
+            error: 'Missing required fields (name or email)' 
+          });
+          continue;
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email: studentData.email });
+        if (existingUser) {
+          console.log(`⚠️  Skipping - Email already exists: ${studentData.email}`);
+          results.failed++;
+          results.errors.push({ 
+            email: studentData.email, 
+            error: 'Email already registered' 
+          });
+          continue;
+        }
+
+        // Generate password
+        const tempPassword = generateTempPassword('Student');
+        console.log(`🔑 Generated password: ${tempPassword}`);
+        
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const username = studentData.email.split('@')[0];
+
+        // Parse date of birth
+        let parsedDateOfBirth = null;
+        if (studentData.dateOfBirth) {
+          try {
+            const dateStr = studentData.dateOfBirth.trim();
+            
+            if (dateStr.includes('-')) {
+              // YYYY-MM-DD format
+              parsedDateOfBirth = new Date(dateStr);
+            } else if (dateStr.includes('/')) {
+              const parts = dateStr.split('/');
+              if (parts.length === 3) {
+                // Support both M/D/YYYY and DD/MM/YYYY formats
+                // If first part > 12, assume it's DD/MM/YYYY, otherwise M/D/YYYY
+                let month, day, year;
+                
+                if (parseInt(parts[0]) > 12) {
+                  // DD/MM/YYYY format
+                  day = parseInt(parts[0]);
+                  month = parseInt(parts[1]) - 1;
+                  year = parseInt(parts[2]);
+                } else {
+                  // M/D/YYYY format (US style)
+                  month = parseInt(parts[0]) - 1;
+                  day = parseInt(parts[1]);
+                  year = parseInt(parts[2]);
+                }
+                
+                parsedDateOfBirth = new Date(year, month, day);
+              }
+            }
+            
+            if (parsedDateOfBirth && isNaN(parsedDateOfBirth.getTime())) {
+              parsedDateOfBirth = null;
+            }
+          } catch (error) {
+            console.log(`⚠️  Invalid date format: ${studentData.dateOfBirth}`);
+            parsedDateOfBirth = null;
+          }
+        }
+
+        // ✅ Create ONLY user document in 'users' collection
+        const newUser = await User.create({
+          name: studentData.name.trim(),
+          email: studentData.email.toLowerCase().trim(),
+          username: username,
+          password: hashedPassword,
+          role: 'Student',
+          class: studentData.class?.trim() || null,
+          gradeLevel: studentData.gradeLevel?.trim() || 'Primary 1',
+          parentEmail: studentData.parentEmail?.toLowerCase().trim() || null,
+          contact: studentData.contact?.trim() || null,
+          gender: studentData.gender?.trim() || null,
+          date_of_birth: parsedDateOfBirth,
+          emailVerified: true,
+          accountActive: true,
+          createdBy: 'school-admin',
+          createdAt: new Date()
+        });
+
+        console.log(`✅ Student created in users collection: ${newUser.email}`);
+        results.created++;
+
+        // ✅ FIXED: Send credentials email with correct parameter order
+        if (studentData.parentEmail) {
+          try {
+            await sendStudentCredentialsToParent(
+              newUser,                    // 1. student object (has .name, .email, .class)
+              tempPassword,               // 2. tempPassword string
+              studentData.parentEmail,    // 3. parentEmail string
+              'Your School'               // 4. schoolName string
+            );
+            console.log(`📧 Sent credentials to parent: ${studentData.parentEmail}`);
+            results.emailsSent++;
+          } catch (emailError) {
+            console.error(`❌ Failed to send email to parent:`, emailError.message);
+            results.emailsFailed++;
+          }
+        } else {
+          results.emailsFailed++;
+        }
+
+      } catch (error) {
+        console.error(`❌ Error creating student:`, error);
+        results.failed++;
+        results.errors.push({ 
+          email: studentData.email, 
+          error: error.message 
+        });
+      }
+    const db = getDb();
+    const check = await canModifyUser(db, req.params.id);
+    if (!check.allowed) return res.status(403).json({ success: false, error: check.error });
+    
+    const updates = { ...req.body, updatedAt: new Date() };
+    delete updates._id; delete updates.password; delete updates.role;
+    
+    await db.collection('users').updateOne({ _id: new mongoose.Types.ObjectId(req.params.id) }, { $set: updates });
+    
+    // SYNC to students collection
+    if (check.user.role?.toLowerCase() === 'student') {
+      const studentUpdates = { updated_at: new Date() };
+      if (updates.class !== undefined) studentUpdates.class = updates.class;
+      if (updates.name !== undefined) studentUpdates.name = updates.name;
+      if (updates.gradeLevel !== undefined) studentUpdates.grade_level = updates.gradeLevel;
+      await db.collection('students').updateOne(
+        { $or: [{ user_id: new mongoose.Types.ObjectId(req.params.id) }, { email: check.user.email }] },
+        { $set: studentUpdates }
+      );
+    }
+    
+    res.json({ success: true, message: 'User updated' });
   } catch (error) {
     console.error('❌ Get users error:', error);
     res.status(500).json({ success: false, error: 'Failed to load users' });
@@ -263,6 +454,17 @@ router.post('/bulk-import-students', authenticateSchoolAdmin, upload.single('fil
         })
         .on('end', () => {
           console.log(`✅ Found ${students.length} students in CSV`);
+          parents.push({
+            parentName: row.ParentName || row.parentName || row['Parent Name'] || '',
+            parentEmail: row.ParentEmail || row.parentEmail || row['Parent Email'] || '',
+            studentEmail: row.StudentEmail || row.studentEmail || row['Student Email'] || '',
+            relationship: row.Relationship || row.relationship || 'Parent',
+            contactNumber: row.ContactNumber || row.contactNumber || row['Contact Number'] || row.contact || '',
+            gender: row.Gender || row.gender || ''
+          });
+        })
+        .on('end', () => {
+          console.log(`✅ Found ${parents.length} parent records in CSV`);
           resolve();
         })
         .on('error', (error) => {
@@ -277,6 +479,219 @@ router.post('/bulk-import-students', authenticateSchoolAdmin, upload.single('fil
     const schoolData = await School.findById(schoolAdmin.schoolId);
     if (!schoolData) {
       throw new Error('School not found');
+    console.log('\n🔄 Processing parents...\n');
+
+    // Process each parent
+    for (let i = 0; i < parents.length; i++) {
+      const parentData = parents[i];
+      const rowNum = i + 2; // CSV row number (header is row 1)
+
+      try {
+        console.log(`\n👤 Processing row ${rowNum}: ${parentData.parentName} (${parentData.parentEmail})`);
+
+        // Validate required fields
+        if (!parentData.parentName || !parentData.parentEmail || !parentData.studentEmail) {
+          console.log(`⚠️  Skipping - Missing required fields`);
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            parentEmail: parentData.parentEmail || 'N/A',
+            error: 'Missing required fields (ParentName, ParentEmail, or StudentEmail)'
+          });
+          continue;
+        }
+
+        // Validate email formats
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(parentData.parentEmail)) {
+          console.log(`⚠️  Skipping - Invalid parent email format`);
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            parentEmail: parentData.parentEmail,
+            error: 'Invalid parent email format'
+          });
+          continue;
+        }
+
+        if (!emailRegex.test(parentData.studentEmail)) {
+          console.log(`⚠️  Skipping - Invalid student email format`);
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            parentEmail: parentData.parentEmail,
+            error: 'Invalid student email format'
+          });
+          continue;
+        }
+
+        // Find the student by email
+        const student = await User.findOne({ 
+          email: parentData.studentEmail.toLowerCase().trim(),
+          role: 'Student'
+        });
+
+        if (!student) {
+          console.log(`⚠️  Skipping - Student not found: ${parentData.studentEmail}`);
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            parentEmail: parentData.parentEmail,
+            error: `Student not found with email: ${parentData.studentEmail}. Please import students first.`
+          });
+          continue;
+        }
+
+        console.log(`✅ Found student: ${student.name} (${student.email})`);
+
+        // Check if parent already exists
+        const existingParent = await User.findOne({ 
+          email: parentData.parentEmail.toLowerCase().trim()
+        });
+
+        if (existingParent) {
+          // Parent exists - just add student link if not already linked
+          console.log(`ℹ️  Parent already exists: ${existingParent.email}`);
+
+          // Initialize linkedStudents array if it doesn't exist
+          if (!existingParent.linkedStudents) {
+            existingParent.linkedStudents = [];
+          }
+
+          // Check if already linked to this student
+          const alreadyLinked = existingParent.linkedStudents.some(
+            link => link.studentEmail === student.email
+          );
+
+          if (alreadyLinked) {
+            console.log(`ℹ️  Parent already linked to student ${student.email}`);
+            results.details.push({
+              row: rowNum,
+              parentName: existingParent.name,
+              parentEmail: existingParent.email,
+              studentEmail: student.email,
+              status: 'already_linked',
+              message: 'Parent already linked to this student'
+            });
+          } else {
+            // Add new student link
+            existingParent.linkedStudents.push({
+              studentId: student._id,
+              studentName: student.name,
+              studentEmail: student.email,
+              relationship: parentData.relationship || 'Parent',
+              gradeLevel: student.gradeLevel,
+              class: student.class
+            });
+
+            await existingParent.save();
+
+            // Update student's parentEmail if not already set
+            if (!student.parentEmail || student.parentEmail !== parentData.parentEmail) {
+              student.parentEmail = parentData.parentEmail.toLowerCase().trim();
+              await student.save();
+            }
+
+            console.log(`✅ Linked existing parent to new student`);
+            results.updated++;
+            
+            results.details.push({
+              row: rowNum,
+              parentName: existingParent.name,
+              parentEmail: existingParent.email,
+              studentEmail: student.email,
+              studentName: student.name,
+              relationship: parentData.relationship,
+              status: 'linked',
+              message: 'Existing parent linked to student'
+            });
+          }
+
+          continue;
+        }
+
+        // Parent doesn't exist - create new parent account
+        const tempPassword = generateTempPassword('Parent');
+        console.log(`🔑 Generated password for new parent: ${tempPassword}`);
+
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+        // Create new parent with linkedStudents array
+        const newParent = await User.create({
+          name: parentData.parentName.trim(),
+          email: parentData.parentEmail.toLowerCase().trim(),
+          password: hashedPassword,
+          role: 'Parent',
+          contact: parentData.contactNumber?.trim() || null,
+          gender: parentData.gender?.trim() || null,
+          linkedStudents: [
+            {
+              studentId: student._id,
+              studentName: student.name,
+              studentEmail: student.email,
+              relationship: parentData.relationship || 'Parent',
+              gradeLevel: student.gradeLevel,
+              class: student.class
+            }
+          ],
+          emailVerified: true,
+          accountActive: true,
+          createdBy: 'school-admin',
+          createdAt: new Date()
+        });
+
+        console.log(`✅ Created new parent: ${newParent.email}`);
+        results.created++;
+
+        // Update student's parentEmail
+        if (!student.parentEmail || student.parentEmail !== parentData.parentEmail) {
+          student.parentEmail = parentData.parentEmail.toLowerCase().trim();
+          await student.save();
+          console.log(`✅ Updated student's parentEmail field`);
+        }
+
+        // Send welcome email to parent
+        try {
+          await sendParentWelcomeEmail(
+            newParent,
+            tempPassword,
+            student.name,
+            'Your School'
+          );
+          console.log(`📧 Sent welcome email to: ${newParent.email}`);
+          results.emailsSent++;
+        } catch (emailError) {
+          console.error(`❌ Failed to send email to parent:`, emailError.message);
+          results.emailsFailed++;
+        }
+
+        results.details.push({
+          row: rowNum,
+          parentName: newParent.name,
+          parentEmail: newParent.email,
+          studentEmail: student.email,
+          studentName: student.name,
+          relationship: parentData.relationship,
+          password: tempPassword,
+          status: 'created',
+          message: 'New parent account created and linked to student'
+        });
+
+      } catch (error) {
+        console.error(`❌ Error processing row ${rowNum}:`, error);
+        results.failed++;
+        results.errors.push({
+          row: rowNum,
+          parentEmail: parentData.parentEmail || 'N/A',
+          error: error.message
+        });
+      }
+    const db = getDb();
+    const check = await canModifyUser(db, req.params.id);
+    if (!check.allowed) return res.status(403).json({ success: false, error: check.error });
+    await db.collection('users').deleteOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
+    if (check.user.role?.toLowerCase() === 'student') {
+      await db.collection('students').deleteOne({ $or: [{ user_id: new mongoose.Types.ObjectId(req.params.id) }, { email: check.user.email }] });
     }
     
     // Track students created in this batch for atomic update at the end
@@ -1180,4 +1595,177 @@ router.post('/classes', authenticateToken, async (req, res) => {
   }
 });
 
+module.exports = router;
+// ==================================================================================
+// ⭐ ANNOUNCEMENT ROUTES - FROM WEI XIANG'S IMPLEMENTATION
+// ==================================================================================
+// These routes use direct MongoDB access (getDb()) for compatibility with Wei Xiang's admin UI
+
+// ==================== GET ANNOUNCEMENTS (Admin View) ====================
+router.get('/announcements', authenticateToken, async (req, res) => {
+  try {
+    const db = getDb();
+    const announcements = await db.collection('announcements')
+      .find({})
+      .sort({ pinned: -1, createdAt: -1 })
+      .toArray();
+    
+    console.log(`📢 Admin fetched ${announcements.length} announcements`);
+    res.json({ success: true, announcements });
+  } catch (error) {
+    console.error('❌ Get announcements error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load announcements' });
+  }
+});
+
+// ==================== GET PUBLIC ANNOUNCEMENTS (For Students/Parents) ====================
+router.get('/announcements/public', async (req, res) => {
+  try {
+    const db = getDb();
+    const { audience } = req.query;
+    
+    console.log('📢 Fetching public announcements for:', audience);
+    
+    const now = new Date();
+    
+    // Base filter: not expired
+    let filter = {
+      $or: [
+        { expiresAt: { $gt: now } },
+        { expiresAt: null },
+        { expiresAt: { $exists: false } }
+      ]
+    };
+    
+    // Add audience filter if specified
+    if (audience && audience !== 'all') {
+      const audienceNormalized = audience.toLowerCase();
+      const audienceMatches = ['all']; // Always include 'all' audience
+      
+      if (audienceNormalized.includes('student')) {
+        audienceMatches.push('student', 'students');
+      } else if (audienceNormalized.includes('teacher')) {
+        audienceMatches.push('teacher', 'teachers');
+      } else if (audienceNormalized.includes('parent')) {
+        audienceMatches.push('parent', 'parents');
+      } else {
+        audienceMatches.push(audienceNormalized);
+      }
+      
+      filter = {
+        $and: [
+          { $or: [
+            { expiresAt: { $gt: now } },
+            { expiresAt: null },
+            { expiresAt: { $exists: false } }
+          ]},
+          { $or: [
+            { audience: { $in: audienceMatches } },
+            { audience: { $exists: false } }
+          ]}
+        ]
+      };
+    }
+    
+    const announcements = await db.collection('announcements')
+      .find(filter)
+      .sort({ pinned: -1, createdAt: -1 })
+      .limit(50)
+      .toArray();
+    
+    console.log(`✅ Found ${announcements.length} announcements for ${audience}`);
+    res.json({ success: true, announcements });
+  } catch (error) {
+    console.error('❌ Get public announcements error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load announcements' });
+  }
+});
+
+// ==================== CREATE ANNOUNCEMENT ====================
+router.post('/announcements', authenticateToken, async (req, res) => {
+  try {
+    const db = getDb();
+    const { title, content, priority, audience, pinned, expiresAt } = req.body;
+    
+    if (!title || !content) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Title and content are required' 
+      });
+    }
+    
+    const newAnnouncement = {
+      title,
+      content,
+      priority: priority || 'info',
+      audience: audience || 'all',
+      pinned: pinned || false,
+      author: req.user.name || req.user.email,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await db.collection('announcements').insertOne(newAnnouncement);
+    
+    console.log(`📢 Announcement created: "${title}" by ${newAnnouncement.author}`);
+    res.json({ 
+      success: true, 
+      announcement: { ...newAnnouncement, _id: result.insertedId } 
+    });
+  } catch (error) {
+    console.error('❌ Create announcement error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create announcement' });
+  }
+});
+
+// ==================== UPDATE ANNOUNCEMENT ====================
+router.put('/announcements/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = getDb();
+    const updates = { ...req.body, updatedAt: new Date() };
+    delete updates._id;
+    
+    if (updates.expiresAt) {
+      updates.expiresAt = new Date(updates.expiresAt);
+    }
+    
+    const result = await db.collection('announcements').updateOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) },
+      { $set: updates }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Announcement not found' });
+    }
+    
+    console.log(`📢 Announcement updated: ${req.params.id}`);
+    res.json({ success: true, message: 'Announcement updated' });
+  } catch (error) {
+    console.error('❌ Update announcement error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update announcement' });
+  }
+});
+
+// ==================== DELETE ANNOUNCEMENT ====================
+router.delete('/announcements/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = getDb();
+    const result = await db.collection('announcements').deleteOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) }
+    );
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Announcement not found' });
+    }
+    
+    console.log(`📢 Announcement deleted: ${req.params.id}`);
+    res.json({ success: true, message: 'Announcement deleted' });
+  } catch (error) {
+    console.error('❌ Delete announcement error:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete announcement' });
+  }
+});
+
+module.exports = router;
 module.exports = router;

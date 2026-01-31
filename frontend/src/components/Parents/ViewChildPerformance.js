@@ -1,13 +1,19 @@
+// frontend/src/components/Parents/ViewChildPerformance.js
+// ✅ MINIMAL PARENT VIEW - Only 4 stat cards
+// ✅ Removed: Current Profile, Profile Progress, Quiz List
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../services/authService';
+import parentService from '../../services/parentService';
 
 export default function ViewChildPerformance() {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
-  const [child, setChild] = useState(null);
   const [performanceData, setPerformanceData] = useState(null);
+  const [error, setError] = useState(null);
+  const childInfo = location.state?.child;
 
   useEffect(() => {
     const loadPerformance = async () => {
@@ -16,131 +22,269 @@ export default function ViewChildPerformance() {
         return;
       }
 
-      const childData = location.state?.child || {
-        id: 1,
-        name: 'Emma Johnson',
-        grade: 'Primary 5',
-        class: 'Primary 5A',
-      };
+      if (!childInfo?.studentId) {
+        setError('No child selected');
+        setLoading(false);
+        return;
+      }
 
-      const mockData = {
-        overallScore: 88,
-        subjects: [
-          { name: 'English', score: 90, grade: 'A', progress: '+5%' },
-          { name: 'Mathematics', score: 85, grade: 'A-', progress: '+3%' },
-          { name: 'Science', score: 89, grade: 'A', progress: '+7%' },
-          { name: 'History', score: 86, grade: 'A-', progress: '+2%' },
-        ],
-        recentTests: [
-          { date: '2024-12-10', subject: 'English', type: 'Quiz', score: 92, maxScore: 100 },
-          { date: '2024-12-09', subject: 'Mathematics', type: 'Assignment', score: 85, maxScore: 100 },
-          { date: '2024-12-08', subject: 'Science', type: 'Quiz', score: 88, maxScore: 100 },
-        ],
-        attendance: '95%',
-        rank: 4,
-        totalStudents: 30,
-      };
-
-      setChild(childData);
-      setPerformanceData(mockData);
-      setLoading(false);
+      try {
+        console.log('📊 Loading performance for student:', childInfo.studentId);
+        const result = await parentService.getChildPerformance(childInfo.studentId);
+        
+        if (result.success) {
+          console.log('✅ Performance data loaded:', result.performance);
+          setPerformanceData(result.performance);
+          setError(null);
+        } else {
+          console.error('Failed to load performance:', result.error);
+          setError(result.error || 'Failed to load performance data');
+        }
+      } catch (error) {
+        console.error('Error loading performance:', error);
+        setError('Failed to load performance data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadPerformance();
-  }, [navigate, location]);
+  }, [navigate, childInfo]);
 
   const styles = {
-    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)', padding: '32px' },
-    content: { maxWidth: '1200px', margin: '0 auto' },
-    header: { background: 'white', borderRadius: '16px', padding: '32px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
-    headerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-    title: { fontSize: '28px', fontWeight: '700', color: '#1f2937', margin: '0 0 8px 0' },
-    subtitle: { fontSize: '16px', color: '#6b7280', margin: 0 },
-    backButton: { padding: '10px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-    scoreCard: { background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderRadius: '16px', padding: '32px', color: 'white', marginBottom: '24px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' },
-    scoreTitle: { fontSize: '16px', opacity: 0.9, marginBottom: '8px' },
-    scoreValue: { fontSize: '48px', fontWeight: '700', margin: 0 },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '24px' },
-    card: { background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
-    cardTitle: { fontSize: '18px', fontWeight: '700', color: '#1f2937', marginBottom: '16px' },
-    subjectItem: { padding: '16px', background: '#f9fafb', borderRadius: '8px', marginBottom: '12px' },
-    subjectHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' },
-    subjectName: { fontSize: '15px', fontWeight: '600', color: '#1f2937' },
-    subjectGrade: { fontSize: '20px', fontWeight: '700', color: '#10b981' },
-    testItem: { padding: '12px', borderLeft: '3px solid #10b981', background: '#f9fafb', marginBottom: '8px', borderRadius: '4px' },
-    testDate: { fontSize: '12px', color: '#6b7280', marginBottom: '4px' },
-    testText: { fontSize: '14px', color: '#1f2937', fontWeight: '500' },
-    statsCard: { background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
-    statRow: { display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' },
-    statLabel: { fontSize: '14px', color: '#6b7280' },
-    statValue: { fontSize: '16px', fontWeight: '700', color: '#1f2937' },
-    loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
-    loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
+    container: { 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)', 
+      padding: '32px' 
+    },
+    content: { maxWidth: '1000px', margin: '0 auto' },
+    header: { 
+      background: 'white', 
+      borderRadius: '16px', 
+      padding: '32px', 
+      marginBottom: '24px', 
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: '16px'
+    },
+    title: { 
+      fontSize: '28px', 
+      fontWeight: '700', 
+      color: '#1f2937', 
+      margin: 0 
+    },
+    subtitle: { 
+      fontSize: '16px', 
+      color: '#6b7280', 
+      marginTop: '4px' 
+    },
+    backButton: { 
+      padding: '10px 20px', 
+      background: '#6b7280', 
+      color: 'white', 
+      border: 'none', 
+      borderRadius: '8px', 
+      fontSize: '14px', 
+      fontWeight: '600', 
+      cursor: 'pointer',
+      transition: 'all 0.3s'
+    },
+    infoBox: { 
+      background: '#dbeafe', 
+      border: '1px solid #60a5fa', 
+      borderRadius: '8px', 
+      padding: '16px', 
+      marginTop: '16px',
+      fontSize: '14px', 
+      color: '#1e40af',
+      width: '100%'
+    },
+    
+    // Stats Grid - 4 stats only
+    statsGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+      gap: '20px'
+    },
+    statCard: {
+      background: 'white',
+      borderRadius: '12px',
+      padding: '28px',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      textAlign: 'center',
+      transition: 'all 0.3s'
+    },
+    statIcon: { fontSize: '40px', marginBottom: '12px' },
+    statLabel: { 
+      fontSize: '14px', 
+      color: '#6b7280', 
+      marginBottom: '10px',
+      fontWeight: '500'
+    },
+    statValue: { 
+      fontSize: '36px', 
+      fontWeight: '700', 
+      color: '#1f2937' 
+    },
+    
+    emptyState: { 
+      textAlign: 'center', 
+      padding: '80px 20px', 
+      background: 'white',
+      borderRadius: '16px',
+      color: '#6b7280',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+    },
+    emptyIcon: {
+      fontSize: '64px',
+      marginBottom: '16px'
+    },
+    emptyTitle: {
+      fontSize: '20px',
+      fontWeight: '700',
+      color: '#1f2937',
+      marginBottom: '8px'
+    },
+    emptyText: {
+      fontSize: '15px',
+      color: '#6b7280'
+    },
+    errorMessage: { 
+      background: '#fee2e2', 
+      color: '#991b1b', 
+      padding: '16px', 
+      borderRadius: '8px', 
+      marginBottom: '24px', 
+      border: '1px solid #f87171' 
+    },
+    loadingContainer: { 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' 
+    },
+    loadingText: { 
+      fontSize: '24px', 
+      color: '#6b7280', 
+      fontWeight: '600' 
+    },
   };
 
-  if (loading) return (<div style={styles.loadingContainer}><div style={styles.loadingText}>Loading...</div></div>);
+  if (loading) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingText}>Loading performance...</div>
+      </div>
+    );
+  }
+
+  if (error && !childInfo) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.content}>
+          <div style={styles.errorMessage}>
+            <strong>⚠️ Error:</strong> {error}
+            <button 
+              style={{...styles.backButton, marginLeft: '16px'}} 
+              onClick={() => navigate('/parent')}
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Extract only the 4 essential stats
+  const totalQuizzes = performanceData?.totalQuizzes || 0;
+  const highestScore = performanceData?.highestScore || 0;
+  const streak = performanceData?.streak || 0;
+  const totalPoints = performanceData?.totalPoints || 0;
+
+  const hasData = totalQuizzes > 0;
 
   return (
     <div style={styles.container}>
       <div style={styles.content}>
+        {/* Header */}
         <div style={styles.header}>
-          <div style={styles.headerTop}>
-            <div>
-              <h1 style={styles.title}>{child?.name}</h1>
-              <p style={styles.subtitle}>{child?.class} • {child?.grade}</p>
+          <div>
+            <h1 style={styles.title}>📊 {childInfo?.studentName}'s Performance</h1>
+            <p style={styles.subtitle}>Primary 1 Mathematics</p>
+          </div>
+          <button 
+            style={styles.backButton} 
+            onClick={() => navigate('/parent')}
+            onMouseEnter={(e) => e.target.style.background = '#4b5563'}
+            onMouseLeave={(e) => e.target.style.background = '#6b7280'}
+          >
+            ← Back to Dashboard
+          </button>
+
+          {performanceData?.message && (
+            <div style={styles.infoBox}>
+              <strong>ℹ️ Note:</strong> {performanceData.message}
             </div>
-            <button style={styles.backButton} onClick={() => navigate('/parent/children')}>← Back to Children</button>
-          </div>
+          )}
         </div>
 
-        <div style={styles.scoreCard}>
-          <div style={styles.scoreTitle}>Overall Performance Score</div>
-          <div style={styles.scoreValue}>{performanceData?.overallScore}%</div>
-        </div>
+        {/* Only 4 Stat Cards - Nothing else */}
+        {hasData ? (
+          <div style={styles.statsGrid}>
+            <div 
+              style={styles.statCard}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={styles.statIcon}>📝</div>
+              <div style={styles.statLabel}>Quizzes Taken</div>
+              <div style={styles.statValue}>{totalQuizzes}</div>
+            </div>
 
-        <div style={styles.grid}>
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>📚 Subject Performance</h2>
-            {performanceData?.subjects.map((subject, index) => (
-              <div key={index} style={styles.subjectItem}>
-                <div style={styles.subjectHeader}>
-                  <div style={styles.subjectName}>{subject.name}</div>
-                  <div style={styles.subjectGrade}>{subject.grade}</div>
-                </div>
-                <div style={{ fontSize: '13px', color: '#6b7280' }}>
-                  Score: {subject.score}% <span style={{ color: '#10b981', marginLeft: '8px' }}>{subject.progress}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+            <div 
+              style={styles.statCard}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={styles.statIcon}>🏅</div>
+              <div style={styles.statLabel}>Highest Score</div>
+              <div style={styles.statValue}>{highestScore}%</div>
+            </div>
 
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>📊 Recent Tests & Assignments</h2>
-            {performanceData?.recentTests.map((test, index) => (
-              <div key={index} style={styles.testItem}>
-                <div style={styles.testDate}>{test.date}</div>
-                <div style={styles.testText}>
-                  {test.subject} - {test.type}
-                  <span style={{ color: '#10b981', marginLeft: '8px', fontWeight: '700' }}>
-                    {test.score}/{test.maxScore}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+            <div 
+              style={styles.statCard}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={styles.statIcon}>🔥</div>
+              <div style={styles.statLabel}>Current Streak</div>
+              <div style={styles.statValue}>{streak} days</div>
+            </div>
 
-        <div style={styles.statsCard}>
-          <h2 style={styles.cardTitle}>📈 Additional Statistics</h2>
-          <div style={styles.statRow}>
-            <span style={styles.statLabel}>Attendance Rate</span>
-            <span style={{...styles.statValue, color: '#10b981'}}>{performanceData?.attendance}</span>
+            <div 
+              style={styles.statCard}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={styles.statIcon}>⭐</div>
+              <div style={styles.statLabel}>Total Points</div>
+              <div style={styles.statValue}>{totalPoints}</div>
+            </div>
           </div>
-          <div style={styles.statRow}>
-            <span style={styles.statLabel}>Class Rank</span>
-            <span style={styles.statValue}>{performanceData?.rank} of {performanceData?.totalStudents}</span>
+        ) : (
+          <div style={styles.emptyState}>
+            <div style={styles.emptyIcon}>📊</div>
+            <div style={styles.emptyTitle}>No Performance Data Yet</div>
+            <div style={styles.emptyText}>
+              Performance data will appear once {childInfo?.studentName || 'your child'} completes math quizzes
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
