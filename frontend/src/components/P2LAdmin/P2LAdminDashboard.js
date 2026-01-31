@@ -101,6 +101,11 @@ function P2LAdminDashboard() {
             <p>Create and manage adaptive quizzes</p>
           </Link>
 
+          <Link to="/p2ladmin/maintenance-notices" className="management-card">
+            <h3>🔔 Maintenance Notices</h3>
+            <p>Create system-wide maintenance announcements</p>
+          </Link>
+
           <Link to="/p2ladmin/health" className="management-card">
             <h3>🔍 Health Check</h3>
             <p>Monitor system health and connectivity</p>

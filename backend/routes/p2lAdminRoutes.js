@@ -12,6 +12,7 @@ const Question = require('../models/Question');
 const Quiz = require('../models/Quiz');
 const LandingPage = require('../models/LandingPage');
 const Testimonial = require('../models/Testimonial');
+const MaintenanceNotice = require('../models/MaintenanceNotice');
 const { sendSchoolAdminWelcomeEmail } = require('../services/emailService');
 const { generateTempPassword } = require('../utils/passwordGenerator');
 const Sentiment = require('sentiment');
@@ -1474,6 +1475,135 @@ router.delete('/testimonials/:id', authenticateP2LAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to delete testimonial' 
+    });
+  }
+});
+
+// ==================== MAINTENANCE NOTICE ROUTES ====================
+
+// Get all maintenance notices
+router.get('/maintenance-notices', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const { isActive } = req.query;
+    const filter = {};
+    
+    if (isActive !== undefined) {
+      filter.isActive = isActive === 'true';
+    }
+
+    const notices = await MaintenanceNotice.find(filter)
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: notices
+    });
+  } catch (error) {
+    console.error('Get maintenance notices error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch maintenance notices' 
+    });
+  }
+});
+
+// Create maintenance notice
+router.post('/maintenance-notices', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const { title, message, type, startDate, endDate, targetRoles } = req.body;
+
+    if (!title || !message || !startDate || !endDate) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Title, message, start date, and end date are required' 
+      });
+    }
+
+    const notice = new MaintenanceNotice({
+      title,
+      message,
+      type: type || 'info',
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      targetRoles: targetRoles || ['all'],
+      createdBy: req.user._id,
+      isActive: true
+    });
+
+    await notice.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Maintenance notice created successfully',
+      data: notice
+    });
+  } catch (error) {
+    console.error('Create maintenance notice error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to create maintenance notice' 
+    });
+  }
+});
+
+// Update maintenance notice
+router.put('/maintenance-notices/:id', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const { title, message, type, startDate, endDate, targetRoles, isActive } = req.body;
+
+    const notice = await MaintenanceNotice.findById(req.params.id);
+    if (!notice) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Maintenance notice not found' 
+      });
+    }
+
+    if (title) notice.title = title;
+    if (message) notice.message = message;
+    if (type) notice.type = type;
+    if (startDate) notice.startDate = new Date(startDate);
+    if (endDate) notice.endDate = new Date(endDate);
+    if (targetRoles) notice.targetRoles = targetRoles;
+    if (isActive !== undefined) notice.isActive = isActive;
+
+    await notice.save();
+
+    res.json({
+      success: true,
+      message: 'Maintenance notice updated successfully',
+      data: notice
+    });
+  } catch (error) {
+    console.error('Update maintenance notice error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to update maintenance notice' 
+    });
+  }
+});
+
+// Delete maintenance notice
+router.delete('/maintenance-notices/:id', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const notice = await MaintenanceNotice.findByIdAndDelete(req.params.id);
+    if (!notice) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Maintenance notice not found' 
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Maintenance notice deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete maintenance notice error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to delete maintenance notice' 
     });
   }
 });

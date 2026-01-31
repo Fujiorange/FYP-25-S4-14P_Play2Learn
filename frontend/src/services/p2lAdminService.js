@@ -295,4 +295,34 @@ export default {
   updateTestimonial,
   deleteTestimonial,
   getLandingPageTestimonials,
+  getMaintenanceNotices,
+  createMaintenanceNotice,
+  updateMaintenanceNotice,
+  deleteMaintenanceNotice,
+};
+
+// ==================== MAINTENANCE NOTICES ====================
+export const getMaintenanceNotices = async (isActive) => {
+  const queryString = isActive !== undefined ? `?isActive=${isActive}` : '';
+  return apiCall(`/api/p2ladmin/maintenance-notices${queryString}`);
+};
+
+export const createMaintenanceNotice = async (noticeData) => {
+  return apiCall('/api/p2ladmin/maintenance-notices', {
+    method: 'POST',
+    body: JSON.stringify(noticeData),
+  });
+};
+
+export const updateMaintenanceNotice = async (id, noticeData) => {
+  return apiCall(`/api/p2ladmin/maintenance-notices/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(noticeData),
+  });
+};
+
+export const deleteMaintenanceNotice = async (id) => {
+  return apiCall(`/api/p2ladmin/maintenance-notices/${id}`, {
+    method: 'DELETE',
+  });
 };

@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
 const User = require('../models/User');
+const MaintenanceNotice = require('../models/MaintenanceNotice');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
 
 function normalizeRole(role) {
@@ -299,6 +300,31 @@ router.put('/change-password', async (req, res) => {
   } catch (error) {
     console.error('Change password error:', error);
     return res.status(500).json({ success: false, error: 'Failed to change password' });
+  }
+});
+
+// Get active maintenance notices (public route)
+router.get('/maintenance-notices', async (req, res) => {
+  try {
+    const now = new Date();
+    
+    // Get active notices that are within the date range
+    const notices = await MaintenanceNotice.find({
+      isActive: true,
+      startDate: { $lte: now },
+      endDate: { $gte: now }
+    }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: notices
+    });
+  } catch (error) {
+    console.error('Get maintenance notices error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch maintenance notices' 
+    });
   }
 });
 

@@ -97,6 +97,7 @@ import QuizManager from './components/P2LAdmin/QuizManager';
 import AdaptiveQuizCreator from './components/P2LAdmin/AdaptiveQuizCreator';
 import LandingPageManager from './components/P2LAdmin/LandingPageManager';
 import HealthCheck from './components/P2LAdmin/HealthCheck';
+import MaintenanceNoticeManager from './components/P2LAdmin/MaintenanceNoticeManager';
 
 // Student Adaptive Quiz Components
 import AdaptiveQuizzes from './components/Student/AdaptiveQuizzes';
@@ -217,6 +218,7 @@ function App() {
           <Route path="/p2ladmin/quizzes" element={<QuizManager />} />
           <Route path="/p2ladmin/quizzes/create-adaptive" element={<AdaptiveQuizCreator />} />
           <Route path="/p2ladmin/landing-page" element={<LandingPageManager />} />
+          <Route path="/p2ladmin/maintenance-notices" element={<MaintenanceNoticeManager />} />
           <Route path="/p2ladmin/health" element={<HealthCheck />} />
 
         </Routes>
