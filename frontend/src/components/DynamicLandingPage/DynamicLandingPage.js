@@ -209,7 +209,7 @@ const DynamicLandingPage = () => {
             <div className="container">
               <h2 className="section-title">{block.title || 'Testimonials'}</h2>
               <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '24px' }}>{block.content}</p>
-              {testimonials.length > 0 ? (
+              {testimonials.length > 0 && (
                 <div className="testimonials-grid">
                   {testimonials.map((testimonial, tIdx) => (
                     <div key={tIdx} className="testimonial-card">
@@ -229,13 +229,6 @@ const DynamicLandingPage = () => {
                       </blockquote>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '40px', background: '#f9fafb', borderRadius: '8px' }}>
-                  <p style={{ color: '#6b7280' }}>
-                    💡 Testimonials are managed dynamically from student and parent submissions.
-                    <br/>Use the filter system above to approve and display testimonials on the landing page.
-                  </p>
                 </div>
               )}
             </div>
@@ -285,7 +278,7 @@ const DynamicLandingPage = () => {
                           return (
                             <div style={{ fontSize: '14px', color: '#059669', marginTop: '4px' }}>
                               {savings > 0 ? (
-                                <>or ${plan.price.yearly}/year (save ${savings.toFixed(0)})</>
+                                <>or ${plan.price.yearly}/year (save ${Math.round(savings)})</>
                               ) : (
                                 <>or ${plan.price.yearly}/year</>
                               )}
