@@ -246,8 +246,7 @@ const studentService = {
       const token = localStorage.getItem('token');
       if (!token) return { success: false, error: 'Not authenticated' };
 
-      // NOTE: Backend file you shared uses /quiz-results
-      const response = await fetch(`${API_URL}/mongo/student/quiz-results`, {
+      const response = await fetch(`${API_URL}/mongo/student/quiz/results`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -264,7 +263,7 @@ const studentService = {
       const token = localStorage.getItem('token');
       if (!token) return { success: false, error: 'Not authenticated' };
 
-      const response = await fetch(`${API_URL}/mongo/student/quiz-history`, {
+      const response = await fetch(`${API_URL}/mongo/student/quiz/history`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -375,6 +374,75 @@ const studentService = {
   },
 
   // ==================== TESTIMONIALS ====================
+  
+  /**
+   * Create a new testimonial (called by WriteTestimonial.js)
+   * @param {Object} formData - { title, rating, testimonial, displayName, allowPublic }
+   * @returns {Promise<Object>} - { success, testimonial?, error? }
+   */
+  async createTestimonial(formData) {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('❌ No authentication token');
+        return { success: false, error: 'Not authenticated. Please log in.' };
+      }
+
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) {
+        console.error('❌ No user data found');
+        return { success: false, error: 'User data not found' };
+      }
+
+      console.log('📤 Submitting testimonial:', {
+        title: formData.title,
+        rating: formData.rating,
+        displayName: formData.displayName
+      });
+
+      const response = await fetch(`${API_URL}/mongo/student/testimonials`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          rating: formData.rating,
+          testimonial: formData.testimonial, // Backend accepts both 'message' and 'testimonial'
+          message: formData.testimonial,      // Send both for compatibility
+          displayName: formData.displayName,
+          student_name: formData.displayName,
+          student_email: user.email,
+        }),
+      });
+
+      const json = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Testimonial submission failed:', json);
+        return {
+          success: false,
+          error: json.error || json.message || 'Failed to submit testimonial'
+        };
+      }
+
+      console.log('✅ Testimonial submitted successfully:', json);
+      return {
+        success: true,
+        testimonial: json.testimonial,
+        message: json.message || 'Thank you for your feedback!'
+      };
+
+    } catch (error) {
+      console.error('❌ Error submitting testimonial:', error);
+      return {
+        success: false,
+        error: 'Network error. Please check your connection and try again.'
+      };
+    }
+  },
+
   async submitTestimonial(testimonialData) {
     try {
       const token = localStorage.getItem('token');
@@ -413,6 +481,98 @@ const studentService = {
     } catch (error) {
       console.error('getTestimonials error:', error);
       return { success: false, error: 'Failed to load testimonials' };
+    }
+  },
+
+  // ==================== REWARD SHOP METHODS ====================
+  async getShopItems() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { success: false, error: 'Not authenticated' };
+
+      const response = await fetch(`${API_URL}/mongo/student/shop`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch shop items');
+      return await response.json();
+    } catch (error) {
+      console.error('getShopItems error:', error);
+      return { success: false, error: 'Failed to load shop items' };
+    }
+  },
+
+  async purchaseShopItem(itemId) {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { success: false, error: 'Not authenticated' };
+
+      const response = await fetch(`${API_URL}/mongo/student/shop/${itemId}/purchase`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const json = await response.json();
+      if (!response.ok) return json;
+      return json;
+    } catch (error) {
+      console.error('purchaseShopItem error:', error);
+      return { success: false, error: 'Failed to complete purchase' };
+    }
+  },
+
+  async getPurchases() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { success: false, error: 'Not authenticated' };
+
+      const response = await fetch(`${API_URL}/mongo/student/shop/purchases`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch purchases');
+      return await response.json();
+    } catch (error) {
+      console.error('getPurchases error:', error);
+      return { success: false, error: 'Failed to load purchases' };
+    }
+  },
+
+  // ==================== BADGE METHODS ====================
+  async getBadges() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { success: false, error: 'Not authenticated' };
+
+      const response = await fetch(`${API_URL}/mongo/student/badges`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch badges');
+      return await response.json();
+    } catch (error) {
+      console.error('getBadges error:', error);
+      return { success: false, error: 'Failed to load badges' };
+    }
+  },
+
+  async getBadgeProgress() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { success: false, error: 'Not authenticated' };
+
+      const response = await fetch(`${API_URL}/mongo/student/badges/progress`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch badge progress');
+      return await response.json();
+    } catch (error) {
+      console.error('getBadgeProgress error:', error);
+      return { success: false, error: 'Failed to load badge progress' };
     }
   },
 

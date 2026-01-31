@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import parentService from '../../services/parentService';
 
 export default function TrackSupportTicket() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [tickets, setTickets] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadTickets = async () => {
@@ -15,14 +17,25 @@ export default function TrackSupportTicket() {
         return;
       }
 
-      const mockTickets = [
-        { id: 'TKT-1001', subject: 'Unable to access child progress', category: 'technical', priority: 'high', status: 'open', created: '2024-12-10', updated: '2024-12-10' },
-        { id: 'TKT-1002', subject: 'Question about billing cycle', category: 'account', priority: 'medium', status: 'in-progress', created: '2024-12-08', updated: '2024-12-09' },
-        { id: 'TKT-1003', subject: 'Request for additional learning resources', category: 'feature', priority: 'low', status: 'resolved', created: '2024-12-05', updated: '2024-12-07' },
-      ];
-      
-      setTickets(mockTickets);
-      setLoading(false);
+      try {
+        // ✅ FIXED: Load real tickets from database
+        const result = await parentService.getSupportTickets();
+        
+        if (result.success) {
+          setTickets(result.tickets || []);
+          setError(null);
+        } else {
+          console.error('Failed to load tickets:', result.error);
+          setError(result.error || 'Failed to load support tickets');
+          setTickets([]);
+        }
+      } catch (error) {
+        console.error('Error loading tickets:', error);
+        setError('Failed to load support tickets. Please try again.');
+        setTickets([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadTickets();
@@ -35,6 +48,7 @@ export default function TrackSupportTicket() {
       case 'open': return { bg: '#dbeafe', color: '#1e40af' };
       case 'in-progress': return { bg: '#fef3c7', color: '#92400e' };
       case 'resolved': return { bg: '#d1fae5', color: '#065f46' };
+      case 'closed': return { bg: '#f3f4f6', color: '#6b7280' };
       default: return { bg: '#f3f4f6', color: '#6b7280' };
     }
   };
@@ -46,6 +60,16 @@ export default function TrackSupportTicket() {
       case 'low': return { bg: '#d1fae5', color: '#065f46' };
       default: return { bg: '#f3f4f6', color: '#6b7280' };
     }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-SG', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   const styles = {
@@ -69,6 +93,7 @@ export default function TrackSupportTicket() {
     ticketMeta: { display: 'flex', gap: '16px', marginTop: '12px', fontSize: '13px', color: '#6b7280' },
     badge: { display: 'inline-block', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', marginLeft: '8px' },
     emptyState: { textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: '16px', color: '#6b7280' },
+    errorMessage: { background: '#fee2e2', color: '#991b1b', padding: '16px', borderRadius: '8px', marginBottom: '24px', border: '1px solid #f87171' },
     loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
     loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
   };
@@ -88,12 +113,25 @@ export default function TrackSupportTicket() {
           </div>
           <div style={styles.filterButtons}>
             {['all', 'open', 'in-progress', 'resolved'].map(status => (
-              <button key={status} onClick={() => setFilter(status)} style={{...styles.filterButton, ...(filter === status ? styles.filterButtonActive : {})}}>
+              <button 
+                key={status} 
+                onClick={() => setFilter(status)} 
+                style={{
+                  ...styles.filterButton, 
+                  ...(filter === status ? styles.filterButtonActive : {})
+                }}
+              >
                 {status === 'all' ? 'All' : status.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
               </button>
             ))}
           </div>
         </div>
+
+        {error && (
+          <div style={styles.errorMessage}>
+            <strong>⚠️ Error:</strong> {error}
+          </div>
+        )}
 
         {filteredTickets.length > 0 ? (
           <div style={styles.ticketsList}>
@@ -101,15 +139,15 @@ export default function TrackSupportTicket() {
               const statusColors = getStatusColor(ticket.status);
               const priorityColors = getPriorityColor(ticket.priority);
               return (
-                <div key={ticket.id} style={styles.ticketCard}>
+                <div key={ticket.ticketId} style={styles.ticketCard}>
                   <div style={styles.ticketHeader}>
                     <div style={{ flex: 1 }}>
-                      <div style={styles.ticketId}>#{ticket.id}</div>
+                      <div style={styles.ticketId}>#{ticket.ticketId}</div>
                       <div style={styles.ticketSubject}>{ticket.subject}</div>
                       <div style={styles.ticketMeta}>
                         <span>📁 {ticket.category}</span>
-                        <span>📅 Created: {ticket.created}</span>
-                        <span>🔄 Updated: {ticket.updated}</span>
+                        <span>📅 Created: {formatDate(ticket.created)}</span>
+                        <span>🔄 Updated: {formatDate(ticket.updated)}</span>
                       </div>
                     </div>
                     <div>
@@ -130,6 +168,16 @@ export default function TrackSupportTicket() {
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎫</div>
             <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No tickets found</p>
             <p>You don't have any {filter === 'all' ? '' : filter} tickets yet</p>
+            <button 
+              style={{
+                ...styles.button, 
+                ...styles.createButton,
+                marginTop: '16px'
+              }} 
+              onClick={() => navigate('/parent/support/create')}
+            >
+              + Create First Ticket
+            </button>
           </div>
         )}
       </div>

@@ -1,13 +1,20 @@
+// frontend/src/components/Parents/ViewChildProgress.js
+// ✅ SIMPLIFIED - Removed confusing Subject Progress section
+// ✅ Shows correct child name
+// ✅ Math-only platform (no English)
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../services/authService';
+import parentService from '../../services/parentService';
 
 export default function ViewChildProgress() {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
-  const [child, setChild] = useState(null);
   const [progressData, setProgressData] = useState(null);
+  const [error, setError] = useState(null);
+  const childInfo = location.state?.child;
 
   useEffect(() => {
     const loadProgress = async () => {
@@ -16,106 +23,348 @@ export default function ViewChildProgress() {
         return;
       }
 
-      const childData = location.state?.child || {
-        id: 1,
-        name: 'Emma Johnson',
-        grade: 'Primary 5',
-      };
+      if (!childInfo?.studentId) {
+        setError('No child selected');
+        setLoading(false);
+        return;
+      }
 
-      const mockData = {
-        overallProgress: 75,
-        subjects: [
-          { name: 'English', completed: 18, total: 20, percentage: 90, color: '#10b981' },
-          { name: 'Mathematics', completed: 15, total: 20, percentage: 75, color: '#3b82f6' },
-          { name: 'Science', completed: 14, total: 18, percentage: 78, color: '#f59e0b' },
-          { name: 'History', completed: 12, total: 15, percentage: 80, color: '#8b5cf6' },
-        ],
-        achievements: ['Perfect Attendance', 'Top 10 Student', 'Quiz Master'],
-        upcomingAssignments: [
-          { subject: 'English', title: 'Essay Writing', dueDate: '2024-12-20' },
-          { subject: 'Mathematics', title: 'Algebra Problems', dueDate: '2024-12-18' },
-        ],
-      };
-
-      setChild(childData);
-      setProgressData(mockData);
-      setLoading(false);
+      try {
+        console.log('📈 Loading progress for student:', childInfo.studentId);
+        const result = await parentService.getChildProgress(childInfo.studentId);
+        
+        if (result.success) {
+          console.log('✅ Progress data loaded:', result.progress);
+          setProgressData(result.progress);
+          setError(null);
+        } else {
+          console.error('Failed to load progress:', result.error);
+          setError(result.error || 'Failed to load progress data');
+        }
+      } catch (error) {
+        console.error('Error loading progress:', error);
+        setError('Failed to load progress data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadProgress();
-  }, [navigate, location]);
+  }, [navigate, childInfo]);
 
   const styles = {
-    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)', padding: '32px' },
-    content: { maxWidth: '1200px', margin: '0 auto' },
-    header: { background: 'white', borderRadius: '16px', padding: '32px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-    title: { fontSize: '28px', fontWeight: '700', color: '#1f2937', margin: 0 },
-    backButton: { padding: '10px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-    progressCard: { background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', marginBottom: '24px' },
-    progressTitle: { fontSize: '20px', fontWeight: '700', color: '#1f2937', marginBottom: '24px' },
-    subjectItem: { marginBottom: '24px' },
-    subjectHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' },
-    subjectName: { fontSize: '16px', fontWeight: '600', color: '#1f2937' },
-    subjectPercentage: { fontSize: '16px', fontWeight: '700' },
-    progressBar: { width: '100%', height: '12px', background: '#e5e7eb', borderRadius: '6px', overflow: 'hidden', marginBottom: '4px' },
-    progressFill: { height: '100%', transition: 'width 0.3s' },
-    progressText: { fontSize: '12px', color: '#6b7280' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' },
-    card: { background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
-    cardTitle: { fontSize: '18px', fontWeight: '700', color: '#1f2937', marginBottom: '16px' },
-    achievementTag: { display: 'inline-block', padding: '8px 16px', background: '#d1fae5', color: '#065f46', borderRadius: '20px', fontSize: '14px', fontWeight: '500', marginRight: '8px', marginBottom: '8px' },
-    assignmentItem: { padding: '12px', background: '#f9fafb', borderRadius: '8px', marginBottom: '8px' },
-    assignmentTitle: { fontSize: '14px', fontWeight: '600', color: '#1f2937', marginBottom: '4px' },
-    assignmentDetails: { fontSize: '12px', color: '#6b7280' },
-    loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
-    loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
+    container: { 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)', 
+      padding: '32px' 
+    },
+    content: { maxWidth: '1000px', margin: '0 auto' },
+    header: { 
+      background: 'white', 
+      borderRadius: '16px', 
+      padding: '32px', 
+      marginBottom: '24px', 
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: '16px'
+    },
+    title: { 
+      fontSize: '28px', 
+      fontWeight: '700', 
+      color: '#1f2937', 
+      margin: 0 
+    },
+    subtitle: { 
+      fontSize: '16px', 
+      color: '#6b7280', 
+      marginTop: '4px' 
+    },
+    backButton: { 
+      padding: '10px 20px', 
+      background: '#6b7280', 
+      color: 'white', 
+      border: 'none', 
+      borderRadius: '8px', 
+      fontSize: '14px', 
+      fontWeight: '600', 
+      cursor: 'pointer',
+      transition: 'all 0.3s'
+    },
+    infoBox: { 
+      background: '#dbeafe', 
+      border: '1px solid #60a5fa', 
+      borderRadius: '8px', 
+      padding: '16px', 
+      marginBottom: '24px', 
+      fontSize: '14px', 
+      color: '#1e40af',
+      width: '100%'
+    },
+    
+    // Main stats
+    statsGrid: { 
+      display: 'grid', 
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+      gap: '20px', 
+      marginBottom: '24px' 
+    },
+    statCard: { 
+      background: 'white', 
+      borderRadius: '12px', 
+      padding: '28px', 
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', 
+      textAlign: 'center',
+      transition: 'all 0.3s'
+    },
+    statValue: { 
+      fontSize: '36px', 
+      fontWeight: '700', 
+      color: '#10b981', 
+      marginBottom: '8px' 
+    },
+    statLabel: { 
+      fontSize: '14px', 
+      color: '#6b7280', 
+      textTransform: 'uppercase', 
+      fontWeight: '600' 
+    },
+    
+    // Achievements
+    achievementsCard: { 
+      background: 'white', 
+      borderRadius: '16px', 
+      padding: '32px', 
+      marginBottom: '24px', 
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' 
+    },
+    sectionTitle: { 
+      fontSize: '20px', 
+      fontWeight: '600', 
+      color: '#1f2937', 
+      marginBottom: '16px' 
+    },
+    achievementsGrid: { 
+      display: 'grid', 
+      gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
+      gap: '16px' 
+    },
+    achievementBadge: { 
+      textAlign: 'center', 
+      padding: '16px', 
+      background: '#f9fafb', 
+      borderRadius: '12px', 
+      border: '2px solid #e5e7eb',
+      transition: 'all 0.3s'
+    },
+    badgeIcon: { 
+      fontSize: '48px', 
+      marginBottom: '8px' 
+    },
+    badgeName: { 
+      fontSize: '14px', 
+      fontWeight: '600', 
+      color: '#1f2937' 
+    },
+    
+    // Activities
+    activitiesCard: { 
+      background: 'white', 
+      borderRadius: '16px', 
+      padding: '32px', 
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' 
+    },
+    activityItem: { 
+      padding: '12px', 
+      borderBottom: '1px solid #e5e7eb', 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'center' 
+    },
+    activityText: { 
+      fontSize: '14px', 
+      color: '#374151' 
+    },
+    activityTime: { 
+      fontSize: '12px', 
+      color: '#6b7280' 
+    },
+    
+    emptyState: { 
+      textAlign: 'center', 
+      padding: '60px 20px', 
+      color: '#6b7280' 
+    },
+    errorMessage: { 
+      background: '#fee2e2', 
+      color: '#991b1b', 
+      padding: '16px', 
+      borderRadius: '8px', 
+      marginBottom: '24px', 
+      border: '1px solid #f87171' 
+    },
+    loadingContainer: { 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' 
+    },
+    loadingText: { 
+      fontSize: '24px', 
+      color: '#6b7280', 
+      fontWeight: '600' 
+    },
   };
 
-  if (loading) return (<div style={styles.loadingContainer}><div style={styles.loadingText}>Loading...</div></div>);
+  if (loading) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingText}>Loading progress...</div>
+      </div>
+    );
+  }
+
+  if (error && !childInfo) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.content}>
+          <div style={styles.errorMessage}>
+            <strong>⚠️ Error:</strong> {error}
+            <button 
+              style={{...styles.backButton, marginLeft: '16px'}} 
+              onClick={() => navigate('/parent')}
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.content}>
+        {/* Header */}
         <div style={styles.header}>
-          <h1 style={styles.title}>📈 {child?.name}'s Progress</h1>
-          <button style={styles.backButton} onClick={() => navigate('/parent/children')}>← Back to Children</button>
-        </div>
+          <div>
+            <h1 style={styles.title}>📈 Learning Progress</h1>
+            {/* ✅ FIXED: Show correct child name */}
+            <p style={styles.subtitle}>{childInfo?.studentName || childInfo?.name || 'Student'}</p>
+          </div>
+          <button 
+            style={styles.backButton} 
+            onClick={() => navigate('/parent')}
+            onMouseEnter={(e) => e.target.style.background = '#4b5563'}
+            onMouseLeave={(e) => e.target.style.background = '#6b7280'}
+          >
+            ← Back to Dashboard
+          </button>
 
-        <div style={styles.progressCard}>
-          <h2 style={styles.progressTitle}>Subject Progress</h2>
-          {progressData?.subjects.map((subject, index) => (
-            <div key={index} style={styles.subjectItem}>
-              <div style={styles.subjectHeader}>
-                <span style={styles.subjectName}>{subject.name}</span>
-                <span style={{...styles.subjectPercentage, color: subject.color}}>{subject.percentage}%</span>
-              </div>
-              <div style={styles.progressBar}>
-                <div style={{...styles.progressFill, width: `${subject.percentage}%`, background: subject.color}} />
-              </div>
-              <div style={styles.progressText}>{subject.completed} of {subject.total} lessons completed</div>
+          {progressData?.message && (
+            <div style={styles.infoBox}>
+              <strong>ℹ️ Note:</strong> {progressData.message}
             </div>
-          ))}
+          )}
         </div>
 
-        <div style={styles.grid}>
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>🏆 Achievements</h2>
-            {progressData?.achievements.map((achievement, index) => (
-              <span key={index} style={styles.achievementTag}>✓ {achievement}</span>
-            ))}
+        {/* Main Stats - 4 cards */}
+        <div style={styles.statsGrid}>
+          <div 
+            style={styles.statCard}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={styles.statValue}>{progressData?.overallProgress || 0}%</div>
+            <div style={styles.statLabel}>Overall Progress</div>
           </div>
 
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>📅 Upcoming Assignments</h2>
-            {progressData?.upcomingAssignments.map((assignment, index) => (
-              <div key={index} style={styles.assignmentItem}>
-                <div style={styles.assignmentTitle}>{assignment.title}</div>
-                <div style={styles.assignmentDetails}>
-                  {assignment.subject} • Due: {assignment.dueDate}
-                </div>
-              </div>
-            ))}
+          <div 
+            style={styles.statCard}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={styles.statValue}>Lvl {progressData?.currentLevel || 1}</div>
+            <div style={styles.statLabel}>Current Level</div>
           </div>
+
+          <div 
+            style={styles.statCard}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={styles.statValue}>{progressData?.totalPoints || 0}</div>
+            <div style={styles.statLabel}>Total Points</div>
+          </div>
+
+          <div 
+            style={styles.statCard}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={styles.statValue}>{progressData?.streak || 0} 🔥</div>
+            <div style={styles.statLabel}>Day Streak</div>
+          </div>
+        </div>
+
+        {/* ❌ REMOVED: Subject Progress section (was showing English + 0/10 topics) */}
+
+        {/* Achievements */}
+        <div style={styles.achievementsCard}>
+          <h2 style={styles.sectionTitle}>🏆 Achievements</h2>
+          {progressData?.achievements && progressData.achievements.length > 0 ? (
+            <div style={styles.achievementsGrid}>
+              {progressData.achievements.map((achievement, index) => (
+                <div 
+                  key={index} 
+                  style={styles.achievementBadge}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.borderColor = '#10b981';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.borderColor = '#e5e7eb';
+                  }}
+                >
+                  <div style={styles.badgeIcon}>{achievement.icon || '🏆'}</div>
+                  <div style={styles.badgeName}>{achievement.name}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={styles.emptyState}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</div>
+              <p style={{ fontSize: '18px', fontWeight: '600' }}>No achievements unlocked yet</p>
+              <p>Keep completing quizzes to earn badges and achievements!</p>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activities */}
+        <div style={styles.activitiesCard}>
+          <h2 style={styles.sectionTitle}>📅 Recent Activities</h2>
+          {progressData?.recentActivities && progressData.recentActivities.length > 0 ? (
+            <>
+              {progressData.recentActivities.map((activity, index) => (
+                <div key={index} style={styles.activityItem}>
+                  <span style={styles.activityText}>{activity.description}</span>
+                  <span style={styles.activityTime}>
+                    {activity.timestamp ? new Date(activity.timestamp).toLocaleDateString('en-SG') : 'Recent'}
+                  </span>
+                </div>
+              ))}
+            </>
+          ) : (
+            <div style={styles.emptyState}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
+              <p style={{ fontSize: '18px', fontWeight: '600' }}>No recent activities</p>
+              <p>Activities will appear here as {childInfo?.studentName || 'your child'} uses the platform</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -51,12 +51,28 @@ export default function StudentDashboard() {
 
           const gradeLevel = dashboardInfo.gradeLevel ?? 'Primary 1';
 
+          // Fetch leaderboard to get user's rank
+          let userRank = '#-';
+          try {
+            const leaderboardData = await studentService.getLeaderboard();
+            if (leaderboardData.success && leaderboardData.leaderboard) {
+              const currentUserRank = leaderboardData.leaderboard.find(
+                (entry) => entry.isCurrentUser
+              );
+              if (currentUserRank) {
+                userRank = `#${currentUserRank.rank}`;
+              }
+            }
+          } catch (leaderboardError) {
+            console.warn('⚠️ Could not fetch leaderboard:', leaderboardError);
+          }
+
           setDashboardData({
             points,
             level,
             levelProgress: ((points % 500) / 500) * 100,
             achievements: dashboardInfo.achievements?.length || 0,
-            rank: '#-',
+            rank: userRank,
             completedQuizzes,
             grade_level: gradeLevel,
           });
@@ -114,35 +130,9 @@ export default function StudentDashboard() {
     );
   }
 
+  // ✅ CORRECT ORDER: Menu items following user's exact numbering
   const menuItems = [
-    {
-      id: 'quiz',
-      title: 'Attempt Quiz',
-      description: 'Take a quiz to earn points & level up',
-      icon: '🎯',
-      action: () => navigate('/student/quiz/attempt'),
-    },
-    {
-      id: 'skills',
-      title: 'Skill Matrix',
-      description: 'See your unlocked math skills',
-      icon: '📊',
-      action: () => navigate('/student/skills'),
-    },
-    {
-      id: 'progress',
-      title: 'Track Progress',
-      description: 'View your learning progress and stats',
-      icon: '📈',
-      action: () => navigate('/student/progress'),
-    },
-    {
-      id: 'leaderboard',
-      title: 'Leaderboard',
-      description: 'See how you rank against classmates',
-      icon: '🏆',
-      action: () => navigate('/student/leaderboard'),
-    },
+    // 1️⃣ My Profile
     {
       id: 'profile',
       title: 'My Profile',
@@ -150,6 +140,7 @@ export default function StudentDashboard() {
       icon: '👤',
       action: () => navigate('/student/profile'),
     },
+    // 2️⃣ View Results
     {
       id: 'results',
       title: 'View Results',
@@ -157,6 +148,47 @@ export default function StudentDashboard() {
       icon: '📝',
       action: () => navigate('/student/results'),
     },
+    // 3️⃣ Track Progress
+    {
+      id: 'progress',
+      title: 'Track Progress',
+      description: 'View your learning progress and stats',
+      icon: '📈',
+      action: () => navigate('/student/progress'),
+    },
+    // 4️⃣ Leaderboard
+    {
+      id: 'leaderboard',
+      title: 'Leaderboard',
+      description: 'See how you rank against classmates',
+      icon: '🏆',
+      action: () => navigate('/student/leaderboard'),
+    },
+    // 5️⃣ Skill Matrix
+    {
+      id: 'skills',
+      title: 'Skill Matrix',
+      description: 'See your unlocked math skills',
+      icon: '📊',
+      action: () => navigate('/student/skills'),
+    },
+    // 6️⃣ Attempt Quiz
+    {
+      id: 'quiz',
+      title: 'Attempt Quiz',
+      description: 'Take a quiz to earn points & level up',
+      icon: '🎯',
+      action: () => navigate('/student/quiz/attempt'),
+    },
+    // 7️⃣ School Announcements
+    {
+      id: 'announcements',
+      title: 'School Announcements',
+      description: 'View important school updates',
+      icon: '📢',
+      action: () => navigate('/student/announcements'),
+    },
+    // 8️⃣ Write Testimonial
     {
       id: 'testimonial',
       title: 'Write Testimonial',
@@ -164,6 +196,7 @@ export default function StudentDashboard() {
       icon: '💬',
       action: () => navigate('/student/testimonial'),
     },
+    // 9️⃣ Create Support Ticket
     {
       id: 'support',
       title: 'Create Support Ticket',
@@ -171,6 +204,7 @@ export default function StudentDashboard() {
       icon: '🛠️',
       action: () => navigate('/student/support'),
     },
+    // 🔟 Track Support Ticket
     {
       id: 'trackTicket',
       title: 'Track Support Ticket',
@@ -178,6 +212,19 @@ export default function StudentDashboard() {
       icon: '📩',
       action: () => navigate('/student/support/tickets'),
     },
+    // 1️⃣1️⃣ Reward Shop
+    {
+      id: 'shop',
+      title: 'Reward Shop',
+      description: 'Spend your points on cool rewards',
+      icon: '🛒',
+      action: () => navigate('/student/shop'),
+    },
+    // 1️⃣2️⃣ My Badges
+    {
+      id: 'badges',
+      title: 'My Badges',
+      description: 'View your earned achievement badges',
     {
       id: 'badges',
       title: 'Badges & Shop',
@@ -208,7 +255,7 @@ export default function StudentDashboard() {
     },
     {
       id: 'rank',
-      title: 'Class Rank',
+      title: 'Leaderboard Rank',
       value: dashboardData.rank,
       icon: '🏆',
     },

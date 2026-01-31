@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import parentService from '../../services/parentService';
 
 export default function ViewChildren() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadChildren = async () => {
@@ -14,14 +16,35 @@ export default function ViewChildren() {
         return;
       }
 
-      // Mock children data
-      const mockChildren = [
-        { id: 1, name: 'Emma Johnson', grade: 'Primary 5', class: 'Primary 5A', school: 'Springfield Elementary', overallGrade: 'A', attendance: '95%' },
-        { id: 2, name: 'Liam Johnson', grade: 'Primary 3', class: 'Primary 3B', school: 'Springfield Elementary', overallGrade: 'B+', attendance: '92%' },
-      ];
-      
-      setChildren(mockChildren);
-      setLoading(false);
+      try {
+        // ✅ USE REAL API INSTEAD OF MOCK DATA
+        const result = await parentService.getChildrenSummary();
+        
+        if (result.success && result.children) {
+          // Map API data to component format
+          const formattedChildren = result.children.map(child => ({
+            id: child.studentId,
+            name: child.name,
+            grade: child.gradeLevel || 'Primary 1',
+            class: child.class || 'N/A',
+            school: child.schoolName || 'N/A', // ✅ NOW FROM DATABASE!
+            overallGrade: child.overallGrade || 'N/A'
+          }));
+          
+          setChildren(formattedChildren);
+          setError(null);
+        } else {
+          console.error('Failed to load children:', result.error);
+          setError(result.error || 'Failed to load children');
+          setChildren([]);
+        }
+      } catch (error) {
+        console.error('Error loading children:', error);
+        setError('Failed to load children. Please try again.');
+        setChildren([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadChildren();
@@ -45,6 +68,8 @@ export default function ViewChildren() {
     button: { flex: 1, padding: '10px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s' },
     loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
     loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
+    emptyState: { textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: '16px', color: '#6b7280' },
+    errorMessage: { background: '#fee2e2', color: '#991b1b', padding: '16px', borderRadius: '8px', marginBottom: '24px', border: '1px solid #f87171' },
   };
 
   if (loading) return (<div style={styles.loadingContainer}><div style={styles.loadingText}>Loading...</div></div>);
@@ -57,38 +82,48 @@ export default function ViewChildren() {
           <button style={styles.backButton} onClick={() => navigate('/parent')}>← Back to Dashboard</button>
         </div>
 
-        <div style={styles.childrenGrid}>
-          {children.map(child => (
-            <div key={child.id} style={styles.childCard} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-              <div style={styles.childHeader}>
-                <h2 style={styles.childName}>{child.name}</h2>
-                <span style={styles.gradeBadge}>{child.overallGrade}</span>
-              </div>
-              
-              <div style={styles.infoRow}>
-                <span style={styles.infoLabel}>Grade</span>
-                <span style={styles.infoValue}>{child.grade}</span>
-              </div>
-              <div style={styles.infoRow}>
-                <span style={styles.infoLabel}>Class</span>
-                <span style={styles.infoValue}>{child.class}</span>
-              </div>
-              <div style={styles.infoRow}>
-                <span style={styles.infoLabel}>School</span>
-                <span style={styles.infoValue}>{child.school}</span>
-              </div>
-              <div style={styles.infoRow}>
-                <span style={styles.infoLabel}>Attendance</span>
-                <span style={{...styles.infoValue, color: '#10b981'}}>{child.attendance}</span>
-              </div>
+        {error && (
+          <div style={styles.errorMessage}>
+            <strong>⚠️ Error:</strong> {error}
+          </div>
+        )}
 
-              <div style={styles.buttonGroup}>
-                <button style={styles.button} onClick={() => navigate('/parent/children/performance', { state: { child } })}>📊 View Performance</button>
-                <button style={styles.button} onClick={() => navigate('/parent/children/progress', { state: { child } })}>📈 View Progress</button>
+        {children.length === 0 ? (
+          <div style={styles.emptyState}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>👶</div>
+            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No Children Linked</p>
+            <p>Contact your school administrator to link children to your account</p>
+          </div>
+        ) : (
+          <div style={styles.childrenGrid}>
+            {children.map(child => (
+              <div key={child.id} style={styles.childCard} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                <div style={styles.childHeader}>
+                  <h2 style={styles.childName}>{child.name}</h2>
+                  <span style={styles.gradeBadge}>{child.overallGrade}</span>
+                </div>
+                
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}>Grade</span>
+                  <span style={styles.infoValue}>{child.grade}</span>
+                </div>
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}>Class</span>
+                  <span style={styles.infoValue}>{child.class}</span>
+                </div>
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}>School</span>
+                  <span style={styles.infoValue}>{child.school}</span>
+                </div>
+
+                <div style={styles.buttonGroup}>
+                  <button style={styles.button} onClick={() => navigate('/parent/children/performance', { state: { child } })}>📊 View Performance</button>
+                  <button style={styles.button} onClick={() => navigate('/parent/children/progress', { state: { child } })}>📈 View Progress</button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
