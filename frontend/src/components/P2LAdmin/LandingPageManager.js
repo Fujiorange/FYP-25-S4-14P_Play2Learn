@@ -97,7 +97,10 @@ function LandingPageManager() {
   };
 
   const handleDeleteTestimonial = async (id, studentName) => {
-    if (!window.confirm(`Are you sure you want to delete the testimonial from ${studentName}? This action cannot be undone.`)) {
+    // Sanitize student name to prevent any potential XSS in confirmation dialog
+    const safeName = String(studentName || 'this user').replace(/[<>]/g, '');
+    
+    if (!window.confirm(`Are you sure you want to delete the testimonial from ${safeName}? This action cannot be undone.`)) {
       return;
     }
     

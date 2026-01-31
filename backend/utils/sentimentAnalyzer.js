@@ -4,12 +4,18 @@
 const Sentiment = require('sentiment');
 const sentiment = new Sentiment();
 
+// Algorithm configuration constants
+const TEXT_WEIGHT = 0.6;        // 60% weight for text sentiment
+const RATING_WEIGHT = 0.4;      // 40% weight for rating
+const POSITIVE_THRESHOLD = 2;    // Scores above this are positive
+const NEGATIVE_THRESHOLD = -2;   // Scores below this are negative
+
 // Common negative keywords that might not be caught by default sentiment analysis
 const NEGATIVE_KEYWORDS = [
   'bad', 'terrible', 'horrible', 'awful', 'poor', 'worst', 'disappointing',
   'frustrated', 'frustrating', 'useless', 'waste', 'annoying', 'difficult',
   'confusing', 'complicated', 'broken', 'buggy', 'slow', 'unreliable',
-  'unhelpful', 'not helpful', 'not working', 'does not work', 'doesnt work',
+  'unhelpful', 'not helpful', 'not working', 'does not work', "doesn't work",
   'not good', 'hate', 'dislike', 'regret', 'avoid', 'never', 'worse',
   'lacking', 'missing', 'failed', 'failure', 'problem', 'issue', 'error',
   'wrong', 'incorrect', 'inaccurate', 'misleading', 'fake', 'scam'
@@ -25,6 +31,15 @@ const POSITIVE_KEYWORDS = [
 ];
 
 /**
+ * Escape special regex characters in a string
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for regex
+ */
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
  * Count occurrences of keywords in text
  * @param {string} text - Text to analyze
  * @param {string[]} keywords - Array of keywords to search for
@@ -35,8 +50,9 @@ function countKeywords(text, keywords) {
   let count = 0;
   
   for (const keyword of keywords) {
-    // Use word boundaries to avoid partial matches
-    const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+    // Escape special regex characters and use word boundaries
+    const escapedKeyword = escapeRegex(keyword);
+    const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'gi');
     const matches = lowerText.match(regex);
     if (matches) {
       count += matches.length;
@@ -95,15 +111,14 @@ function analyzeSentiment(message, rating) {
   }
   
   // Calculate final score with weighted average
-  // Text sentiment: 60%, Rating: 40%
-  const finalScore = (textScore * 0.6) + (ratingContribution * 0.4);
+  const finalScore = (textScore * TEXT_WEIGHT) + (ratingContribution * RATING_WEIGHT);
   
   // Determine label based on final score
   // Wider neutral zone for more accurate detection
   let sentimentLabel = 'neutral';
-  if (finalScore > 2) {
+  if (finalScore > POSITIVE_THRESHOLD) {
     sentimentLabel = 'positive';
-  } else if (finalScore < -2) {
+  } else if (finalScore < NEGATIVE_THRESHOLD) {
     sentimentLabel = 'negative';
   }
   
