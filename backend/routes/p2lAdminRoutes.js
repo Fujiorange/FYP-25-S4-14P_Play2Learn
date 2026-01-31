@@ -550,7 +550,7 @@ router.put('/school-admins/:id', authenticateP2LAdmin, async (req, res) => {
     }
     
     // Check if email is being changed and if new email exists
-    if (email && email.toLowerCase() !== admin.email) {
+    if (email && email.toLowerCase() !== admin.email.toLowerCase()) {
       const existingUser = await User.findOne({ 
         email: email.toLowerCase(),
         _id: { $ne: id }
