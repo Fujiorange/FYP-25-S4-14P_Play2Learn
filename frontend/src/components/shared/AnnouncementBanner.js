@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './AnnouncementBanner.css';
 
 const API_BASE_URL =
@@ -10,13 +10,12 @@ function AnnouncementBanner({ userRole }) {
   const [maintenanceNotices, setMaintenanceNotices] = useState([]);
   const [dismissedItems, setDismissedItems] = useState([]);
 
-  useEffect(() => {
-    fetchAnnouncements();
-    fetchMaintenanceNotices();
-    loadDismissedItems();
-  }, [userRole]);
+  const loadDismissedItems = useCallback(() => {
+    const dismissed = JSON.parse(localStorage.getItem('dismissedBannerItems') || '[]');
+    setDismissedItems(dismissed);
+  }, []);
 
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = useCallback(async () => {
     try {
       // Map role to audience parameter
       let audience = 'all';
@@ -37,9 +36,9 @@ function AnnouncementBanner({ userRole }) {
     } catch (error) {
       console.error('Failed to fetch announcements:', error);
     }
-  };
+  }, [userRole]);
 
-  const fetchMaintenanceNotices = async () => {
+  const fetchMaintenanceNotices = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/mongo/auth/maintenance-notices`);
       const data = await response.json();
@@ -57,12 +56,13 @@ function AnnouncementBanner({ userRole }) {
     } catch (error) {
       console.error('Failed to fetch maintenance notices:', error);
     }
-  };
+  }, [userRole]);
 
-  const loadDismissedItems = () => {
-    const dismissed = JSON.parse(localStorage.getItem('dismissedBannerItems') || '[]');
-    setDismissedItems(dismissed);
-  };
+  useEffect(() => {
+    fetchAnnouncements();
+    fetchMaintenanceNotices();
+    loadDismissedItems();
+  }, [fetchAnnouncements, fetchMaintenanceNotices, loadDismissedItems]);
 
   const dismissItem = (itemId, type) => {
     const updated = [...dismissedItems, `${type}-${itemId}`];
@@ -106,7 +106,7 @@ function AnnouncementBanner({ userRole }) {
               {item.type === 'info' && 'ℹ️'}
             </div>
             <div className="banner-content">
-              <h4>{isAnnouncement ? item.title : item.title}</h4>
+              <h4>{item.title}</h4>
               <p>{isAnnouncement ? item.content : item.message}</p>
               {!isAnnouncement && item.endDate && (
                 <small>
