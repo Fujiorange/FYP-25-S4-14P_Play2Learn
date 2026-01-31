@@ -109,10 +109,14 @@ async function checkLicenseAvailability(schoolId, role) {
   
   // Parent or other roles don't have limits
   return { available: true, school };
-}
-
 // ⭐ Helper to get MongoDB database (for announcements)
 const getDb = () => mongoose.connection.db;
+
+// ==================== PASSWORD GENERATOR ====================
+function generateTempPassword(userType) {
+  const crypto = require('crypto');
+  return `${userType.substring(0, 3).toUpperCase()}${new Date().getFullYear()}${crypto.randomBytes(3).toString('hex')}!`;
+}
 
 // ==================== DASHBOARD STATS (FIXED!) ====================
 router.get('/dashboard-stats', authenticateToken, async (req, res) => {
@@ -318,10 +322,10 @@ router.post('/bulk-import-students', authenticateSchoolAdmin, upload.single('fil
     if (!schoolData) {
       throw new Error('School not found');
     }
-
     
     // Track students created in this batch for atomic update at the end
     let studentsCreatedCount = 0;
+
 
     // ✅ FIX: Only create user in 'users' collection, NO separate student profile
     for (const studentData of students) {
@@ -1393,4 +1397,5 @@ router.delete('/announcements/:id', authenticateToken, async (req, res) => {
   }
 });
 
+module.exports = router;
 module.exports = router;
