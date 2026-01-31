@@ -688,6 +688,23 @@ router.get('/questions', authenticateP2LAdmin, async (req, res) => {
   }
 });
 
+// Get unique subjects
+router.get('/questions-subjects', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const subjects = await Question.distinct('subject');
+    res.json({
+      success: true,
+      data: subjects.filter(s => s).sort() // Filter out empty/null and sort alphabetically
+    });
+  } catch (error) {
+    console.error('Get subjects error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch subjects' 
+    });
+  }
+});
+
 // Get question statistics (counts by difficulty)
 router.get('/questions-stats', authenticateP2LAdmin, async (req, res) => {
   try {
@@ -848,6 +865,34 @@ router.delete('/questions/:id', authenticateP2LAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to delete question' 
+    });
+  }
+});
+
+// Bulk delete questions
+router.post('/questions/bulk-delete', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Please provide an array of question IDs' 
+      });
+    }
+
+    const result = await Question.deleteMany({ _id: { $in: ids } });
+
+    res.json({
+      success: true,
+      message: `${result.deletedCount} question(s) deleted successfully`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error('Bulk delete questions error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to delete questions' 
     });
   }
 });

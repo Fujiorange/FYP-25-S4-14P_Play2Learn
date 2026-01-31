@@ -218,6 +218,17 @@ export const getQuestionStats = async () => {
   return apiCall('/api/p2ladmin/questions-stats');
 };
 
+export const getQuestionSubjects = async () => {
+  return apiCall('/api/p2ladmin/questions-subjects');
+};
+
+export const bulkDeleteQuestions = async (ids) => {
+  return apiCall('/api/p2ladmin/questions/bulk-delete', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+};
+
 // ==================== QUIZZES ====================
 export const getQuizzes = async () => {
   return apiCall('/api/p2ladmin/quizzes');
