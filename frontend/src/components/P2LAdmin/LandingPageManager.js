@@ -1,5 +1,5 @@
 // Landing Page Manager Component
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   getLandingPage, 
@@ -39,15 +39,6 @@ function LandingPageManager() {
     fetchLandingPage();
   }, []);
 
-  // Auto-fetch testimonials when filters change
-  useEffect(() => {
-    // Only fetch if we have already loaded testimonials at least once
-    // This prevents fetching on initial mount before user clicks "Load Testimonials"
-    if (testimonialsLoadedRef.current) {
-      fetchTestimonials();
-    }
-  }, [fetchTestimonials]);
-
   const fetchLandingPage = async () => {
     try {
       const response = await getLandingPage();
@@ -59,7 +50,7 @@ function LandingPageManager() {
     }
   };
 
-  const fetchTestimonials = useCallback(async () => {
+  const fetchTestimonials = async () => {
     setLoadingTestimonials(true);
     setTestimonialError('');
     testimonialsLoadedRef.current = true; // Mark that we've loaded testimonials
@@ -76,6 +67,16 @@ function LandingPageManager() {
     } finally {
       setLoadingTestimonials(false);
     }
+  };
+
+  // Auto-fetch testimonials when filters change
+  useEffect(() => {
+    // Only fetch if we have already loaded testimonials at least once
+    // This prevents fetching on initial mount before user clicks "Load Testimonials"
+    if (testimonialsLoadedRef.current) {
+      fetchTestimonials();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testimonialFilters]);
 
   const handleTestimonialApproval = async (id, approved, displayOnLanding) => {

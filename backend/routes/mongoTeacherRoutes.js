@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Testimonial = require('../models/Testimonial');
-const sentiment = require('sentiment');
+const Sentiment = require('sentiment');
+const sentiment = new Sentiment();
 
 // ==================== TESTIMONIALS ====================
 /**
@@ -15,9 +16,10 @@ router.post("/testimonials", async (req, res) => {
     const { rating, message, testimonial, title, displayName, allowPublic } = req.body;
 
     const finalMessage = message || testimonial || '';
+    const trimmedMessage = finalMessage.trim();
     
     // Validation
-    if (!rating || !finalMessage) {
+    if (!rating || !trimmedMessage) {
       return res.status(400).json({ 
         success: false, 
         error: "Rating and message are required" 
@@ -32,14 +34,14 @@ router.post("/testimonials", async (req, res) => {
     }
 
     // Message length validation
-    if (finalMessage.trim().length < 20) {
+    if (trimmedMessage.length < 20) {
       return res.status(400).json({ 
         success: false, 
         error: "Message must be at least 20 characters long" 
       });
     }
 
-    if (finalMessage.length > 2000) {
+    if (trimmedMessage.length > 2000) {
       return res.status(400).json({ 
         success: false, 
         error: "Message must not exceed 2000 characters" 
@@ -47,7 +49,7 @@ router.post("/testimonials", async (req, res) => {
     }
 
     // Perform sentiment analysis
-    const sentimentResult = sentiment.analyze(finalMessage);
+    const sentimentResult = sentiment.analyze(trimmedMessage);
     const sentimentScore = sentimentResult.score;
     let sentimentLabel = 'neutral';
     if (sentimentScore > 0) sentimentLabel = 'positive';
@@ -59,7 +61,7 @@ router.post("/testimonials", async (req, res) => {
       student_email: req.user.email,
       title: title || '',
       rating,
-      message: finalMessage,
+      message: trimmedMessage,
       approved: false,
       display_on_landing: allowPublic !== undefined ? allowPublic : true,
       user_role: 'Teacher',
