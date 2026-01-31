@@ -974,10 +974,10 @@ router.get("/quiz-results", async (req, res) => {
       await mathProfile.save();
     }
 
-    // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
+    // ✅ FIX: Get all regular and adaptive quizzes, then filter out unsubmitted ones
     const allQuizzes = await Quiz.find({ 
       student_id: studentId, 
-      quiz_type: "regular" 
+      quiz_type: { $in: ["regular", "adaptive"] } 
     }).sort({ completed_at: -1 });
 
     // Filter: Only include quizzes that have been submitted (have student answers)
@@ -1151,7 +1151,11 @@ router.get("/math-progress", async (req, res) => {
 router.get("/quiz-results", async (req, res) => {
   try {
     const studentId = req.user.userId;
-    const quizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" }).sort({ completed_at: -1 });
+    // Include both regular and adaptive quiz types
+    const quizzes = await StudentQuiz.find({ 
+      student_id: studentId, 
+      quiz_type: { $in: ["regular", "adaptive"] } 
+    }).sort({ completed_at: -1 });
 
     res.json({
       success: true,
@@ -1164,12 +1168,14 @@ router.get("/quiz-results", async (req, res) => {
         total: q.total_questions,
         percentage: q.percentage,
         points_earned: q.points_earned,
+        quiz_type: q.quiz_type,  // Include quiz type in response
       })),
     });
   } catch (error) {
     console.error("❌ Quiz results error:", error);
     res.status(500).json({ success: false, error: "Failed to load quiz results" });
   }
+});
     const currentUserId = req.user.userId;
     
     // Get current user's class
@@ -1229,7 +1235,11 @@ router.get("/quiz-results", async (req, res) => {
 router.get("/quiz-history", async (req, res) => {
   try {
     const studentId = req.user.userId;
-    const quizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" }).sort({ completed_at: -1 });
+    // Include both regular and adaptive quiz types, exclude placement quizzes
+    const quizzes = await StudentQuiz.find({ 
+      student_id: studentId, 
+      quiz_type: { $in: ["regular", "adaptive"] } 
+    }).sort({ completed_at: -1 });
 
     res.json({
       success: true,
@@ -1244,12 +1254,14 @@ router.get("/quiz-history", async (req, res) => {
         totalQuestions: q.total_questions,
         percentage: q.percentage,
         points_earned: q.points_earned,
+        quiz_type: q.quiz_type,  // Include quiz type in response
       })),
     });
   } catch (error) {
     console.error("❌ Quiz history error:", error);
     res.status(500).json({ success: false, error: "Failed to load quiz history" });
   }
+});
     const { subject, category, message, description, student_name, student_email } = req.body;
 
     const finalSubject = subject || 'Support Request';
