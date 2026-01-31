@@ -5,7 +5,8 @@ import {
   getLandingPage, 
   saveLandingPage,
   getTestimonials,
-  updateTestimonial 
+  updateTestimonial,
+  deleteTestimonial 
 } from '../../services/p2lAdminService';
 import './LandingPageManager.css';
 
@@ -92,6 +93,25 @@ function LandingPageManager() {
     } catch (error) {
       console.error('Failed to update testimonial:', error);
       alert('Failed to update testimonial. Please try again.');
+    }
+  };
+
+  const handleDeleteTestimonial = async (id, studentName) => {
+    if (!window.confirm(`Are you sure you want to delete the testimonial from ${studentName}? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      const result = await deleteTestimonial(id);
+      if (result.success) {
+        fetchTestimonials(); // Refresh list
+        alert('Testimonial deleted successfully');
+      } else {
+        alert(result.error || 'Failed to delete testimonial');
+      }
+    } catch (error) {
+      console.error('Failed to delete testimonial:', error);
+      alert('Failed to delete testimonial. Please try again.');
     }
   };
 
@@ -696,6 +716,21 @@ function LandingPageManager() {
                             }}
                           >
                             {testimonial.display_on_landing ? '🌐 On Landing' : '📄 Add to Landing'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTestimonial(testimonial.id, testimonial.student_name)}
+                            style={{
+                              padding: '6px 12px',
+                              background: '#dc2626',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                          >
+                            🗑️ Delete
                           </button>
                         </div>
                       </div>

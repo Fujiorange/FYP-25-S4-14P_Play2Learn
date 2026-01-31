@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Testimonial = require('../models/Testimonial');
-const Sentiment = require('sentiment');
-const sentiment = new Sentiment();
+const { analyzeSentiment } = require('../utils/sentimentAnalyzer');
+
 
 // ==================== TESTIMONIALS ====================
 /**
@@ -49,11 +49,10 @@ router.post("/testimonials", async (req, res) => {
     }
 
     // Perform sentiment analysis
-    const sentimentResult = sentiment.analyze(trimmedMessage);
+    const sentimentResult = analyzeSentiment(trimmedMessage, rating);
     const sentimentScore = sentimentResult.score;
-    let sentimentLabel = 'neutral';
-    if (sentimentScore > 0) sentimentLabel = 'positive';
-    else if (sentimentScore < 0) sentimentLabel = 'negative';
+    const sentimentLabel = sentimentResult.label;
+
 
     const testimonialDoc = await Testimonial.create({
       student_id: teacherId,
