@@ -104,7 +104,6 @@ if (!mongoose.models.SupportTicket) {
     updated_at: { type: Date, default: Date.now },
     resolved_at: { type: Date },
     admin_response: { type: String },
-    school_id: { type: String },
   });
   mongoose.model("SupportTicket", supportTicketSchema);
 }
@@ -627,8 +626,49 @@ router.get("/quiz-results", async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: "Failed" }); }
 });
 
+<<<<<<< Updated upstream
 // Leaderboard
 router.get("/leaderboard", async (req, res) => {
+=======
+<<<<<<< HEAD
+// ==================== QUIZ RESULTS / HISTORY ====================
+
+// ✅ ALIAS: Frontend compatibility route (responds to /quiz/results)
+router.get("/quiz/results", async (req, res) => {
+  try {
+    const studentId = req.user.userId;
+    
+    const allQuizzes = await Quiz.find({ 
+      student_id: studentId, 
+      quiz_type: "regular" 
+    }).sort({ completed_at: -1 });
+
+    const quizzes = allQuizzes.filter(isQuizCompleted);
+
+    res.json({
+      success: true,
+      results: quizzes.map((q) => ({
+        id: q._id,
+        profile: q.profile_level,
+        date: q.completed_at.toLocaleDateString(),
+        time: q.completed_at.toLocaleTimeString(),
+        score: q.score,
+        total: q.total_questions,
+        percentage: q.percentage,
+        points_earned: q.points_earned,
+      })),
+    });
+  } catch (error) {
+    console.error("❌ Quiz results error:", error);
+    res.status(500).json({ success: false, error: "Failed to load quiz results" });
+  }
+});
+router.get("/quiz-results", async (req, res) => {
+=======
+// Leaderboard
+router.get("/leaderboard", async (req, res) => {
+>>>>>>> a1a9b1a7aeda9516ac01425d9ca1dcd44fe55fce
+>>>>>>> Stashed changes
   try {
     const studentId = req.user.userId;
     
@@ -786,30 +826,15 @@ router.get("/shop", async (req, res) => {
       });
     }
 
-    // ✅ FIX: Map 'normal' to 'medium' for backward compatibility
-    const priorityMap = {
-      'normal': 'medium',
-      'low': 'low',
-      'medium': 'medium',
-      'high': 'high',
-      'urgent': 'urgent'
-    };
-
-    // ✅ Get student's schoolId for admin filtering
-    const student = await User.findById(studentId).select('schoolId');
-    const schoolId = student?.schoolId || null;
-    const finalPriority = priorityMap[req.body.priority] || 'medium';
-
     const ticket = await SupportTicket.create({
       student_id: studentId,
       student_name: student_name || req.user.name || 'Unknown',
       student_email: student_email || req.user.email || 'unknown@email.com',
-      school_id: schoolId,
       subject: finalSubject,
       category: category || 'general',
       message: finalMessage,
       status: 'open',
-      priority: finalPriority,
+      priority: req.body.priority || 'medium',
     });
 
     res.status(201).json({
