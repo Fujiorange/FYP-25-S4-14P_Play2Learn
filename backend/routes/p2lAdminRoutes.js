@@ -180,7 +180,7 @@ router.get('/dashboard-stats', authenticateP2LAdmin, async (req, res) => {
     // Get counts for dashboard
     const [schoolsCount, adminsCount, questionsCount, quizzesCount] = await Promise.all([
       School.countDocuments(),
-      User.countDocuments({ role: 'schooladmin' }),
+      User.countDocuments({ role: 'School Admin' }),
       Question.countDocuments({ is_active: true }),
       Quiz.countDocuments()
     ]);
