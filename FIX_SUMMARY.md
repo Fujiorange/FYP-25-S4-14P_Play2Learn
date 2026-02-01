@@ -82,19 +82,26 @@ Enhanced sentiment analysis algorithm in both parent and student testimonial rou
 
 **Key Improvements:**
 
-1. **Keyword Detection** (90% weight)
+1. **Keyword Detection** (Strong Influence)
    - Negative keywords: "bad", "terrible", "awful", "horrible", "worst", "hate", "disappointing", etc.
    - Positive keywords: "great", "excellent", "amazing", "wonderful", "love", "recommend", etc.
-   - Each keyword adds/subtracts 3 points from sentiment score
+   - Each keyword match adds/subtracts 3 points from sentiment score
+   - Keywords have 3× stronger impact than rating per match
 
-2. **Rating Adjustment** (10% weight)
-   - `(rating - 3) * 0.5` provides minor adjustment
-   - Example: 5-star = +1.0, 1-star = -1.0
+2. **Rating Adjustment** (Minor Influence)
+   - Formula: `(rating - 3) × 0.5` provides small offset
+   - Range: -1.0 (1-star) to +1.0 (5-star)
+   - Example: 5-star = +1.0, 1-star = -1.0, 3-star = 0.0
 
 3. **Adjusted Thresholds**
    - Positive: score > 1 (more strict)
    - Negative: score < -1 (more strict)
    - Neutral: -1 ≤ score ≤ 1 (wider range)
+
+4. **Overlapping Phrase Prevention**
+   - Phrases checked before individual words (sorted by length)
+   - Matched text ranges tracked to prevent double-counting
+   - Example: "terrible experience" counts as -3, not -6
 
 **Example:**
 ```javascript

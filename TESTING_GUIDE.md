@@ -55,11 +55,14 @@ This guide outlines how to test the fixes made to address the reported issues.
    - Check the sentiment label (should show 😞 negative despite 5-star rating)
 
 ### Expected Behavior
-- Text content now has 90% weight in sentiment analysis
-- Star rating only has 10% weight
-- Negative keywords: "bad", "terrible", "awful", "horrible", "worst", etc.
-- Positive keywords: "great", "excellent", "amazing", "wonderful", "love", etc.
-- Threshold: score > 1 = positive, score < -1 = negative
+- Text content has strong influence through keyword detection
+- Each negative keyword: -3 points (e.g., "bad", "terrible", "awful")
+- Each positive keyword: +3 points (e.g., "great", "excellent", "amazing")
+- Star rating provides minor adjustment: (rating - 3) × 0.5
+  - 1-star = -1.0, 3-star = 0.0, 5-star = +1.0
+- Keywords have 3× stronger impact than rating per match
+- Overlapping phrases counted only once (e.g., "terrible experience" = -3, not -6)
+- Sentiment thresholds: score > 1 = positive, score < -1 = negative
 
 ---
 
