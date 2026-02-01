@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import studentService from '../../services/studentService';
+import AnnouncementBanner from '../shared/AnnouncementBanner';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -129,7 +130,7 @@ export default function StudentDashboard() {
     );
   }
 
-  // ✅ FIXED: Removed duplicate Skill Matrix entry
+  // ✅ CORRECT ORDER: Menu items following user's exact numbering
   const menuItems = [
     // 1️⃣ My Profile
     {
@@ -139,23 +140,7 @@ export default function StudentDashboard() {
       icon: '👤',
       action: () => navigate('/student/profile'),
     },
-    // 2️⃣ Adaptive Quizzes
-    {
-      id: 'adaptive-quiz',
-      title: 'Adaptive Quizzes',
-      description: 'Try quizzes that adapt to your skill level',
-      icon: '🎲',
-      action: () => navigate('/student/adaptive-quizzes'),
-    },
-    // 3️⃣ Skill Matrix (KEPT THIS ONE)
-    {
-      id: 'skills',
-      title: 'Skill Matrix',
-      description: 'See your unlocked math skills',
-      icon: '📊',
-      action: () => navigate('/student/skills'),
-    },
-    // 4️⃣ View Results
+    // 2️⃣ View Results
     {
       id: 'results',
       title: 'View Results',
@@ -163,7 +148,7 @@ export default function StudentDashboard() {
       icon: '📝',
       action: () => navigate('/student/results'),
     },
-    // 5️⃣ Track Progress
+    // 3️⃣ Track Progress
     {
       id: 'progress',
       title: 'Track Progress',
@@ -171,7 +156,7 @@ export default function StudentDashboard() {
       icon: '📈',
       action: () => navigate('/student/progress'),
     },
-    // 6️⃣ Leaderboard
+    // 4️⃣ Leaderboard
     {
       id: 'leaderboard',
       title: 'Leaderboard',
@@ -179,8 +164,15 @@ export default function StudentDashboard() {
       icon: '🏆',
       action: () => navigate('/student/leaderboard'),
     },
-    // ❌ REMOVED: Duplicate Skill Matrix was here (line 182-188)
-    // 7️⃣ Attempt Quiz
+    // 5️⃣ Skill Matrix
+    {
+      id: 'skills',
+      title: 'Skill Matrix',
+      description: 'See your unlocked math skills',
+      icon: '📊',
+      action: () => navigate('/student/skills'),
+    },
+    // 6️⃣ Attempt Quiz
     {
       id: 'quiz',
       title: 'Attempt Quiz',
@@ -188,7 +180,7 @@ export default function StudentDashboard() {
       icon: '🎯',
       action: () => navigate('/student/quiz/attempt'),
     },
-    // 8️⃣ School Announcements
+    // 7️⃣ School Announcements
     {
       id: 'announcements',
       title: 'School Announcements',
@@ -196,7 +188,7 @@ export default function StudentDashboard() {
       icon: '📢',
       action: () => navigate('/student/announcements'),
     },
-    // 9️⃣ Write Testimonial
+    // 8️⃣ Write Testimonial
     {
       id: 'testimonial',
       title: 'Write Testimonial',
@@ -204,7 +196,7 @@ export default function StudentDashboard() {
       icon: '💬',
       action: () => navigate('/student/testimonial'),
     },
-    // 🔟 Create Support Ticket
+    // 9️⃣ Create Support Ticket
     {
       id: 'support',
       title: 'Create Support Ticket',
@@ -212,7 +204,7 @@ export default function StudentDashboard() {
       icon: '🛠️',
       action: () => navigate('/student/support'),
     },
-    // 1️⃣1️⃣ Track Support Ticket
+    // 🔟 Track Support Ticket
     {
       id: 'trackTicket',
       title: 'Track Support Ticket',
@@ -220,7 +212,7 @@ export default function StudentDashboard() {
       icon: '📩',
       action: () => navigate('/student/support/tickets'),
     },
-    // 1️⃣2️⃣ Reward Shop
+    // 1️⃣1️⃣ Reward Shop
     {
       id: 'shop',
       title: 'Reward Shop',
@@ -228,7 +220,11 @@ export default function StudentDashboard() {
       icon: '🛒',
       action: () => navigate('/student/shop'),
     },
-    // 1️⃣3️⃣ Badges & Shop
+    // 1️⃣2️⃣ My Badges
+    {
+      id: 'badges',
+      title: 'My Badges',
+      description: 'View your earned achievement badges',
     {
       id: 'badges',
       title: 'Badges & Shop',
@@ -296,6 +292,9 @@ export default function StudentDashboard() {
       </header>
 
       <main style={styles.main}>
+        {/* Announcements Banner */}
+        <AnnouncementBanner userRole="student" />
+
         <div style={styles.welcomeCard}>
           <h2 style={styles.welcomeTitle}>
             Welcome back, {user.name?.split(' ')[0] || 'Student'}! 🎮

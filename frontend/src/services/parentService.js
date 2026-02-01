@@ -286,13 +286,20 @@ class ParentService {
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit testimonial');
+      }
+
       return data;
     } catch (error) {
-      console.error('createTestimonial error:', error);
-      return { success: false, error: 'Failed to submit testimonial' };
+      console.error('Error submitting testimonial:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
-
 
   async getTestimonials() {
     try {

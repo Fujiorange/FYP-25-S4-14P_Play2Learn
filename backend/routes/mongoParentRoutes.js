@@ -6,17 +6,10 @@
 
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
-const StudentProfile = require('../models/StudentProfile');
-const Quiz = require('../models/Quiz');
-const QuizAttempt = require('../models/QuizAttempt');
-const Testimonial = require('../models/Testimonial');
-const { authMiddleware } = require('../middleware/auth');
-const Sentiment = require('sentiment');
-const sentiment = new Sentiment();
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
+const User = mongoose.model('User');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
 
 // ==================== SCHOOL SCHEMA ====================
@@ -89,6 +82,8 @@ if (!mongoose.models.Quiz) {
   mongoose.model('Quiz', quizSchema);
 }
 
+const Quiz = mongoose.model('Quiz');
+
 // ==================== SUPPORT TICKET SCHEMA ====================
 const supportTicketSchema = new mongoose.Schema({
   ticketId: { type: String, required: true, unique: true },
@@ -123,6 +118,8 @@ const testimonialSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
+
+const Testimonial = mongoose.models.Testimonial || mongoose.model('Testimonial', testimonialSchema);
 
 // ==================== FEEDBACK SCHEMA ====================
 const feedbackSchema = new mongoose.Schema({
@@ -1102,140 +1099,5 @@ router.get('/child/:studentId/skills', authenticateParent, async (req, res) => {
     });
   }
 });
-
-// ========================================
-// TESTIMONIAL ENDPOINTS
-// ========================================
-
-/**
- * @route   POST /api/mongo/parent/testimonials
- * @desc    Create a new testimonial from parent
- * @access  Private (Parent only)
- */
-router.post('/testimonials', authMiddleware, async (req, res) => {
-  try {
-    // Verify user is a parent
-    if (req.user.role !== 'Parent') {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied. Parent role required.'
-      });
-    }
-
-    const { rating, message, title, displayName } = req.body;
-    
-    // Validation
-    if (!rating || !message) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Rating and message are required" 
-      });
-    }
-
-    if (rating < 1 || rating > 5) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Rating must be between 1 and 5" 
-      });
-    }
-
-    // Message length validation
-    if (message.trim().length < 20) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Message must be at least 20 characters long" 
-      });
-    }
-
-    if (message.length > 2000) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Message must not exceed 2000 characters" 
-      });
-    }
-
-    // Display name validation
-    if (displayName && displayName.trim().length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        error: "Display name cannot be empty" 
-      });
-    }
-
-    // Perform sentiment analysis
-    const sentimentResult = sentiment.analyze(message);
-    const sentimentScore = sentimentResult.score;
-    let sentimentLabel = 'neutral';
-    if (sentimentScore > 0) sentimentLabel = 'positive';
-    else if (sentimentScore < 0) sentimentLabel = 'negative';
-
-    const testimonialDoc = await Testimonial.create({
-      student_id: req.user.id,
-      student_name: displayName || req.user.name || 'Anonymous Parent',
-      student_email: req.user.email,
-      title: title || '',
-      rating,
-      message,
-      approved: false,
-      user_role: 'Parent',
-      sentiment_score: sentimentScore,
-      sentiment_label: sentimentLabel,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Testimonial submitted successfully (pending approval)",
-      testimonial: {
-        id: testimonialDoc._id,
-        rating: testimonialDoc.rating,
-        message: testimonialDoc.message,
-        sentiment_label: testimonialDoc.sentiment_label,
-        created_at: testimonialDoc.created_at,
-      }
-    });
-  } catch (error) {
-    console.error('Error creating parent testimonial:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to submit testimonial',
-      details: error.message
-    });
-  }
-});
-
-/**
- * @route   GET /api/mongo/parent/testimonials
- * @desc    Get approved testimonials
- * @access  Private (Parent only)
- */
-router.get('/testimonials', authMiddleware, async (req, res) => {
-  try {
-    const testimonials = await Testimonial.find({ approved: true })
-      .sort({ created_at: -1 })
-      .limit(20);
-
-    res.json({
-      success: true,
-      testimonials: testimonials.map(t => ({
-        id: t._id,
-        student_name: t.student_name,
-        title: t.title,
-        rating: t.rating,
-        message: t.message,
-        user_role: t.user_role,
-        sentiment_label: t.sentiment_label,
-        created_at: t.created_at,
-      }))
-    });
-  } catch (error) {
-    console.error('Error fetching testimonials:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load testimonials',
-      details: error.message
-    });
-  }
-});
-
 
 module.exports = router;

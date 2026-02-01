@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
 
   role: {
     type: String,
-    enum: ['Platform Admin', 'p2ladmin', 'School Admin', 'Teacher', 'Student', 'Parent', 'Trial Student', 'Trial Teacher'],
+    enum: ['Platform Admin', 'School Admin', 'Teacher', 'Student', 'Parent', 'Trial Student', 'Trial Teacher'],
     required: true,
   },
 
@@ -42,8 +42,6 @@ const userSchema = new mongoose.Schema({
   emailVerified: { type: Boolean, default: false },
   accountActive: { type: Boolean, default: true },
   verificationToken: { type: String, default: null },
-  
-  requirePasswordChange: { type: Boolean, default: false },
 
   createdBy: { type: String, default: null },
   isTrialUser: { type: Boolean, default: false },
@@ -52,8 +50,9 @@ const userSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-userSchema.pre('save', function preSave() {
+userSchema.pre('save', function preSave(next) {
   this.updatedAt = Date.now();
+  next();
 });
 
 module.exports = mongoose.model('User', userSchema);

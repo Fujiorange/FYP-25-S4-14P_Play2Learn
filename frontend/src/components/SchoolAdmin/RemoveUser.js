@@ -19,7 +19,7 @@ export default function RemoveUser() {
     }
 
     const currentUser = authService.getCurrentUser();
-    if (currentUser.role !== 'School Admin') {
+    if (currentUser.role !== 'school-admin') {
       navigate('/login');
       return;
     }
