@@ -39,9 +39,6 @@ const normalizeRole = (role) => {
   return roleMap[role?.toLowerCase()] || role;
 };
 
-// ⭐ Helper to get MongoDB database (for announcements)
-const getDb = () => mongoose.connection.db;
-
 // ==================== PASSWORD GENERATOR ====================
 function generateTempPassword(userType) {
   const crypto = require('crypto');
@@ -309,30 +306,21 @@ router.put('/users/:id', authenticateToken, async (req, res) => {
           error: error.message 
         });
       }
-    const db = getDb();
-    const check = await canModifyUser(db, req.params.id);
-    if (!check.allowed) return res.status(403).json({ success: false, error: check.error });
-    
-    const updates = { ...req.body, updatedAt: new Date() };
-    delete updates._id; delete updates.password; delete updates.role;
-    
-    await db.collection('users').updateOne({ _id: new mongoose.Types.ObjectId(req.params.id) }, { $set: updates });
-    
-    // SYNC to students collection
-    if (check.user.role?.toLowerCase() === 'student') {
-      const studentUpdates = { updated_at: new Date() };
-      if (updates.class !== undefined) studentUpdates.class = updates.class;
-      if (updates.name !== undefined) studentUpdates.name = updates.name;
-      if (updates.gradeLevel !== undefined) studentUpdates.grade_level = updates.gradeLevel;
-      await db.collection('students').updateOne(
-        { $or: [{ user_id: new mongoose.Types.ObjectId(req.params.id) }, { email: check.user.email }] },
-        { $set: studentUpdates }
-      );
     }
-    
-    res.json({ success: true, message: 'User updated' });
+
+    // Cleanup uploaded file
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.json({
+      success: true,
+      message: `Processed ${results.created} students`,
+      results
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to update user' });
+    console.error('❌ Upload error:', error);
+    res.status(500).json({ success: false, error: 'Failed to process CSV' });
   }
 });
 
