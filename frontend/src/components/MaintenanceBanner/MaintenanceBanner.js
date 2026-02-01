@@ -20,10 +20,20 @@ function MaintenanceBanner({ userRole }) {
   const fetchBroadcasts = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/public/maintenance`);
+      
+      if (!response.ok) {
+        console.error('Maintenance broadcast fetch failed:', response.status, response.statusText);
+        setLoading(false);
+        return;
+      }
+      
       const data = await response.json();
       
       if (data.success) {
+        console.log('Maintenance broadcasts fetched:', data.broadcasts.length);
         setBroadcasts(data.broadcasts || []);
+      } else {
+        console.error('Maintenance broadcast fetch unsuccessful:', data.error);
       }
     } catch (error) {
       console.error('Failed to fetch maintenance broadcasts:', error);
@@ -48,8 +58,11 @@ function MaintenanceBanner({ userRole }) {
     if (dismissedIds.includes(broadcast._id)) return false;
     
     // Check if broadcast targets this user role
-    if (broadcast.target_roles.includes('all')) return true;
-    if (userRole && broadcast.target_roles.includes(userRole)) return true;
+    // Show broadcasts targeted to 'all' regardless of user login status
+    if (broadcast.target_roles && broadcast.target_roles.includes('all')) return true;
+    
+    // If user is logged in, check if their role is targeted
+    if (userRole && broadcast.target_roles && broadcast.target_roles.includes(userRole)) return true;
     
     return false;
   });
