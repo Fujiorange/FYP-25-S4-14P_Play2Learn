@@ -83,6 +83,7 @@ function authenticateToken(req, res, next) {
 // ==================== PUBLIC LANDING PAGE ENDPOINT ====================
 // Public endpoint to fetch landing page blocks (no authentication required)
 const LandingPage = require('./models/LandingPage');
+const Testimonial = require('./models/Testimonial');
 
 app.get('/api/public/landing-page', async (req, res) => {
   try {
@@ -103,9 +104,41 @@ app.get('/api/public/landing-page', async (req, res) => {
       });
     }
 
+    // Get approved testimonials that should be displayed on landing page
+    const approvedTestimonials = await Testimonial.find({
+      approved: true,
+      display_on_landing: true
+    })
+      .sort({ created_at: -1 })
+      .limit(10);
+
+    // Transform testimonials to the format expected by the frontend
+    const testimonialData = approvedTestimonials.map(t => ({
+      name: t.student_name,
+      role: t.user_role,
+      quote: t.message,
+      rating: t.rating,
+      image: t.image_url || null
+    }));
+
+    // Clone blocks and inject testimonials into testimonial blocks
+    const blocks = (landingPage.blocks || []).map(block => {
+      if (block.type === 'testimonials') {
+        // Inject approved testimonials into the testimonial block
+        return {
+          ...block,
+          custom_data: {
+            ...(block.custom_data || {}),
+            testimonials: testimonialData
+          }
+        };
+      }
+      return block;
+    });
+
     res.json({
       success: true,
-      blocks: landingPage.blocks || []
+      blocks: blocks
     });
   } catch (error) {
     console.error('Get public landing page error:', error);

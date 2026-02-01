@@ -548,9 +548,15 @@ router.post('/school-admins', authenticateP2LAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Create school admins error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code
+    });
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to create school admins' 
+      error: `Failed to create school admins: ${error.message}` 
     });
   }
 });
@@ -1389,9 +1395,41 @@ router.get('/landing', authenticateP2LAdmin, async (req, res) => {
       });
     }
 
+    // Get approved testimonials that should be displayed on landing page
+    const approvedTestimonials = await Testimonial.find({
+      approved: true,
+      display_on_landing: true
+    })
+      .sort({ created_at: -1 })
+      .limit(10);
+
+    // Transform testimonials to the format expected by the frontend
+    const testimonialData = approvedTestimonials.map(t => ({
+      name: t.student_name,
+      role: t.user_role,
+      quote: t.message,
+      rating: t.rating,
+      image: t.image_url || null
+    }));
+
+    // Clone blocks and inject testimonials into testimonial blocks
+    const blocks = (landingPage.blocks || []).map(block => {
+      if (block.type === 'testimonials') {
+        // Inject approved testimonials into the testimonial block for preview
+        return {
+          ...block.toObject ? block.toObject() : block,
+          custom_data: {
+            ...(block.custom_data || {}),
+            testimonials: testimonialData
+          }
+        };
+      }
+      return block.toObject ? block.toObject() : block;
+    });
+
     res.json({
       success: true,
-      blocks: landingPage.blocks || [],
+      blocks: blocks,
       id: landingPage._id,
       is_active: landingPage.is_active,
       version: landingPage.version

@@ -1154,12 +1154,55 @@ router.post("/testimonials", async (req, res) => {
       });
     }
 
-    // Perform sentiment analysis
+    // Perform enhanced sentiment analysis prioritizing text content
     const sentimentResult = sentiment.analyze(finalMessage);
-    const sentimentScore = sentimentResult.score;
+    let sentimentScore = sentimentResult.score;
+    
+    // Define strong negative and positive keywords
+    const negativeKeywords = [
+      'bad', 'terrible', 'awful', 'horrible', 'worst', 'hate', 'dislike',
+      'poor', 'disappointing', 'frustrated', 'useless', 'waste', 'broken',
+      'annoying', 'confusing', 'difficult', 'hard', 'problem', 'issue',
+      'not good', 'not great', 'not recommended', 'dont recommend', 'avoid',
+      'terrible experience', 'bad experience', 'worst experience', 'never again',
+      'regret', 'unhappy', 'dissatisfied', 'disappointed'
+    ];
+    
+    const positiveKeywords = [
+      'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'love',
+      'best', 'awesome', 'brilliant', 'outstanding', 'perfect', 'superb',
+      'highly recommend', 'recommend', 'impressed', 'exceeded expectations',
+      'great experience', 'amazing experience', 'wonderful experience',
+      'satisfied', 'happy', 'pleased', 'delighted', 'thrilled'
+    ];
+    
+    // Check for strong keywords in the message (case-insensitive)
+    const lowerMessage = finalMessage.toLowerCase();
+    let keywordBoost = 0;
+    
+    for (const keyword of negativeKeywords) {
+      if (lowerMessage.includes(keyword)) {
+        keywordBoost -= 3; // Strong negative boost for each keyword
+      }
+    }
+    
+    for (const keyword of positiveKeywords) {
+      if (lowerMessage.includes(keyword)) {
+        keywordBoost += 3; // Strong positive boost for each keyword
+      }
+    }
+    
+    // Apply keyword boost to sentiment score (text has more weight than rating)
+    sentimentScore += keywordBoost;
+    
+    // Only use rating as a minor adjustment (10% weight), text content is 90%
+    const ratingAdjustment = (rating - 3) * 0.5; // Small adjustment based on rating
+    sentimentScore += ratingAdjustment;
+    
+    // Determine sentiment label based on final score
     let sentimentLabel = 'neutral';
-    if (sentimentScore > 0) sentimentLabel = 'positive';
-    else if (sentimentScore < 0) sentimentLabel = 'negative';
+    if (sentimentScore > 1) sentimentLabel = 'positive';
+    else if (sentimentScore < -1) sentimentLabel = 'negative';
 
     const testimonialDoc = await Testimonial.create({
       student_id: studentId,
