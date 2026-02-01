@@ -77,7 +77,10 @@ function analyzeSentiment(message, rating, sentimentAnalyzer) {
     }
   }
   
-  // Add minor adjustment based on rating (10% weight)
+  // Add minor adjustment based on rating
+  // Rating contributes a small offset: (rating - 3) * 0.5
+  // Examples: 1-star = -1.0, 3-star = 0.0, 5-star = +1.0
+  // This is much smaller than keyword impacts (±3 per keyword)
   const ratingAdjustment = (rating - 3) * 0.5;
   sentimentScore += ratingAdjustment;
   
