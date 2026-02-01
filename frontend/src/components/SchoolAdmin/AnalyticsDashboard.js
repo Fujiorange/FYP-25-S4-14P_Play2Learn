@@ -12,6 +12,17 @@ export default function AnalyticsDashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Check authentication first
+    if (!authService.isAuthenticated()) { 
+      navigate('/login'); 
+      return; 
+    }
+    const currentUser = authService.getCurrentUser();
+    if (currentUser.role?.toLowerCase() !== 'school-admin') { 
+      navigate('/login'); 
+      return; 
+    }
+
     const loadAnalytics = async () => {
       try {
         setError('');
@@ -75,9 +86,6 @@ export default function AnalyticsDashboard() {
     }
   };
 
-  if (!authService.isAuthenticated()) { navigate('/login'); return; }
-  const currentUser = authService.getCurrentUser();
-  if (currentUser.role?.toLowerCase() !== 'school-admin') { navigate('/login'); return; }
   loadAnalytics();
 }, [navigate]);
 
