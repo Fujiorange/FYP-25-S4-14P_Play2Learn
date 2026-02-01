@@ -32,7 +32,7 @@ const authenticateP2LAdmin = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const admin = await User.findById(decoded.userId);
-    if (!admin || admin.role !== 'p2ladmin') {
+    if (!admin || (admin.role !== 'p2ladmin' && admin.role !== 'Platform Admin')) {
       return res.status(403).json({ error: 'Access restricted to P2L Admins' });
     }
 
@@ -660,6 +660,68 @@ router.delete('/school-admins/:id', authenticateP2LAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to delete school admin' 
+    });
+  }
+});
+
+// Reset school admin password
+router.post('/school-admins/:id/reset-password', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find the admin
+    const admin = await User.findById(id);
+    if (!admin) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Admin not found' 
+      });
+    }
+    
+    // Ensure this is a school admin
+    if (admin.role !== 'School Admin') {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'This user is not a school admin' 
+      });
+    }
+    
+    // Get school information
+    const school = await School.findById(admin.schoolId);
+    const schoolName = school ? school.organization_name : 'Unknown School';
+    
+    // Generate new temporary password
+    const tempPassword = generateTempPassword('school');
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    
+    // Update admin with new password and require password change
+    admin.password = hashedPassword;
+    admin.requirePasswordChange = true;
+    await admin.save();
+    
+    // Send email with new credentials
+    try {
+      await sendSchoolAdminWelcomeEmail(admin, tempPassword, schoolName);
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Continue even if email fails - password is reset
+    }
+    
+    res.json({
+      success: true,
+      message: 'Password reset successfully',
+      tempPassword: tempPassword, // Return temp password so P2L admin can share it
+      adminId: admin._id,
+      email: admin.email,
+      name: admin.name
+    });
+  } catch (error) {
+    console.error('Reset school admin password error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to reset password' 
     });
   }
 });
