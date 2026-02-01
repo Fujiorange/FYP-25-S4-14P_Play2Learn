@@ -627,9 +627,12 @@ router.get("/quiz-results", async (req, res) => {
 });
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 // Leaderboard
 router.get("/leaderboard", async (req, res) => {
 =======
+=======
+>>>>>>> Stashed changes
 <<<<<<< HEAD
 // ==================== QUIZ RESULTS / HISTORY ====================
 
@@ -668,6 +671,9 @@ router.get("/quiz-results", async (req, res) => {
 // Leaderboard
 router.get("/leaderboard", async (req, res) => {
 >>>>>>> a1a9b1a7aeda9516ac01425d9ca1dcd44fe55fce
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   try {
     const studentId = req.user.userId;
