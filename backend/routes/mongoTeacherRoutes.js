@@ -320,7 +320,7 @@ router.get('/students/:studentId', async (req, res) => {
     }
     
     // ✅ FIX: Also verify student belongs to same school
-    if (schoolId && student.schoolId && student.schoolId !== schoolId) {
+    if (schoolId && student.schoolId && student.schoolId.toString() !== schoolId.toString()) {
       return res.status(403).json({ success: false, error: 'Access denied to this student' });
     }
     

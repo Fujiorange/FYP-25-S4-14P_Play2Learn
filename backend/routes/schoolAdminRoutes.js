@@ -893,7 +893,7 @@ router.post('/bulk-import-parents', authenticateSchoolAdmin, upload.single('file
         }
         
         // ✅ FIX: Verify student belongs to the same school as the admin
-        if (student.schoolId !== schoolAdmin.schoolId) {
+        if (student.schoolId?.toString() !== schoolAdmin.schoolId?.toString()) {
           console.log(`⚠️  Skipping - Student belongs to different school`);
           results.failed++;
           results.errors.push({
@@ -1171,7 +1171,7 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
           });
         }
         
-        if (student.schoolId !== schoolAdmin.schoolId) {
+        if (student.schoolId?.toString() !== schoolAdmin.schoolId?.toString()) {
           return res.status(403).json({
             success: false,
             error: `Student ${student.name} does not belong to your school`
