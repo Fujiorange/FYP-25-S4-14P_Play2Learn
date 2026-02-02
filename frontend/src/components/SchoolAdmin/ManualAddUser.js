@@ -210,16 +210,22 @@ export default function ManualAddUser() {
         
         // If creating a student with parent info, create the parent too
         if (formData.role === 'student' && formData.createParent && formData.parentName && formData.parentEmail) {
-          const parentPassword = generateRandomPassword('parent');
           const parentResult = await schoolAdminService.createUser({
             name: formData.parentName,
             email: formData.parentEmail,
-            password: parentPassword,
             role: 'parent',
             linkedStudents: [result.user.id]
           });
           
           if (parentResult.success) {
+            // Store parent's temp password to display to admin
+            setCreatedUser({
+              ...result.user,
+              tempPassword: generatedPassword,
+              parentCreated: true,
+              parentEmail: formData.parentEmail,
+              parentTempPassword: parentResult.user.tempPassword
+            });
             setMessage({ 
               type: 'success', 
               text: `Student and parent created successfully! Parent email: ${formData.parentEmail}` 
@@ -362,6 +368,33 @@ export default function ManualAddUser() {
                 </div>
               </div>
             </div>
+            
+            {/* Show parent credentials if parent was created */}
+            {createdUser.parentCreated && (
+              <>
+                <div style={{ margin: '24px 0', borderTop: '2px solid #e5e7eb', paddingTop: '24px' }}>
+                  <div style={{ ...styles.successTitle, fontSize: '18px', marginBottom: '12px' }}>
+                    👨‍👩‍👧 Parent Account Also Created
+                  </div>
+                  <p style={{ marginBottom: '16px', color: '#374151', fontSize: '14px' }}>
+                    Parent credentials for monitoring student progress:
+                  </p>
+                </div>
+                
+                <div style={styles.credentialsBox}>
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={styles.credentialsLabel}>Parent Email</div>
+                    <div style={styles.credentialsValue}>{createdUser.parentEmail}</div>
+                  </div>
+                  <div>
+                    <div style={styles.credentialsLabel}>Parent Temporary Password</div>
+                    <div style={{ ...styles.credentialsValue, color: '#dc2626' }}>
+                      {createdUser.parentTempPassword}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
             
             <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
               ⚠️ Please share these credentials securely with the user. They will be prompted to change their password on first login.

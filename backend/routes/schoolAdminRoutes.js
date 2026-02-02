@@ -1037,7 +1037,7 @@ router.post('/bulk-import-parents', authenticateSchoolAdmin, upload.single('file
 // ==================== MANUAL CREATE USER ====================
 router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
   try {
-    const { name, email, role: rawRole, gradeLevel, subject, gender, class: className, parentEmail } = req.body;
+    const { name, email, role: rawRole, gradeLevel, subject, gender, class: className, parentEmail, linkedStudents } = req.body;
     
     if (!name || !email || !rawRole) {
       return res.status(400).json({ 
@@ -1118,6 +1118,15 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
       createdBy: 'school-admin',
     });
     
+    // Process linkedStudents for parents
+    if (role === 'Parent' && linkedStudents && Array.isArray(linkedStudents) && linkedStudents.length > 0) {
+      newUser.linkedStudents = linkedStudents.map(studentId => ({
+        studentId: studentId,
+        relationship: 'Parent'
+      }));
+      await newUser.save();
+    }
+    
     // Update school's current teacher/student count using atomic increment
     if (role === 'Teacher' || role === 'Student') {
       const incrementField = role === 'Teacher' ? 'current_teachers' : 'current_students';
@@ -1141,6 +1150,21 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
           await sendStudentCredentialsToParent(newUser, tempPassword, parentEmail, schoolName);
           emailSent = true;
         }
+      } else if (role === 'Parent') {
+        // Get the first linked student's name for the email
+        let studentName = 'your child';
+        if (linkedStudents && linkedStudents.length > 0) {
+          try {
+            const firstStudent = await User.findById(linkedStudents[0]);
+            if (firstStudent) {
+              studentName = firstStudent.name;
+            }
+          } catch (err) {
+            console.error('Error fetching student name:', err);
+          }
+        }
+        await sendParentWelcomeEmail(newUser, tempPassword, studentName, schoolName);
+        emailSent = true;
       }
     } catch (emailError) {
       console.error('Email sending error:', emailError);
