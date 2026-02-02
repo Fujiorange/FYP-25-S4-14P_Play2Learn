@@ -751,6 +751,15 @@ router.post('/bulk-import-parents', authenticateSchoolAdmin, upload.single('file
     return res.status(400).json({ success: false, error: 'No file uploaded' });
   }
 
+  // Get school admin's school
+  const schoolAdmin = req.schoolAdmin;
+  if (!schoolAdmin.schoolId) {
+    return res.status(400).json({
+      success: false,
+      error: 'School admin must be associated with a school'
+    });
+  }
+
   console.log('📄 Parsing CSV file...');
   
   const parents = [];
@@ -788,6 +797,10 @@ router.post('/bulk-import-parents', authenticateSchoolAdmin, upload.single('file
     });
 
     console.log('\n🔄 Processing parents...\n');
+
+    // Get school name for emails
+    const schoolData = await School.findById(schoolAdmin.schoolId);
+    const schoolName = schoolData ? schoolData.organization_name : 'Your School';
 
     // Process each parent
     for (let i = 0; i < parents.length; i++) {
@@ -930,6 +943,7 @@ router.post('/bulk-import-parents', authenticateSchoolAdmin, upload.single('file
           email: parentData.parentEmail.toLowerCase().trim(),
           password: hashedPassword,
           role: 'Parent',
+          schoolId: schoolAdmin.schoolId, // Set schoolId so parent appears in user management
           linkedStudents: [
             {
               studentId: student._id,
@@ -963,7 +977,7 @@ router.post('/bulk-import-parents', authenticateSchoolAdmin, upload.single('file
             newParent,
             tempPassword,
             student.name,
-            'Your School'
+            schoolName
           );
           console.log(`📧 Sent welcome email to: ${newParent.email}`);
           results.emailsSent++;
@@ -1235,6 +1249,208 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
   } catch (error) {
     console.error('Create user error:', error);
     res.status(500).json({ success: false, error: 'Failed to create user' });
+  }
+});
+
+// ==================== CREATE OR LINK PARENT ====================
+// This endpoint handles creating a new parent or linking a student to an existing parent
+router.post('/users/create-or-link-parent', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const { parentName, parentEmail, studentId } = req.body;
+    const schoolAdmin = req.schoolAdmin;
+    
+    if (!parentEmail || !studentId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Parent email and student ID are required' 
+      });
+    }
+    
+    // Find the student
+    const student = await User.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+    
+    // Check if parent email already exists
+    const existingParent = await User.findOne({ email: parentEmail.toLowerCase().trim() });
+    
+    if (existingParent) {
+      // Parent exists - check if they are actually a parent
+      if (existingParent.role !== 'Parent') {
+        return res.status(409).json({
+          success: false,
+          error: `Email ${parentEmail} is already registered with a different role (${existingParent.role})`
+        });
+      }
+      
+      // Check if student is already linked to this parent
+      const alreadyLinked = existingParent.linkedStudents && existingParent.linkedStudents.some(
+        link => link.studentId && link.studentId.toString() === studentId.toString()
+      );
+      
+      if (alreadyLinked) {
+        return res.json({
+          success: true,
+          isExisting: true,
+          message: 'Student is already linked to this parent',
+          parent: {
+            id: existingParent._id,
+            name: existingParent.name,
+            email: existingParent.email
+          }
+        });
+      }
+      
+      // Check if student is already linked to another parent
+      const existingParentForStudent = await User.findOne({
+        role: 'Parent',
+        'linkedStudents.studentId': studentId
+      });
+      
+      if (existingParentForStudent) {
+        return res.status(409).json({
+          success: false,
+          error: `This student is already linked to another parent (${existingParentForStudent.email}). Each student can only have one parent account.`
+        });
+      }
+      
+      // Link student to existing parent
+      if (!existingParent.linkedStudents) {
+        existingParent.linkedStudents = [];
+      }
+      
+      existingParent.linkedStudents.push({
+        studentId: student._id,
+        relationship: 'Parent'
+      });
+      
+      await existingParent.save();
+      
+      return res.json({
+        success: true,
+        isExisting: true,
+        message: 'Student linked to existing parent account',
+        parent: {
+          id: existingParent._id,
+          name: existingParent.name,
+          email: existingParent.email
+        }
+      });
+    }
+    
+    // Check if student is already linked to another parent
+    const existingParentForStudent = await User.findOne({
+      role: 'Parent',
+      'linkedStudents.studentId': studentId
+    });
+    
+    if (existingParentForStudent) {
+      return res.status(409).json({
+        success: false,
+        error: `This student is already linked to another parent (${existingParentForStudent.email}). Each student can only have one parent account.`
+      });
+    }
+    
+    // Create new parent account
+    const tempPassword = generateTempPassword('Parent');
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    
+    const newParent = await User.create({
+      name: parentName || 'Parent',
+      email: parentEmail.toLowerCase().trim(),
+      password: hashedPassword,
+      role: 'Parent',
+      schoolId: schoolAdmin.schoolId, // Important: Set schoolId so parent appears in user management
+      linkedStudents: [{
+        studentId: student._id,
+        relationship: 'Parent'
+      }],
+      emailVerified: true,
+      accountActive: true,
+      requirePasswordChange: true,
+      createdBy: 'school-admin'
+    });
+    
+    // Try to send welcome email
+    let emailSent = false;
+    try {
+      const schoolData = await School.findById(schoolAdmin.schoolId);
+      const schoolName = schoolData ? schoolData.organization_name : 'Your School';
+      await sendParentWelcomeEmail(newParent, tempPassword, student.name, schoolName);
+      emailSent = true;
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+    }
+    
+    res.status(201).json({
+      success: true,
+      isExisting: false,
+      message: 'Parent account created and linked to student',
+      parent: {
+        id: newParent._id,
+        name: newParent.name,
+        email: newParent.email,
+        tempPassword: tempPassword
+      },
+      emailSent
+    });
+    
+  } catch (error) {
+    console.error('Create or link parent error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create or link parent' });
+  }
+});
+
+// ==================== GET STUDENTS WITHOUT PARENT ====================
+// Returns students who are not yet linked to any parent account
+router.get('/students-without-parent', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const schoolAdmin = req.schoolAdmin;
+    
+    // Get all students in this school
+    const allStudents = await User.find({
+      schoolId: schoolAdmin.schoolId,
+      role: 'Student',
+      accountActive: true
+    }).select('_id name email class');
+    
+    // Get all parents in this school with their linked students
+    const parentsWithLinks = await User.find({
+      role: 'Parent',
+      'linkedStudents.0': { $exists: true } // Only parents with at least one linked student
+    }).select('linkedStudents');
+    
+    // Collect all student IDs that are already linked to a parent
+    const linkedStudentIds = new Set();
+    parentsWithLinks.forEach(parent => {
+      if (parent.linkedStudents) {
+        parent.linkedStudents.forEach(link => {
+          if (link.studentId) {
+            linkedStudentIds.add(link.studentId.toString());
+          }
+        });
+      }
+    });
+    
+    // Filter to only students without a parent
+    const studentsWithoutParent = allStudents.filter(student => 
+      !linkedStudentIds.has(student._id.toString())
+    );
+    
+    res.json({
+      success: true,
+      students: studentsWithoutParent.map(s => ({
+        id: s._id,
+        name: s.name,
+        email: s.email,
+        currentClass: s.class
+      }))
+    });
+    
+  } catch (error) {
+    console.error('Get students without parent error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load students' });
   }
 });
 
