@@ -373,8 +373,8 @@ export default function ManualAddUser() {
             {createdUser.parentCreated && (
               <>
                 <div style={{ margin: '24px 0', borderTop: '2px solid #e5e7eb', paddingTop: '24px' }}>
-                  <div style={{ ...styles.successTitle, fontSize: '18px', marginBottom: '12px' }}>
-                    👨‍👩‍👧 Parent Account Also Created
+                  <div style={{ ...styles.successTitle, fontSize: '18px', marginBottom: '12px' }} aria-label="Parent Account Also Created">
+                    <span aria-hidden="true">👨‍👩‍👧 </span>Parent Account Also Created
                   </div>
                   <p style={{ marginBottom: '16px', color: '#374151', fontSize: '14px' }}>
                     Parent credentials for monitoring student progress:

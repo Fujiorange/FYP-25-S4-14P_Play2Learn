@@ -1101,6 +1101,14 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
     
+    // Prepare linkedStudents for parents
+    const linkedStudentsData = (role === 'Parent' && linkedStudents && Array.isArray(linkedStudents) && linkedStudents.length > 0)
+      ? linkedStudents.map(studentId => ({
+          studentId: studentId,
+          relationship: 'Parent'
+        }))
+      : undefined;
+    
     // Create user
     const newUser = await User.create({
       name,
@@ -1116,16 +1124,8 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
       accountActive: true,
       requirePasswordChange: true, // User must change password on first login
       createdBy: 'school-admin',
+      ...(linkedStudentsData && { linkedStudents: linkedStudentsData })
     });
-    
-    // Process linkedStudents for parents
-    if (role === 'Parent' && linkedStudents && Array.isArray(linkedStudents) && linkedStudents.length > 0) {
-      newUser.linkedStudents = linkedStudents.map(studentId => ({
-        studentId: studentId,
-        relationship: 'Parent'
-      }));
-      await newUser.save();
-    }
     
     // Update school's current teacher/student count using atomic increment
     if (role === 'Teacher' || role === 'Student') {
@@ -1156,11 +1156,14 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
         if (linkedStudents && linkedStudents.length > 0) {
           try {
             const firstStudent = await User.findById(linkedStudents[0]);
-            if (firstStudent) {
+            if (firstStudent && firstStudent.name) {
               studentName = firstStudent.name;
+            } else {
+              studentName = 'your child (details pending)';
             }
           } catch (err) {
             console.error('Error fetching student name:', err);
+            studentName = 'your child (details pending)';
           }
         }
         await sendParentWelcomeEmail(newUser, tempPassword, studentName, schoolName);
