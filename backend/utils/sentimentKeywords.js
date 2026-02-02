@@ -336,6 +336,11 @@ function analyzeSentiment(message, rating, sentimentAnalyzer) {
   const NEGATION_LOOKBACK_CHARS = 30;
   const MAX_NEGATION_DISTANCE_WORDS = 5;
   
+  // The sentiment library typically assigns around -3 for negated positive words
+  // (e.g., "not good" gets -3). We counteract this to achieve neutral sentiment.
+  // This value is based on empirical testing with the 'sentiment' npm package v5.0.2
+  const SENTIMENT_LIB_NEGATION_ADJUSTMENT = 3;
+  
   // Base sentiment from library
   const sentimentResult = sentimentAnalyzer.analyze(message);
   let sentimentScore = sentimentResult.score;
@@ -344,9 +349,6 @@ function analyzeSentiment(message, rating, sentimentAnalyzer) {
   
   // Track which parts of the message have been matched to avoid double-counting
   let matchedRanges = [];
-  
-  // Track negated positive words to make them neutral
-  let negatedPositiveCount = 0;
   
   // Helper to check if a position overlaps with already matched ranges
   const isOverlapping = (start, end) => {
@@ -412,9 +414,7 @@ function analyzeSentiment(message, rating, sentimentAnalyzer) {
           // Negation of positive word results in NEUTRAL sentiment
           // The sentiment library already gave this a negative score (e.g., -3 for "not good")
           // We need to counteract that to make it neutral
-          // Add back approximately what the sentiment library subtracted
-          sentimentScore += 3; // Counteract the sentiment library's negative adjustment
-          negatedPositiveCount++;
+          sentimentScore += SENTIMENT_LIB_NEGATION_ADJUSTMENT;
         } else {
           // Weight positive keywords more heavily (5 instead of 3)
           sentimentScore += 5;
