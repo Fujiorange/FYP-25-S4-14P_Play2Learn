@@ -11,86 +11,73 @@ export default function StudentDashboard() {
   const [hoveredItem, setHoveredItem] = useState(null);
   const [hoveredStat, setHoveredStat] = useState(null);
 
-  useEffect(() => {
-    // Check authentication and load user data
-    const loadUserData = async () => {
-      if (!authService.isAuthenticated()) {
-        navigate('/login');
-        return;
+  // Function to load dashboard data
+  const loadDashboardData = async () => {
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      // Get user from localStorage first (fast)
+      const currentUser = authService.getCurrentUser();
+      setUser(currentUser);
+
+      // Then fetch fresh data from server
+      const result = await authService.getCurrentUserFromServer();
+      if (result.success) {
+        setUser(result.user);
       }
 
-      try {
-        // Get user from localStorage first (fast)
-        const currentUser = authService.getCurrentUser();
-        setUser(currentUser);
+      // ✅ FIXED: Load dashboard data from MongoDB
+      const dashData = await studentService.getDashboard();
+      console.log('📊 Dashboard data loaded:', dashData);
 
-        // Then fetch fresh data from server
-        const result = await authService.getCurrentUserFromServer();
-        if (result.success) {
-          setUser(result.user);
-        }
+      if (dashData.success) {
+        // Accept both shapes:
+        // - Preferred backend: dashData.dashboard (totalPoints, completedQuizzes, currentProfile)
+        // - Compat layer: dashData.data (points, quizzesTaken, level)
+        const dashboardInfo = dashData.dashboard || dashData.data || {};
 
-        // ✅ FIXED: Load dashboard data from MongoDB
-        const dashData = await studentService.getDashboard();
-        console.log('📊 Dashboard data loaded:', dashData);
+        const points = dashboardInfo.totalPoints ?? dashboardInfo.points ?? 0;
 
-        if (dashData.success) {
-          // Accept both shapes:
-          // - Preferred backend: dashData.dashboard (totalPoints, completedQuizzes, currentProfile)
-          // - Compat layer: dashData.data (points, quizzesTaken, level)
-          const dashboardInfo = dashData.dashboard || dashData.data || {};
+        const completedQuizzes =
+          dashboardInfo.completedQuizzes ?? dashboardInfo.quizzesTaken ?? 0;
 
-          const points = dashboardInfo.totalPoints ?? dashboardInfo.points ?? 0;
+        const level =
+          dashboardInfo.level ?? dashboardInfo.currentProfile ?? 1;
 
-          const completedQuizzes =
-            dashboardInfo.completedQuizzes ?? dashboardInfo.quizzesTaken ?? 0;
+        const gradeLevel = dashboardInfo.gradeLevel ?? 'Primary 1';
 
-          const level =
-            dashboardInfo.level ?? dashboardInfo.currentProfile ?? 1;
-
-          const gradeLevel = dashboardInfo.gradeLevel ?? 'Primary 1';
-
-          // Fetch leaderboard to get user's rank
-          let userRank = '#-';
-          try {
-            const leaderboardData = await studentService.getLeaderboard();
-            if (leaderboardData.success && leaderboardData.leaderboard) {
-              const currentUserRank = leaderboardData.leaderboard.find(
-                (entry) => entry.isCurrentUser
-              );
-              if (currentUserRank) {
-                userRank = `#${currentUserRank.rank}`;
-              }
+        // Fetch leaderboard to get user's rank
+        let userRank = '#-';
+        try {
+          const leaderboardData = await studentService.getLeaderboard();
+          if (leaderboardData.success && leaderboardData.leaderboard) {
+            const currentUserRank = leaderboardData.leaderboard.find(
+              (entry) => entry.isCurrentUser
+            );
+            if (currentUserRank) {
+              userRank = `#${currentUserRank.rank}`;
             }
-          } catch (leaderboardError) {
-            console.warn('⚠️ Could not fetch leaderboard:', leaderboardError);
           }
-
-          setDashboardData({
-            points,
-            level,
-            levelProgress: ((points % 500) / 500) * 100,
-            achievements: dashboardInfo.achievements?.length || 0,
-            rank: userRank,
-            completedQuizzes,
-            grade_level: gradeLevel,
-          });
-          console.log('✅ Dashboard data set successfully');
-        } else {
-          console.error('❌ Failed to load dashboard:', dashData.error);
-          // Set default values
-          setDashboardData({
-            points: 0,
-            level: 1,
-            levelProgress: 0,
-            achievements: 0,
-            rank: '#-',
-            completedQuizzes: 0,
-            grade_level: 'Primary 1',
-          });
+        } catch (leaderboardError) {
+          console.warn('⚠️ Could not fetch leaderboard:', leaderboardError);
         }
-      } catch (error) {
-        console.error('Error loading dashboard:', error);
+
+        setDashboardData({
+          points,
+          level,
+          levelProgress: ((points % 500) / 500) * 100,
+          achievements: dashboardInfo.achievements?.length || 0,
+          rank: userRank,
+          completedQuizzes,
+          grade_level: gradeLevel,
+        });
+        console.log('✅ Dashboard data set successfully');
+      } else {
+        console.error('❌ Failed to load dashboard:', dashData.error);
+        // Set default values
         setDashboardData({
           points: 0,
           level: 1,
@@ -100,12 +87,39 @@ export default function StudentDashboard() {
           completedQuizzes: 0,
           grade_level: 'Primary 1',
         });
-      } finally {
-        setLoading(false);
       }
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+      setDashboardData({
+        points: 0,
+        level: 1,
+        levelProgress: 0,
+        achievements: 0,
+        rank: '#-',
+        completedQuizzes: 0,
+        grade_level: 'Primary 1',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Load dashboard data on mount
+    loadDashboardData();
+  }, [navigate]);
+
+  useEffect(() => {
+    // 🔄 FIXED: Refresh dashboard when window regains focus
+    // This ensures updated quiz data is fetched when returning from quiz page
+    const handleFocus = () => {
+      console.log('🔄 Window focus detected, refreshing dashboard...');
+      setLoading(true);
+      loadDashboardData();
     };
 
-    loadUserData();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [navigate]);
 
   if (loading) {

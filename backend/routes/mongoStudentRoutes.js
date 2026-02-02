@@ -387,7 +387,7 @@ router.get("/dashboard", async (req, res) => {
     }
 
     // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
-    const allQuizzes = await Quiz.find({ 
+    const allQuizzes = await StudentQuiz.find({ 
       student_id: studentId,
       quiz_type: "regular" 
     });
