@@ -5,7 +5,8 @@ import {
   getLandingPage, 
   saveLandingPage,
   getTestimonials,
-  updateTestimonial 
+  updateTestimonial,
+  deleteTestimonial 
 } from '../../services/p2lAdminService';
 import './LandingPageManager.css';
 
@@ -79,6 +80,34 @@ function LandingPageManager() {
       alert('Failed to update testimonial. Please try again.');
     }
   };
+
+  const handleDeleteTestimonial = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this testimonial? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const result = await deleteTestimonial(id);
+      if (result.success) {
+        alert('Testimonial deleted successfully!');
+        fetchTestimonials(); // Refresh list
+      } else {
+        alert(result.error || 'Failed to delete testimonial');
+      }
+    } catch (error) {
+      console.error('Failed to delete testimonial:', error);
+      alert('Failed to delete testimonial. Please try again.');
+    }
+  };
+
+  // Auto-fetch testimonials when filters change
+  useEffect(() => {
+    // Only fetch if we've loaded testimonials at least once
+    if (testimonials.length > 0 || Object.values(testimonialFilters).some(v => v)) {
+      fetchTestimonials();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testimonialFilters]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -651,6 +680,22 @@ function LandingPageManager() {
                             }}
                           >
                             {testimonial.display_on_landing ? '🌐 On Landing' : '📄 Add to Landing'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTestimonial(testimonial.id)}
+                            style={{
+                              padding: '6px 12px',
+                              background: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '12px'
+                            }}
+                            title="Delete testimonial"
+                          >
+                            🗑️ Delete
                           </button>
                         </div>
                       </div>

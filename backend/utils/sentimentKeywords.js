@@ -343,6 +343,26 @@ function analyzeSentiment(message, rating, sentimentAnalyzer) {
     );
   };
   
+  // Define negation words
+  const negationWords = [
+    'not', 'no', 'never', 'neither', 'nobody', 'nothing', 'nowhere', 'none',
+    "don't", "doesn't", "didn't", "won't", "wouldn't", "shouldn't", "couldn't",
+    "can't", "cannot", "isn't", "aren't", "wasn't", "weren't", "haven't", "hasn't",
+    "hadn't", 'without', 'lack', 'lacking', 'absent', 'barely', 'hardly', 'scarcely',
+    'rarely', 'seldom'
+  ];
+  
+  // Helper function to check if a keyword is preceded by a negation word
+  const isPrecededByNegation = (index, keyword) => {
+    // Look at up to 3 words before the keyword
+    const beforeText = lowerMessage.substring(Math.max(0, index - 20), index).trim();
+    const words = beforeText.split(/\s+/);
+    
+    // Check the last 1-3 words for negation
+    const recentWords = words.slice(-3);
+    return recentWords.some(word => negationWords.includes(word.replace(/[^\w]/g, '')));
+  };
+  
   // Check negative keywords (phrases first, then single words)
   const sortedNegativeKeywords = [...negativeKeywords].sort((a, b) => b.length - a.length);
   for (const keyword of sortedNegativeKeywords) {
@@ -350,8 +370,16 @@ function analyzeSentiment(message, rating, sentimentAnalyzer) {
     while (index !== -1) {
       const end = index + keyword.length;
       if (!isOverlapping(index, end)) {
-        // Weight negative keywords more heavily (5 instead of 3)
-        sentimentScore -= 5;
+        // Check for negation before negative keyword (e.g., "not bad" becomes positive)
+        const hasNegation = isPrecededByNegation(index, keyword);
+        
+        if (hasNegation) {
+          // Negation of negative becomes positive
+          sentimentScore += 5;
+        } else {
+          // Weight negative keywords more heavily (5 instead of 3)
+          sentimentScore -= 5;
+        }
         matchedRanges.push([index, end]);
       }
       index = lowerMessage.indexOf(keyword, end);
@@ -365,8 +393,16 @@ function analyzeSentiment(message, rating, sentimentAnalyzer) {
     while (index !== -1) {
       const end = index + keyword.length;
       if (!isOverlapping(index, end)) {
-        // Weight positive keywords more heavily (5 instead of 3)
-        sentimentScore += 5;
+        // Check for negation before positive keyword (e.g., "not good" becomes negative)
+        const hasNegation = isPrecededByNegation(index, keyword);
+        
+        if (hasNegation) {
+          // Negation of positive becomes negative
+          sentimentScore -= 5;
+        } else {
+          // Weight positive keywords more heavily (5 instead of 3)
+          sentimentScore += 5;
+        }
         matchedRanges.push([index, end]);
       }
       index = lowerMessage.indexOf(keyword, end);
