@@ -3,12 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import schoolAdminService from '../../services/schoolAdminService';
 
-// Generate random password (similar to backend logic)
+// Generate random password using crypto API for better security
 const generateRandomPassword = (userType) => {
-  const prefix = userType.substring(0, 3).toUpperCase();
-  const random = Math.random().toString(16).substring(2, 6);
+  // Ensure userType has at least 3 characters, default to 'USR'
+  const prefix = (userType && userType.length >= 3) 
+    ? userType.substring(0, 3).toUpperCase() 
+    : 'USR';
+  
+  // Use crypto API for secure random generation
+  const array = new Uint32Array(2);
+  window.crypto.getRandomValues(array);
+  const random = array[0].toString(16).substring(0, 4);
+  
   const specialChars = '!@#$%^&*';
-  const special = specialChars[Math.floor(Math.random() * specialChars.length)];
+  const specialIndex = array[1] % specialChars.length;
+  const special = specialChars[specialIndex];
+  
   return `${prefix}${random}${special}`;
 };
 
@@ -689,7 +699,7 @@ export default function ManualAddUser() {
                         <input
                           type="checkbox"
                           checked={formData.linkedStudents.includes(student.id)}
-                          onChange={() => {}}
+                          readOnly
                           style={{ marginRight: '8px' }}
                         />
                         <span>{student.name} ({student.email})</span>

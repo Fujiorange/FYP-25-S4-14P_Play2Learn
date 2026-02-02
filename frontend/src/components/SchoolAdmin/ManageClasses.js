@@ -295,7 +295,7 @@ export default function ManageClasses() {
               <input
                 type="checkbox"
                 checked={formData.subjects.includes(subject.value)}
-                onChange={() => {}}
+                readOnly
                 disabled={!subject.enabled}
                 style={styles.checkbox}
               />
@@ -319,7 +319,7 @@ export default function ManageClasses() {
                 <input
                   type="checkbox"
                   checked={formData.teachers.includes(teacher.id)}
-                  onChange={() => {}}
+                  readOnly
                   style={styles.checkbox}
                 />
                 <span>{teacher.name} ({teacher.email})</span>
@@ -342,7 +342,7 @@ export default function ManageClasses() {
                 <input
                   type="checkbox"
                   checked={formData.students.includes(student.id)}
-                  onChange={() => {}}
+                  readOnly
                   style={styles.checkbox}
                 />
                 <span>{student.name} ({student.email})</span>
