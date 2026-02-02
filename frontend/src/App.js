@@ -99,6 +99,10 @@ import ResetPassword from './components/SchoolAdmin/ResetPassword';
 import DisableUser from './components/SchoolAdmin/DisableUser';
 import BadgeManagement from './components/SchoolAdmin/BadgeManagement';
 import PointsManagement from './components/SchoolAdmin/PointsManagement';
+import Announcements from './components/SchoolAdmin/Announcements';
+import SupportTicketManagement from './components/SchoolAdmin/SupportTicketManagement';
+import KnowledgeBase from './components/SchoolAdmin/KnowledgeBase';
+import AnalyticsDashboard from './components/SchoolAdmin/AnalyticsDashboard';
 
 // ⭐ NEW IMPORT - School Admin Teacher Assignment
 import TeacherAssignment from './components/SchoolAdmin/TeacherAssignment';
@@ -250,6 +254,10 @@ function App() {
           <Route path="/school-admin/users/disable" element={<DisableUser />} />
           <Route path="/school-admin/badges" element={<BadgeManagement />} />
           <Route path="/school-admin/points" element={<PointsManagement />} />
+          <Route path="/school-admin/announcements" element={<Announcements />} />
+          <Route path="/school-admin/support-tickets" element={<SupportTicketManagement />} />
+          <Route path="/school-admin/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/school-admin/analytics" element={<AnalyticsDashboard />} />
           
           {/* ⭐ NEW ROUTE - School Admin Teacher Assignment */}
           <Route path="/school-admin/teachers/assignments" element={<TeacherAssignment />} />

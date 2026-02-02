@@ -121,17 +121,23 @@ router.get('/dashboard-stats', authenticateToken, async (req, res) => {
   try {
     console.log('📊 Fetching dashboard stats...');
     
-    // ✅ FIX: Query the 'users' collection with role field, not separate collections!
+    // Get admin's schoolId for multi-tenant filtering
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    const schoolFilter = schoolId ? { schoolId } : {};
+    console.log('📊 Dashboard for schoolId:', schoolId);
+    
+    // ✅ FIX: Query with schoolId filter for multi-tenant isolation
     const [
       totalStudents,
       totalTeachers,
       totalParents,
       totalUsers
     ] = await Promise.all([
-      User.countDocuments({ role: 'Student' }),
-      User.countDocuments({ role: 'Teacher' }),
-      User.countDocuments({ role: 'Parent' }),
-      User.countDocuments()
+      User.countDocuments({ ...schoolFilter, role: 'Student' }),
+      User.countDocuments({ ...schoolFilter, role: 'Teacher' }),
+      User.countDocuments({ ...schoolFilter, role: 'Parent' }),
+      User.countDocuments(schoolFilter)
     ]);
 
     console.log(`✅ Found: ${totalStudents} students, ${totalTeachers} teachers, ${totalParents} parents`);
@@ -254,7 +260,13 @@ router.get('/users', authenticateToken, async (req, res) => {
   try {
     const { gradeLevel, subject, role } = req.query;
     
-    const filter = {};
+    // Get admin's schoolId for multi-tenant filtering
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    console.log('👥 Getting users for schoolId:', schoolId);
+    
+    // Start with schoolId filter for multi-tenant isolation
+    const filter = schoolId ? { schoolId } : {};
     
     // Filter by role
     if (role) {
@@ -2031,6 +2043,241 @@ router.post('/placement-quizzes/:quizId/revoke', authenticateSchoolAdmin, async 
   } catch (error) {
     console.error('❌ Revoke placement quiz error:', error);
     res.status(500).json({ success: false, error: 'Failed to revoke placement quiz' });
+  }
+});
+
+
+// ============ BADGES - MULTI-TENANT ============
+router.get('/badges', authenticateToken, async (req, res) => {
+  try {
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    const db = mongoose.connection.db;
+    const filter = schoolId ? { schoolId: schoolId } : {};
+    const badges = await db.collection('badges').find(filter).toArray();
+    res.json({ success: true, badges });
+  } catch (error) {
+    console.error('Get badges error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get badges' });
+  }
+});
+
+router.post('/badges', authenticateToken, async (req, res) => {
+  try {
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    const db = mongoose.connection.db;
+    const badge = { ...req.body, schoolId, createdAt: new Date() };
+    const result = await db.collection('badges').insertOne(badge);
+    res.json({ success: true, badge: { ...badge, _id: result.insertedId } });
+  } catch (error) {
+    console.error('Create badge error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create badge' });
+  }
+});
+
+router.put('/badges/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const updates = { ...req.body, updatedAt: new Date() };
+    delete updates._id;
+    await db.collection('badges').updateOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) }, 
+      { $set: updates }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update badge error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update badge' });
+  }
+});
+
+router.delete('/badges/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    await db.collection('badges').deleteOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete badge error:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete badge' });
+  }
+});
+
+// ============ SHOP ITEMS - MULTI-TENANT ============
+router.get('/shop-items', authenticateToken, async (req, res) => {
+  try {
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    const db = mongoose.connection.db;
+    const filter = schoolId ? { schoolId: schoolId } : {};
+    const items = await db.collection('shop_items').find(filter).toArray();
+    res.json({ success: true, items });
+  } catch (error) {
+    console.error('Get shop items error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get shop items' });
+  }
+});
+
+router.post('/shop-items', authenticateToken, async (req, res) => {
+  try {
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    const db = mongoose.connection.db;
+    const item = { ...req.body, schoolId, createdAt: new Date() };
+    const result = await db.collection('shop_items').insertOne(item);
+    res.json({ success: true, item: { ...item, _id: result.insertedId } });
+  } catch (error) {
+    console.error('Create shop item error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create shop item' });
+  }
+});
+
+router.put('/shop-items/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const updates = { ...req.body, updatedAt: new Date() };
+    delete updates._id;
+    await db.collection('shop_items').updateOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) }, 
+      { $set: updates }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update shop item error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update shop item' });
+  }
+});
+
+router.delete('/shop-items/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    await db.collection('shop_items').deleteOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete shop item error:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete shop item' });
+  }
+});
+
+// ============ POINT RULES - MULTI-TENANT ============
+router.get('/point-rules', authenticateToken, async (req, res) => {
+  try {
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    const db = mongoose.connection.db;
+    const filter = schoolId ? { schoolId: schoolId } : {};
+    const rules = await db.collection('point_rules').find(filter).toArray();
+    res.json({ success: true, rules });
+  } catch (error) {
+    console.error('Get point rules error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get point rules' });
+  }
+});
+
+router.post('/point-rules', authenticateToken, async (req, res) => {
+  try {
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    const db = mongoose.connection.db;
+    const rule = { ...req.body, schoolId, createdAt: new Date() };
+    const result = await db.collection('point_rules').insertOne(rule);
+    res.json({ success: true, rule: { ...rule, _id: result.insertedId } });
+  } catch (error) {
+    console.error('Create point rule error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create point rule' });
+  }
+});
+
+router.put('/point-rules/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const updates = { ...req.body, updatedAt: new Date() };
+    delete updates._id;
+    await db.collection('point_rules').updateOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) }, 
+      { $set: updates }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update point rule error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update point rule' });
+  }
+});
+
+router.delete('/point-rules/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    await db.collection('point_rules').deleteOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete point rule error:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete point rule' });
+  }
+});
+
+// ============ SUPPORT TICKETS - MULTI-TENANT ============
+router.get('/support-tickets', authenticateToken, async (req, res) => {
+  try {
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    const db = mongoose.connection.db;
+    const { status, priority } = req.query;
+    const filter = schoolId ? { schoolId: schoolId } : {};
+    if (status) filter.status = status;
+    if (priority) filter.priority = priority;
+    const tickets = await db.collection('supporttickets').find(filter).sort({ createdAt: -1 }).toArray();
+    res.json({ success: true, tickets });
+  } catch (error) {
+    console.error('Get support tickets error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get support tickets' });
+  }
+});
+
+router.put('/support-tickets/:id', authenticateToken, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const updates = { ...req.body, updatedAt: new Date() };
+    delete updates._id;
+    await db.collection('supporttickets').updateOne(
+      { _id: new mongoose.Types.ObjectId(req.params.id) }, 
+      { $set: updates }
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Update support ticket error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update support ticket' });
+  }
+});
+
+// ============ ANALYTICS - MULTI-TENANT ============
+router.get('/analytics', authenticateToken, async (req, res) => {
+  try {
+    const adminUser = await User.findById(req.user.userId);
+    const schoolId = adminUser?.schoolId;
+    const db = mongoose.connection.db;
+    const filter = schoolId ? { schoolId: schoolId } : {};
+    
+    const [totalStudents, totalQuizzes, avgScoreResult] = await Promise.all([
+      db.collection('users').countDocuments({ ...filter, role: { $in: ['Student', 'student'] } }),
+      db.collection('quiz_attempts').countDocuments(filter),
+      db.collection('quiz_attempts').aggregate([
+        { $match: filter }, 
+        { $group: { _id: null, avg: { $avg: '$score' } } }
+      ]).toArray()
+    ]);
+    
+    res.json({
+      success: true,
+      analytics: { 
+        totalStudents, 
+        totalQuizzes, 
+        averageScore: avgScoreResult[0]?.avg || 0, 
+        activeUsers: totalStudents 
+      }
+    });
+  } catch (error) {
+    console.error('Get analytics error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get analytics' });
   }
 });
 
