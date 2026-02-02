@@ -2024,6 +2024,8 @@ router.get('/users/schools', authenticateP2LAdmin, async (req, res) => {
 });
 
 // Bulk delete users
+// Note: This performs a simple delete. Associated data cleanup (sessions, assignments, etc.)
+// should be handled separately or through a scheduled cleanup job if needed.
 router.post('/users/bulk-delete', authenticateP2LAdmin, async (req, res) => {
   try {
     const { ids } = req.body;
