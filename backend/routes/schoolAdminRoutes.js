@@ -16,6 +16,7 @@ const fs = require('fs');
 const bcrypt = require('bcrypt');
 const User = require('../models/User');
 const School = require('../models/School');
+const Class = require('../models/Class');
 const { sendTeacherWelcomeEmail, sendParentWelcomeEmail, sendStudentCredentialsToParent } = require('../services/emailService');
 const { generateTempPassword } = require('../utils/passwordGenerator');
 const mongoose = require('mongoose');
@@ -1243,57 +1244,358 @@ router.put('/users/:id/password', authenticateToken, async (req, res) => {
 });
 
 // ==================== GET CLASSES ====================
-router.get('/classes', authenticateToken, async (req, res) => {
+// ==================== CLASS MANAGEMENT ROUTES ====================
+
+// GET all classes for the school
+router.get('/classes', authenticateSchoolAdmin, async (req, res) => {
   try {
-    // Get unique classes
-    const classes = await User.aggregate([
-      { $match: { role: 'Student', class: { $ne: null } } },
-      { $group: { 
-        _id: { class: '$class', gradeLevel: '$gradeLevel' },
-        studentCount: { $sum: 1 }
-      }},
-      { $project: {
-        _id: 0,
-        id: '$_id.class',
-        name: '$_id.class',
-        grade: '$_id.gradeLevel',
-        subject: 'Mathematics',
-        students: '$studentCount',
-        teacher: 'Not assigned'
-      }}
-    ]);
+    const schoolAdmin = req.schoolAdmin;
+    const { grade, subject } = req.query;
     
-    res.json({ success: true, classes });
+    // Build filter
+    const filter = { school_id: schoolAdmin.schoolId };
+    if (grade) filter.grade = grade;
+    if (subject) filter.subjects = subject;
+    
+    // Get classes with populated teachers and students
+    const classes = await Class.find(filter)
+      .populate('teachers', 'name email')
+      .populate('students', 'name email')
+      .sort({ createdAt: -1 });
+    
+    // Format response
+    const formattedClasses = classes.map(cls => ({
+      id: cls._id,
+      name: cls.class_name,
+      grade: cls.grade,
+      subjects: cls.subjects,
+      subject: cls.subjects[0] || 'Mathematics',
+      students: cls.students.length,
+      studentList: cls.students,
+      teachers: cls.teachers.length,
+      teacherList: cls.teachers,
+      teacher: cls.teachers.length > 0 ? cls.teachers.map(t => t.name).join(', ') : 'Not assigned',
+      is_active: cls.is_active,
+      createdAt: cls.createdAt
+    }));
+    
+    res.json({ success: true, classes: formattedClasses });
   } catch (error) {
     console.error('Get classes error:', error);
     res.status(500).json({ success: false, error: 'Failed to load classes' });
   }
 });
 
-// ==================== CREATE CLASS ====================
-router.post('/classes', authenticateToken, async (req, res) => {
+// GET single class by ID
+router.get('/classes/:id', authenticateSchoolAdmin, async (req, res) => {
   try {
-    const { name, grade, subject } = req.body;
+    const schoolAdmin = req.schoolAdmin;
+    
+    const classData = await Class.findOne({ 
+      _id: req.params.id,
+      school_id: schoolAdmin.schoolId 
+    })
+      .populate('teachers', 'name email')
+      .populate('students', 'name email');
+    
+    if (!classData) {
+      return res.status(404).json({ success: false, error: 'Class not found' });
+    }
+    
+    res.json({
+      success: true,
+      class: {
+        id: classData._id,
+        name: classData.class_name,
+        grade: classData.grade,
+        subjects: classData.subjects,
+        students: classData.students,
+        teachers: classData.teachers,
+        is_active: classData.is_active,
+        createdAt: classData.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Get class error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load class' });
+  }
+});
+
+// CREATE new class
+router.post('/classes', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const schoolAdmin = req.schoolAdmin;
+    const { name, grade, subjects, teachers, students } = req.body;
     
     if (!name) {
       return res.status(400).json({ success: false, error: 'Class name is required' });
     }
     
+    // Check if class name already exists for this school
+    const existingClass = await Class.findOne({
+      class_name: name,
+      school_id: schoolAdmin.schoolId
+    });
+    
+    if (existingClass) {
+      return res.status(409).json({ success: false, error: 'A class with this name already exists' });
+    }
+    
+    // Create new class
+    const newClass = new Class({
+      class_name: name,
+      grade: grade || 'Primary 1',
+      subjects: subjects || ['Mathematics'],
+      teachers: teachers || [],
+      students: students || [],
+      school_id: schoolAdmin.schoolId
+    });
+    
+    await newClass.save();
+    
+    // Update users with class assignment
+    if (teachers && teachers.length > 0) {
+      await User.updateMany(
+        { _id: { $in: teachers } },
+        { $addToSet: { assignedClasses: newClass._id.toString() } }
+      );
+    }
+    
+    if (students && students.length > 0) {
+      await User.updateMany(
+        { _id: { $in: students } },
+        { class: newClass._id.toString() }
+      );
+    }
+    
+    // Populate and return
+    const populatedClass = await Class.findById(newClass._id)
+      .populate('teachers', 'name email')
+      .populate('students', 'name email');
+    
     res.status(201).json({
       success: true,
       message: 'Class created successfully',
       class: {
-        id: new mongoose.Types.ObjectId().toString(),
-        name,
-        grade: grade || 'Primary 1',
-        subject: subject || 'Mathematics',
-        students: 0,
-        teacher: 'Not assigned'
+        id: populatedClass._id,
+        name: populatedClass.class_name,
+        grade: populatedClass.grade,
+        subjects: populatedClass.subjects,
+        subject: populatedClass.subjects[0] || 'Mathematics',
+        students: populatedClass.students.length,
+        studentList: populatedClass.students,
+        teachers: populatedClass.teachers.length,
+        teacherList: populatedClass.teachers,
+        teacher: populatedClass.teachers.length > 0 ? populatedClass.teachers.map(t => t.name).join(', ') : 'Not assigned',
+        is_active: populatedClass.is_active,
+        createdAt: populatedClass.createdAt
       }
     });
   } catch (error) {
     console.error('Create class error:', error);
     res.status(500).json({ success: false, error: 'Failed to create class' });
+  }
+});
+
+// UPDATE class
+router.put('/classes/:id', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const schoolAdmin = req.schoolAdmin;
+    const { name, grade, subjects, teachers, students, is_active } = req.body;
+    
+    const classData = await Class.findOne({
+      _id: req.params.id,
+      school_id: schoolAdmin.schoolId
+    });
+    
+    if (!classData) {
+      return res.status(404).json({ success: false, error: 'Class not found' });
+    }
+    
+    // Check if new name already exists (if name is being changed)
+    if (name && name !== classData.class_name) {
+      const existingClass = await Class.findOne({
+        class_name: name,
+        school_id: schoolAdmin.schoolId,
+        _id: { $ne: req.params.id }
+      });
+      
+      if (existingClass) {
+        return res.status(409).json({ success: false, error: 'A class with this name already exists' });
+      }
+    }
+    
+    // Update fields
+    if (name) classData.class_name = name;
+    if (grade) classData.grade = grade;
+    if (subjects) classData.subjects = subjects;
+    if (is_active !== undefined) classData.is_active = is_active;
+    
+    // Handle teacher updates
+    if (teachers !== undefined) {
+      // Remove class from old teachers
+      const oldTeacherIds = classData.teachers.map(t => t.toString());
+      await User.updateMany(
+        { _id: { $in: oldTeacherIds } },
+        { $pull: { assignedClasses: classData._id.toString() } }
+      );
+      
+      // Add class to new teachers
+      classData.teachers = teachers;
+      if (teachers.length > 0) {
+        await User.updateMany(
+          { _id: { $in: teachers } },
+          { $addToSet: { assignedClasses: classData._id.toString() } }
+        );
+      }
+    }
+    
+    // Handle student updates
+    if (students !== undefined) {
+      // Remove class from old students
+      const oldStudentIds = classData.students.map(s => s.toString());
+      await User.updateMany(
+        { _id: { $in: oldStudentIds } },
+        { class: null }
+      );
+      
+      // Add class to new students
+      classData.students = students;
+      if (students.length > 0) {
+        await User.updateMany(
+          { _id: { $in: students } },
+          { class: classData._id.toString() }
+        );
+      }
+    }
+    
+    await classData.save();
+    
+    // Populate and return
+    const populatedClass = await Class.findById(classData._id)
+      .populate('teachers', 'name email')
+      .populate('students', 'name email');
+    
+    res.json({
+      success: true,
+      message: 'Class updated successfully',
+      class: {
+        id: populatedClass._id,
+        name: populatedClass.class_name,
+        grade: populatedClass.grade,
+        subjects: populatedClass.subjects,
+        subject: populatedClass.subjects[0] || 'Mathematics',
+        students: populatedClass.students.length,
+        studentList: populatedClass.students,
+        teachers: populatedClass.teachers.length,
+        teacherList: populatedClass.teachers,
+        teacher: populatedClass.teachers.length > 0 ? populatedClass.teachers.map(t => t.name).join(', ') : 'Not assigned',
+        is_active: populatedClass.is_active,
+        createdAt: populatedClass.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Update class error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update class' });
+  }
+});
+
+// DELETE class
+router.delete('/classes/:id', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const schoolAdmin = req.schoolAdmin;
+    
+    const classData = await Class.findOne({
+      _id: req.params.id,
+      school_id: schoolAdmin.schoolId
+    });
+    
+    if (!classData) {
+      return res.status(404).json({ success: false, error: 'Class not found' });
+    }
+    
+    // Remove class from all assigned teachers
+    await User.updateMany(
+      { _id: { $in: classData.teachers } },
+      { $pull: { assignedClasses: classData._id.toString() } }
+    );
+    
+    // Remove class from all assigned students
+    await User.updateMany(
+      { _id: { $in: classData.students } },
+      { class: null }
+    );
+    
+    // Delete the class
+    await Class.findByIdAndDelete(req.params.id);
+    
+    res.json({
+      success: true,
+      message: 'Class deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete class error:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete class' });
+  }
+});
+
+// GET available teachers for class assignment
+router.get('/classes/available/teachers', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const schoolAdmin = req.schoolAdmin;
+    
+    const teachers = await User.find({
+      schoolId: schoolAdmin.schoolId,
+      role: 'Teacher',
+      accountActive: true
+    }).select('name email assignedClasses');
+    
+    res.json({
+      success: true,
+      teachers: teachers.map(t => ({
+        id: t._id,
+        name: t.name,
+        email: t.email,
+        assignedClasses: t.assignedClasses || []
+      }))
+    });
+  } catch (error) {
+    console.error('Get available teachers error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load teachers' });
+  }
+});
+
+// GET available students for class assignment
+router.get('/classes/available/students', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const schoolAdmin = req.schoolAdmin;
+    const { unassigned } = req.query;
+    
+    const filter = {
+      schoolId: schoolAdmin.schoolId,
+      role: 'Student',
+      accountActive: true
+    };
+    
+    // Optionally filter to only unassigned students
+    if (unassigned === 'true') {
+      filter.class = { $in: [null, ''] };
+    }
+    
+    const students = await User.find(filter).select('name email class');
+    
+    res.json({
+      success: true,
+      students: students.map(s => ({
+        id: s._id,
+        name: s.name,
+        email: s.email,
+        currentClass: s.class
+      }))
+    });
+  } catch (error) {
+    console.error('Get available students error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load students' });
   }
 });
 

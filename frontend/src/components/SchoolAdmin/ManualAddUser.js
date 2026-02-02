@@ -3,21 +3,41 @@ import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import schoolAdminService from '../../services/schoolAdminService';
 
+// Generate random password (similar to backend logic)
+const generateRandomPassword = (userType) => {
+  const prefix = userType.substring(0, 3).toUpperCase();
+  const random = Math.random().toString(16).substring(2, 6);
+  const specialChars = '!@#$%^&*';
+  const special = specialChars[Math.floor(Math.random() * specialChars.length)];
+  return `${prefix}${random}${special}`;
+};
+
 export default function ManualAddUser() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: '',
     role: '',
     gender: '',
     gradeLevel: 'Primary 1', 
-    subject: 'Mathematics',   
+    subject: 'Mathematics',
+    classId: '',
+    // Parent fields
+    parentName: '',
+    parentEmail: '',
+    createParent: false,
+    linkedStudents: [],
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [licenseInfo, setLicenseInfo] = useState(null);
   const [loadingLicense, setLoadingLicense] = useState(true);
+  const [classes, setClasses] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordViewed, setPasswordViewed] = useState(false);
+  const [createdUser, setCreatedUser] = useState(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -31,8 +51,10 @@ export default function ManualAddUser() {
       return;
     }
 
-    // Fetch license info on component mount
+    // Fetch license info and classes on component mount
     fetchLicenseInfo();
+    fetchClasses();
+    fetchStudents();
   }, [navigate]);
 
   const fetchLicenseInfo = async () => {
@@ -51,9 +73,44 @@ export default function ManualAddUser() {
     }
   };
 
+  const fetchClasses = async () => {
+    try {
+      const result = await schoolAdminService.getClasses();
+      if (result.success) {
+        setClasses(result.classes || []);
+      }
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const result = await schoolAdminService.getAvailableStudents();
+      if (result.success) {
+        setStudents(result.students || []);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    }
+  };
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    setFormData({ 
+      ...formData, 
+      [name]: type === 'checkbox' ? checked : value 
+    });
     setMessage({ type: '', text: '' });
+  };
+
+  const handleStudentLinking = (studentId) => {
+    setFormData(prev => ({
+      ...prev,
+      linkedStudents: prev.linkedStudents.includes(studentId)
+        ? prev.linkedStudents.filter(id => id !== studentId)
+        : [...prev.linkedStudents, studentId]
+    }));
   };
 
   // Check if role selection is disabled due to license limits
@@ -64,11 +121,29 @@ export default function ManualAddUser() {
     return false;
   };
 
+  const handleGeneratePassword = () => {
+    const rolePrefix = formData.role || 'user';
+    const newPassword = generateRandomPassword(rolePrefix);
+    setGeneratedPassword(newPassword);
+    setShowPassword(false);
+    setPasswordViewed(false);
+  };
+
+  const handleViewPassword = () => {
+    setShowPassword(true);
+    setPasswordViewed(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.email || !formData.password || !formData.role) {
+    if (!formData.name || !formData.email || !formData.role) {
       setMessage({ type: 'error', text: 'Please fill in all required fields' });
+      return;
+    }
+
+    if (!generatedPassword) {
+      setMessage({ type: 'error', text: 'Please generate a password first' });
       return;
     }
 
@@ -93,33 +168,65 @@ export default function ManualAddUser() {
     setLoading(true);
 
     try {
-      // REAL API CALL - This will hit the database!
-      const result = await schoolAdminService.createUser({
+      // Prepare user data
+      const userData = {
         name: formData.name,
         email: formData.email,
-        password: formData.password,
+        password: generatedPassword,
         role: formData.role,
         gender: formData.gender,
         gradeLevel: 'Primary 1',
         subject: 'Mathematics'
-      });
+      };
+
+      // Add class assignment for students and teachers
+      if (formData.classId && (formData.role === 'student' || formData.role === 'teacher')) {
+        userData.class = formData.classId;
+      }
+
+      // Add linked students for parents
+      if (formData.role === 'parent' && formData.linkedStudents.length > 0) {
+        userData.linkedStudents = formData.linkedStudents;
+      }
+
+      // Create the main user
+      const result = await schoolAdminService.createUser(userData);
 
       if (result.success) {
-        setMessage({ type: 'success', text: 'User created successfully!' });
+        setCreatedUser({
+          ...result.user,
+          tempPassword: generatedPassword
+        });
+        
+        // If creating a student with parent info, create the parent too
+        if (formData.role === 'student' && formData.createParent && formData.parentName && formData.parentEmail) {
+          const parentPassword = generateRandomPassword('parent');
+          const parentResult = await schoolAdminService.createUser({
+            name: formData.parentName,
+            email: formData.parentEmail,
+            password: parentPassword,
+            role: 'parent',
+            linkedStudents: [result.user.id]
+          });
+          
+          if (parentResult.success) {
+            setMessage({ 
+              type: 'success', 
+              text: `Student and parent created successfully! Parent email: ${formData.parentEmail}` 
+            });
+          } else {
+            setMessage({ 
+              type: 'success', 
+              text: `Student created successfully! However, parent creation failed: ${parentResult.error}` 
+            });
+          }
+        } else {
+          setMessage({ type: 'success', text: 'User created successfully!' });
+        }
+        
         // Refresh license info after successful creation
         fetchLicenseInfo();
-        setTimeout(() => {
-          setFormData({ 
-            name: '', 
-            email: '', 
-            password: '', 
-            role: '', 
-            gender: '', 
-            gradeLevel: 'Primary 1', 
-            subject: 'Mathematics' 
-          });
-          setMessage({ type: '', text: '' });
-        }, 2000);
+        fetchStudents();
       } else {
         setMessage({ type: 'error', text: result.error || 'Failed to create user' });
       }
@@ -130,6 +237,27 @@ export default function ManualAddUser() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreateAnother = () => {
+    setFormData({ 
+      name: '', 
+      email: '', 
+      role: '', 
+      gender: '', 
+      gradeLevel: 'Primary 1', 
+      subject: 'Mathematics',
+      classId: '',
+      parentName: '',
+      parentEmail: '',
+      createParent: false,
+      linkedStudents: [],
+    });
+    setGeneratedPassword('');
+    setShowPassword(false);
+    setPasswordViewed(false);
+    setCreatedUser(null);
+    setMessage({ type: '', text: '' });
   };
 
   const styles = {
@@ -166,7 +294,88 @@ export default function ManualAddUser() {
     limitReached: { color: '#dc2626' },
     limitOk: { color: '#16a34a' },
     warningBanner: { background: '#fef3c7', border: '2px solid #fcd34d', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: '#92400e', fontSize: '14px' },
+    passwordSection: { background: '#f3f4f6', borderRadius: '8px', padding: '16px', marginBottom: '20px' },
+    passwordDisplay: { background: 'white', border: '2px solid #e5e7eb', borderRadius: '8px', padding: '12px 16px', fontFamily: 'monospace', fontSize: '16px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    generateButton: { padding: '8px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', marginRight: '8px' },
+    viewButton: { padding: '8px 16px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+    checkboxContainer: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' },
+    checkbox: { width: '18px', height: '18px', cursor: 'pointer' },
+    multiSelect: { border: '2px solid #e5e7eb', borderRadius: '8px', padding: '8px', maxHeight: '150px', overflow: 'auto', background: '#f9fafb' },
+    checkboxItem: { display: 'flex', alignItems: 'center', padding: '8px', cursor: 'pointer', borderRadius: '4px' },
+    successCard: { background: '#f0fdf4', border: '2px solid #bbf7d0', borderRadius: '12px', padding: '24px', marginBottom: '24px' },
+    successTitle: { fontSize: '18px', fontWeight: '700', color: '#16a34a', marginBottom: '16px' },
+    credentialsBox: { background: 'white', border: '2px solid #d1d5db', borderRadius: '8px', padding: '16px', marginBottom: '16px' },
+    credentialsLabel: { fontSize: '12px', color: '#6b7280', marginBottom: '4px' },
+    credentialsValue: { fontSize: '16px', fontWeight: '600', color: '#1f2937', fontFamily: 'monospace' },
   };
+
+  // If user was just created, show success screen
+  if (createdUser) {
+    return (
+      <div style={styles.container}>
+        <header style={styles.header}>
+          <div style={styles.headerContent}>
+            <div style={styles.logo}>
+              <div style={styles.logoIcon}>P</div>
+              <span style={styles.logoText}>Play2Learn</span>
+            </div>
+            <button style={styles.backButton} onClick={() => navigate('/school-admin')}>
+              ← Back to Dashboard
+            </button>
+          </div>
+        </header>
+
+        <main style={styles.main}>
+          <div style={styles.successCard}>
+            <div style={styles.successTitle}>✅ User Created Successfully!</div>
+            <p style={{ marginBottom: '16px', color: '#374151' }}>
+              Please save these credentials. The password can only be viewed once.
+            </p>
+            
+            <div style={styles.credentialsBox}>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={styles.credentialsLabel}>Name</div>
+                <div style={styles.credentialsValue}>{createdUser.name}</div>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={styles.credentialsLabel}>Email</div>
+                <div style={styles.credentialsValue}>{createdUser.email}</div>
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={styles.credentialsLabel}>Role</div>
+                <div style={styles.credentialsValue}>{createdUser.role}</div>
+              </div>
+              <div>
+                <div style={styles.credentialsLabel}>Temporary Password</div>
+                <div style={{ ...styles.credentialsValue, color: '#dc2626' }}>
+                  {createdUser.tempPassword}
+                </div>
+              </div>
+            </div>
+            
+            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+              ⚠️ Please share these credentials securely with the user. They will be prompted to change their password on first login.
+            </p>
+            
+            <div style={styles.buttonGroup}>
+              <button 
+                style={styles.cancelButton}
+                onClick={() => navigate('/school-admin')}
+              >
+                Back to Dashboard
+              </button>
+              <button 
+                style={styles.submitButton}
+                onClick={handleCreateAnother}
+              >
+                Create Another User
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -275,25 +484,9 @@ export default function ManualAddUser() {
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                Password<span style={styles.required}>*</span>
-              </label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Min. 8 characters"
-                disabled={loading}
-                style={styles.input}
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
                 Role<span style={styles.required}>*</span>
               </label>
               {(() => {
-                // Pre-compute disabled states to avoid redundant calculations
                 const studentDisabled = isRoleDisabled('student');
                 const teacherDisabled = isRoleDisabled('teacher');
                 const currentRoleDisabled = formData.role && isRoleDisabled(formData.role);
@@ -326,6 +519,50 @@ export default function ManualAddUser() {
               })()}
             </div>
 
+            {/* Password Generation Section */}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Password<span style={styles.required}>*</span>
+              </label>
+              <div style={styles.passwordSection}>
+                <div style={styles.passwordDisplay}>
+                  <span>
+                    {generatedPassword 
+                      ? (showPassword ? generatedPassword : '••••••••') 
+                      : 'Click generate to create password'}
+                  </span>
+                </div>
+                <div>
+                  <button 
+                    type="button" 
+                    style={styles.generateButton}
+                    onClick={handleGeneratePassword}
+                    disabled={loading}
+                  >
+                    🔄 Generate Password
+                  </button>
+                  {generatedPassword && !passwordViewed && (
+                    <button 
+                      type="button" 
+                      style={styles.viewButton}
+                      onClick={handleViewPassword}
+                      disabled={loading}
+                    >
+                      👁️ View Once
+                    </button>
+                  )}
+                  {passwordViewed && (
+                    <span style={{ marginLeft: '12px', color: '#6b7280', fontSize: '13px' }}>
+                      ✓ Password viewed
+                    </span>
+                  )}
+                </div>
+                <p style={{ ...styles.note, marginTop: '12px' }}>
+                  Password will be auto-generated. You can view it once before creating the user.
+                </p>
+              </div>
+            </div>
+
             <div style={styles.formGroup}>
               <label style={styles.label}>Gender</label>
               <select
@@ -341,6 +578,31 @@ export default function ManualAddUser() {
               </select>
             </div>
 
+            {/* Class Assignment for Students and Teachers */}
+            {(formData.role === 'student' || formData.role === 'teacher') && (
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Assign to Class</label>
+                <select
+                  name="classId"
+                  value={formData.classId}
+                  onChange={handleChange}
+                  disabled={loading}
+                  style={styles.select}
+                >
+                  <option value="">Select class (optional)</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.name} - {cls.grade}
+                    </option>
+                  ))}
+                </select>
+                {classes.length === 0 && (
+                  <p style={styles.note}>No classes available. Create a class first in Class Management.</p>
+                )}
+              </div>
+            )}
+
+            {/* Student-specific fields */}
             {formData.role === 'student' && (
               <>
                 <div style={styles.formGroup}>
@@ -364,7 +626,81 @@ export default function ManualAddUser() {
                   />
                   <p style={styles.note}>Platform is currently scoped to Mathematics only</p>
                 </div>
+
+                {/* Parent Creation Option */}
+                <div style={styles.formGroup}>
+                  <div style={styles.checkboxContainer}>
+                    <input
+                      type="checkbox"
+                      name="createParent"
+                      checked={formData.createParent}
+                      onChange={handleChange}
+                      style={styles.checkbox}
+                      disabled={loading}
+                    />
+                    <label style={{ ...styles.label, marginBottom: 0 }}>
+                      Create parent account for this student
+                    </label>
+                  </div>
+                  
+                  {formData.createParent && (
+                    <>
+                      <input
+                        type="text"
+                        name="parentName"
+                        value={formData.parentName}
+                        onChange={handleChange}
+                        placeholder="Parent's full name"
+                        disabled={loading}
+                        style={{ ...styles.input, marginBottom: '8px' }}
+                      />
+                      <input
+                        type="email"
+                        name="parentEmail"
+                        value={formData.parentEmail}
+                        onChange={handleChange}
+                        placeholder="Parent's email"
+                        disabled={loading}
+                        style={styles.input}
+                      />
+                      <p style={styles.note}>
+                        A parent account will be created and linked to this student automatically.
+                      </p>
+                    </>
+                  )}
+                </div>
               </>
+            )}
+
+            {/* Parent-specific fields - Link to existing students */}
+            {formData.role === 'parent' && (
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Link to Students</label>
+                <div style={styles.multiSelect}>
+                  {students.length === 0 ? (
+                    <p style={{ padding: '8px', color: '#6b7280' }}>No students available to link</p>
+                  ) : (
+                    students.map(student => (
+                      <div
+                        key={student.id}
+                        style={styles.checkboxItem}
+                        onClick={() => handleStudentLinking(student.id)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.linkedStudents.includes(student.id)}
+                          onChange={() => {}}
+                          style={{ marginRight: '8px' }}
+                        />
+                        <span>{student.name} ({student.email})</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <p style={styles.note}>
+                  Select students to link to this parent account. You can link multiple students.
+                </p>
+              </div>
             )}
 
             <div style={styles.buttonGroup}>
@@ -379,7 +715,7 @@ export default function ManualAddUser() {
               <button
                 type="submit"
                 style={{ ...styles.submitButton, opacity: loading ? 0.7 : 1 }}
-                disabled={loading}
+                disabled={loading || !generatedPassword}
               >
                 {loading ? 'Creating...' : 'Create User'}
               </button>
