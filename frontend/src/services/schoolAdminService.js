@@ -458,6 +458,58 @@ const schoolAdminService = {
       console.error('bulkUploadUsers error:', error);
       return { success: false, error: error.message || 'Failed to upload users' };
     }
+  },
+
+  // ==================== CREATE OR LINK PARENT ====================
+  async createOrLinkParent(data) {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/school-admin/users/create-or-link-parent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create or link parent');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('createOrLinkParent error:', error);
+      return { success: false, error: error.message || 'Failed to create or link parent' };
+    }
+  },
+
+  // ==================== GET STUDENTS WITHOUT PARENT ====================
+  async getStudentsWithoutParent() {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/school-admin/students-without-parent`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch students');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('getStudentsWithoutParent error:', error);
+      return { success: false, error: 'Failed to load students' };
+    }
   }
 };
 

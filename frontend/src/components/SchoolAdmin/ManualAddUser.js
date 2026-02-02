@@ -96,7 +96,8 @@ export default function ManualAddUser() {
 
   const fetchStudents = async () => {
     try {
-      const result = await schoolAdminService.getAvailableStudents();
+      // Get students without parents for parent creation
+      const result = await schoolAdminService.getStudentsWithoutParent();
       if (result.success) {
         setStudents(result.students || []);
       }
@@ -152,11 +153,6 @@ export default function ManualAddUser() {
       return;
     }
 
-    if (!generatedPassword) {
-      setMessage({ type: 'error', text: 'Please generate a password first' });
-      return;
-    }
-
     // Check license limits before submission
     if (licenseInfo) {
       if (formData.role === 'teacher' && licenseInfo.teachers.limitReached) {
@@ -178,11 +174,18 @@ export default function ManualAddUser() {
     setLoading(true);
 
     try {
+      // Auto-generate password if not already generated
+      const rolePrefix = formData.role || 'user';
+      const password = generatedPassword || generateRandomPassword(rolePrefix);
+      if (!generatedPassword) {
+        setGeneratedPassword(password);
+      }
+
       // Prepare user data
       const userData = {
         name: formData.name,
         email: formData.email,
-        password: generatedPassword,
+        password: password,
         role: formData.role,
         gender: formData.gender,
         gradeLevel: 'Primary 1',
@@ -205,25 +208,45 @@ export default function ManualAddUser() {
       if (result.success) {
         setCreatedUser({
           ...result.user,
-          tempPassword: generatedPassword
+          tempPassword: password
         });
         
-        // If creating a student with parent info, create the parent too
+        // If creating a student with parent info, create or link the parent
         if (formData.role === 'student' && formData.createParent && formData.parentName && formData.parentEmail) {
-          const parentPassword = generateRandomPassword('parent');
-          const parentResult = await schoolAdminService.createUser({
-            name: formData.parentName,
-            email: formData.parentEmail,
-            password: parentPassword,
-            role: 'parent',
-            linkedStudents: [result.user.id]
+          const parentResult = await schoolAdminService.createOrLinkParent({
+            parentName: formData.parentName,
+            parentEmail: formData.parentEmail,
+            studentId: result.user.id
           });
           
           if (parentResult.success) {
-            setMessage({ 
-              type: 'success', 
-              text: `Student and parent created successfully! Parent email: ${formData.parentEmail}` 
-            });
+            if (parentResult.isExisting) {
+              // Existing parent - student was linked
+              setCreatedUser({
+                ...result.user,
+                tempPassword: password,
+                parentLinked: true,
+                parentEmail: formData.parentEmail,
+                parentName: parentResult.parent.name
+              });
+              setMessage({ 
+                type: 'success', 
+                text: `Student created successfully! Linked to existing parent account: ${formData.parentEmail}` 
+              });
+            } else {
+              // New parent created - show temp password
+              setCreatedUser({
+                ...result.user,
+                tempPassword: password,
+                parentCreated: true,
+                parentEmail: formData.parentEmail,
+                parentTempPassword: parentResult.parent.tempPassword
+              });
+              setMessage({ 
+                type: 'success', 
+                text: `Student and parent created successfully! Parent email: ${formData.parentEmail}` 
+              });
+            }
           } else {
             setMessage({ 
               type: 'success', 
@@ -362,6 +385,61 @@ export default function ManualAddUser() {
                 </div>
               </div>
             </div>
+            
+            {/* Show parent credentials if parent was created */}
+            {createdUser.parentCreated && (
+              <>
+                <div style={{ margin: '24px 0', borderTop: '2px solid #e5e7eb', paddingTop: '24px' }}>
+                  <div style={{ ...styles.successTitle, fontSize: '18px', marginBottom: '12px' }}>
+                    <span aria-hidden="true">👨‍👩‍👧 </span>Parent Account Also Created
+                  </div>
+                  <p style={{ marginBottom: '16px', color: '#374151', fontSize: '14px' }}>
+                    Parent credentials for monitoring student progress:
+                  </p>
+                </div>
+                
+                <div style={styles.credentialsBox}>
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={styles.credentialsLabel}>Parent Email</div>
+                    <div style={styles.credentialsValue}>{createdUser.parentEmail}</div>
+                  </div>
+                  <div>
+                    <div style={styles.credentialsLabel}>Parent Temporary Password</div>
+                    <div style={{ ...styles.credentialsValue, color: '#dc2626' }}>
+                      {createdUser.parentTempPassword}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            {/* Show message if student was linked to existing parent */}
+            {createdUser.parentLinked && (
+              <>
+                <div style={{ margin: '24px 0', borderTop: '2px solid #e5e7eb', paddingTop: '24px' }}>
+                  <div style={{ ...styles.successTitle, fontSize: '18px', marginBottom: '12px', color: '#2563eb' }}>
+                    <span aria-hidden="true">🔗 </span>Linked to Existing Parent Account
+                  </div>
+                  <p style={{ marginBottom: '16px', color: '#374151', fontSize: '14px' }}>
+                    This student has been linked to an existing parent account:
+                  </p>
+                </div>
+                
+                <div style={{ ...styles.credentialsBox, background: '#f0f9ff', border: '2px solid #bfdbfe' }}>
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={styles.credentialsLabel}>Parent Name</div>
+                    <div style={styles.credentialsValue}>{createdUser.parentName}</div>
+                  </div>
+                  <div>
+                    <div style={styles.credentialsLabel}>Parent Email</div>
+                    <div style={styles.credentialsValue}>{createdUser.parentEmail}</div>
+                  </div>
+                </div>
+                <p style={{ fontSize: '13px', color: '#2563eb', marginTop: '8px' }}>
+                  ℹ️ The parent already has an account. No new credentials were generated.
+                </p>
+              </>
+            )}
             
             <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
               ⚠️ Please share these credentials securely with the user. They will be prompted to change their password on first login.
@@ -532,14 +610,14 @@ export default function ManualAddUser() {
             {/* Password Generation Section */}
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                Password<span style={styles.required}>*</span>
+                Password
               </label>
               <div style={styles.passwordSection}>
                 <div style={styles.passwordDisplay}>
                   <span>
                     {generatedPassword 
                       ? (showPassword ? generatedPassword : '••••••••') 
-                      : 'Click generate to create password'}
+                      : 'Will be auto-generated on create'}
                   </span>
                 </div>
                 <div>
@@ -549,7 +627,7 @@ export default function ManualAddUser() {
                     onClick={handleGeneratePassword}
                     disabled={loading}
                   >
-                    🔄 Generate Password
+                    🔄 Preview Password
                   </button>
                   {generatedPassword && !passwordViewed && (
                     <button 
@@ -568,7 +646,7 @@ export default function ManualAddUser() {
                   )}
                 </div>
                 <p style={{ ...styles.note, marginTop: '12px' }}>
-                  Password will be auto-generated. You can view it once before creating the user.
+                  Password will be auto-generated when you click "Create User". You can preview it first if you'd like.
                 </p>
               </div>
             </div>
@@ -688,7 +766,9 @@ export default function ManualAddUser() {
                 <label style={styles.label}>Link to Students</label>
                 <div style={styles.multiSelect}>
                   {students.length === 0 ? (
-                    <p style={{ padding: '8px', color: '#6b7280' }}>No students available to link</p>
+                    <p style={{ padding: '8px', color: '#6b7280' }}>
+                      No students available to link. All students are already assigned to a parent, or there are no students in your school yet.
+                    </p>
                   ) : (
                     students.map(student => (
                       <div
@@ -708,7 +788,7 @@ export default function ManualAddUser() {
                   )}
                 </div>
                 <p style={styles.note}>
-                  Select students to link to this parent account. You can link multiple students.
+                  Select students to link to this parent account. Only students without an assigned parent are shown. One child can only be assigned to one parent.
                 </p>
               </div>
             )}
@@ -725,7 +805,7 @@ export default function ManualAddUser() {
               <button
                 type="submit"
                 style={{ ...styles.submitButton, opacity: loading ? 0.7 : 1 }}
-                disabled={loading || !generatedPassword}
+                disabled={loading}
               >
                 {loading ? 'Creating...' : 'Create User'}
               </button>
