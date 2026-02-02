@@ -34,6 +34,9 @@ import TeacherTrackTicket from './components/Teacher/TrackTicket';
 // ⭐ NEW IMPORT - Teacher News & Updates
 import TeacherViewNewsUpdates from './components/Teacher/ViewNewsUpdates';
 
+// ⭐ NEW IMPORT - Teacher Quiz Assignment
+import TeacherQuizAssignment from './components/Teacher/QuizAssignment';
+
 // Student Components
 import StudentDashboard from './components/Student/StudentDashboard';
 import StudentViewProfile from './components/Student/ViewProfile';
@@ -166,6 +169,9 @@ function App() {
           
           {/* ⭐ NEW ROUTE - Teacher News & Updates */}
           <Route path="/teacher/news" element={<TeacherViewNewsUpdates />} />
+          
+          {/* ⭐ NEW ROUTE - Teacher Quiz Assignment */}
+          <Route path="/teacher/quiz-assignment" element={<TeacherQuizAssignment />} />
 
           {/* ========== STUDENT ROUTES ========== */}
           <Route path="/student" element={<StudentDashboard />} />

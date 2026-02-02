@@ -1394,4 +1394,196 @@ router.delete('/announcements/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== TEACHER ASSIGNMENT ====================
+
+// Assign classes and subjects to a teacher
+router.put('/teachers/:teacherId/assignments', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    const { classes, subjects } = req.body;
+    
+    const teacher = await User.findById(teacherId);
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: 'Teacher not found' });
+    }
+    
+    if (teacher.role !== 'Teacher' && teacher.role !== 'Trial Teacher') {
+      return res.status(400).json({ success: false, error: 'User is not a teacher' });
+    }
+    
+    // Update teacher's assigned classes and subjects
+    teacher.assignedClasses = classes || [];
+    teacher.assignedSubjects = subjects || [];
+    await teacher.save();
+    
+    console.log(`📚 Teacher ${teacher.name} assigned to classes: ${classes?.join(', ')}`);
+    res.json({
+      success: true,
+      message: 'Teacher assignments updated',
+      teacher: {
+        _id: teacher._id,
+        name: teacher.name,
+        email: teacher.email,
+        assignedClasses: teacher.assignedClasses,
+        assignedSubjects: teacher.assignedSubjects
+      }
+    });
+  } catch (error) {
+    console.error('❌ Teacher assignment error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update teacher assignments' });
+  }
+});
+
+// Get teacher assignments
+router.get('/teachers/:teacherId/assignments', authenticateToken, async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    
+    const teacher = await User.findById(teacherId)
+      .select('name email assignedClasses assignedSubjects');
+    
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: 'Teacher not found' });
+    }
+    
+    res.json({
+      success: true,
+      assignments: {
+        classes: teacher.assignedClasses || [],
+        subjects: teacher.assignedSubjects || []
+      }
+    });
+  } catch (error) {
+    console.error('❌ Get teacher assignments error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get teacher assignments' });
+  }
+});
+
+// Get all teachers with their assignments
+router.get('/teachers/assignments', authenticateToken, async (req, res) => {
+  try {
+    const teachers = await User.find({
+      role: { $in: ['Teacher', 'Trial Teacher'] }
+    }).select('name email assignedClasses assignedSubjects accountActive');
+    
+    res.json({
+      success: true,
+      teachers: teachers.map(t => ({
+        _id: t._id,
+        name: t.name,
+        email: t.email,
+        assignedClasses: t.assignedClasses || [],
+        assignedSubjects: t.assignedSubjects || [],
+        accountActive: t.accountActive
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Get teachers assignments error:', error);
+    res.status(500).json({ success: false, error: 'Failed to get teachers' });
+  }
+});
+
+// ==================== PLACEMENT QUIZ MANAGEMENT ====================
+const Quiz = require('../models/Quiz');
+
+// Get available placement quizzes
+router.get('/placement-quizzes', authenticateToken, async (req, res) => {
+  try {
+    const quizzes = await Quiz.find({
+      quiz_type: 'placement',
+      is_active: true
+    }).select('title description is_launched launched_at launched_for_school createdAt');
+    
+    res.json({ success: true, quizzes });
+  } catch (error) {
+    console.error('❌ Get placement quizzes error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load placement quizzes' });
+  }
+});
+
+// Launch a placement quiz for the school
+router.post('/placement-quizzes/:quizId/launch', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const { startDate, endDate } = req.body;
+    const schoolAdmin = req.schoolAdmin;
+    
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ success: false, error: 'Quiz not found' });
+    }
+    
+    if (quiz.quiz_type !== 'placement') {
+      return res.status(400).json({ success: false, error: 'This is not a placement quiz' });
+    }
+    
+    // Get all classes in the school
+    const classes = await User.distinct('class', { 
+      role: 'Student',
+      schoolId: schoolAdmin.schoolId 
+    });
+    
+    // Update quiz with launch info
+    quiz.is_launched = true;
+    quiz.launched_by = schoolAdmin._id;
+    quiz.launched_at = new Date();
+    quiz.launched_for_school = schoolAdmin.schoolId;
+    quiz.launched_for_classes = classes;
+    quiz.launch_start_date = startDate ? new Date(startDate) : new Date();
+    quiz.launch_end_date = endDate ? new Date(endDate) : null;
+    
+    await quiz.save();
+    
+    console.log(`🎯 Placement quiz "${quiz.title}" launched for school ${schoolAdmin.schoolId}`);
+    res.json({
+      success: true,
+      message: 'Placement quiz launched successfully',
+      quiz: {
+        _id: quiz._id,
+        title: quiz.title,
+        launched_for_classes: classes,
+        launch_start_date: quiz.launch_start_date,
+        launch_end_date: quiz.launch_end_date
+      }
+    });
+  } catch (error) {
+    console.error('❌ Launch placement quiz error:', error);
+    res.status(500).json({ success: false, error: 'Failed to launch placement quiz' });
+  }
+});
+
+// Revoke placement quiz launch
+router.post('/placement-quizzes/:quizId/revoke', authenticateSchoolAdmin, async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const schoolAdmin = req.schoolAdmin;
+    
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ success: false, error: 'Quiz not found' });
+    }
+    
+    // Verify school admin launched this quiz
+    if (quiz.launched_for_school !== schoolAdmin.schoolId) {
+      return res.status(403).json({ success: false, error: 'You can only revoke quizzes for your school' });
+    }
+    
+    quiz.is_launched = false;
+    quiz.launched_by = null;
+    quiz.launched_at = null;
+    quiz.launched_for_school = null;
+    quiz.launched_for_classes = [];
+    quiz.launch_start_date = null;
+    quiz.launch_end_date = null;
+    
+    await quiz.save();
+    
+    console.log(`🎯 Placement quiz "${quiz.title}" revoked for school ${schoolAdmin.schoolId}`);
+    res.json({ success: true, message: 'Placement quiz launch revoked' });
+  } catch (error) {
+    console.error('❌ Revoke placement quiz error:', error);
+    res.status(500).json({ success: false, error: 'Failed to revoke placement quiz' });
+  }
+});
+
 module.exports = router;
