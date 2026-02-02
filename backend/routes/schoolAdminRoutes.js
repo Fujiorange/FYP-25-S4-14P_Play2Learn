@@ -1318,8 +1318,16 @@ router.get('/classes', authenticateSchoolAdmin, async (req, res) => {
     const schoolAdmin = req.schoolAdmin;
     const { grade, subject } = req.query;
     
-    // Build filter
-    const filter = { school_id: schoolAdmin.schoolId };
+    // Build filter - convert schoolId to ObjectId for proper matching
+    let schoolObjectId;
+    try {
+      schoolObjectId = new mongoose.Types.ObjectId(schoolAdmin.schoolId);
+    } catch (err) {
+      console.error('❌ Invalid school ID for classes list:', schoolAdmin.schoolId);
+      return res.status(400).json({ success: false, error: 'Invalid school ID' });
+    }
+    
+    const filter = { school_id: schoolObjectId };
     if (grade) filter.grade = grade;
     if (subject) filter.subjects = subject;
     
@@ -1419,9 +1427,17 @@ router.get('/classes/:id', authenticateSchoolAdmin, async (req, res) => {
   try {
     const schoolAdmin = req.schoolAdmin;
     
+    // Convert schoolId to ObjectId
+    let schoolObjectId;
+    try {
+      schoolObjectId = new mongoose.Types.ObjectId(schoolAdmin.schoolId);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: 'Invalid school ID' });
+    }
+    
     const classData = await Class.findOne({ 
       _id: req.params.id,
-      school_id: schoolAdmin.schoolId 
+      school_id: schoolObjectId 
     })
       .populate('teachers', 'name email')
       .populate('students', 'name email');
@@ -1470,11 +1486,13 @@ router.post('/classes', authenticateSchoolAdmin, async (req, res) => {
     // Convert schoolId to ObjectId if it's a string
     let schoolObjectId;
     try {
+      console.log('📝 Creating class for school:', schoolAdmin.schoolId);
       schoolObjectId = new mongoose.Types.ObjectId(schoolAdmin.schoolId);
     } catch (err) {
+      console.error('❌ Invalid school ID format:', schoolAdmin.schoolId, err);
       return res.status(400).json({ 
         success: false, 
-        error: 'Invalid school ID format' 
+        error: `Invalid school ID format: ${schoolAdmin.schoolId}` 
       });
     }
     
@@ -1559,9 +1577,17 @@ router.put('/classes/:id', authenticateSchoolAdmin, async (req, res) => {
     const schoolAdmin = req.schoolAdmin;
     const { name, grade, subjects, teachers, students, is_active } = req.body;
     
+    // Convert schoolId to ObjectId
+    let schoolObjectId;
+    try {
+      schoolObjectId = new mongoose.Types.ObjectId(schoolAdmin.schoolId);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: 'Invalid school ID' });
+    }
+    
     const classData = await Class.findOne({
       _id: req.params.id,
-      school_id: schoolAdmin.schoolId
+      school_id: schoolObjectId
     });
     
     if (!classData) {
@@ -1572,7 +1598,7 @@ router.put('/classes/:id', authenticateSchoolAdmin, async (req, res) => {
     if (name && name !== classData.class_name) {
       const existingClass = await Class.findOne({
         class_name: name,
-        school_id: schoolAdmin.schoolId,
+        school_id: schoolObjectId,
         _id: { $ne: req.params.id }
       });
       
@@ -1661,9 +1687,17 @@ router.delete('/classes/:id', authenticateSchoolAdmin, async (req, res) => {
   try {
     const schoolAdmin = req.schoolAdmin;
     
+    // Convert schoolId to ObjectId
+    let schoolObjectId;
+    try {
+      schoolObjectId = new mongoose.Types.ObjectId(schoolAdmin.schoolId);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: 'Invalid school ID' });
+    }
+    
     const classData = await Class.findOne({
       _id: req.params.id,
-      school_id: schoolAdmin.schoolId
+      school_id: schoolObjectId
     });
     
     if (!classData) {
