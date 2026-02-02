@@ -3,40 +3,51 @@
 
 const negativeKeywords = [
   // Strong negative words
-  'terrible', 'awful', 'horrible', 'worst', 'hate', 'dislike',
+  'terrible', 'awful', 'horrible', 'worst', 'hate', 'dislike', 'despise',
   'poor', 'disappointing', 'frustrated', 'useless', 'waste', 'broken',
   'annoying', 'confusing', 'difficult', 'hard', 'problem', 'issue',
-  'bad', 'regret', 'unhappy', 'dissatisfied', 'disappointed',
+  'bad', 'regret', 'unhappy', 'dissatisfied', 'disappointed', 'disgusted',
+  'pathetic', 'ridiculous', 'absurd', 'unacceptable', 'inadequate',
+  'failure', 'fail', 'failed', 'failing', 'mess', 'disaster',
+  'nightmare', 'frustrating', 'hopeless', 'worthless', 'unreliable',
+  'slow', 'buggy', 'crashes', 'error', 'errors', 'wrong',
+  'lacking', 'missing', 'incomplete', 'limited', 'boring', 'dull',
   
   // Negative phrases (order matters - check these first to avoid double-counting)
   'terrible experience', 'bad experience', 'worst experience', 'never again',
-  'not good', 'not great', 'not recommended', 'dont recommend', 'avoid'
+  'not good', 'not great', 'not recommended', 'dont recommend', "don't recommend", 
+  'do not recommend', 'avoid', 'waste of time', 'waste of money',
+  'not worth', 'not helpful', 'does not work', "doesn't work", 'didnt work', "didn't work"
 ];
 
 const positiveKeywords = [
   // Strong positive words
-  'excellent', 'amazing', 'wonderful', 'fantastic', 'love',
+  'excellent', 'amazing', 'wonderful', 'fantastic', 'love', 'loved', 'loving',
   'best', 'awesome', 'brilliant', 'outstanding', 'perfect', 'superb',
   'great', 'impressed', 'satisfied', 'happy', 'pleased', 'delighted', 'thrilled',
+  'enjoyable', 'helpful', 'useful', 'valuable', 'effective', 'efficient',
+  'reliable', 'smooth', 'easy', 'simple', 'intuitive', 'clear',
+  'impressive', 'remarkable', 'exceptional', 'phenomenal', 'terrific',
+  'fabulous', 'marvelous', 'splendid', 'magnificent', 'stellar',
+  'fun', 'engaging', 'interesting', 'educational', 'informative',
+  'recommend', 'recommended', 'appreciate', 'appreciated', 'thank',
   
   // Positive phrases (order matters - check these first to avoid double-counting)
-  'highly recommend', 'exceeded expectations',
+  'highly recommend', 'strongly recommend', 'exceeded expectations',
   'great experience', 'amazing experience', 'wonderful experience',
-  'recommend'
+  'love it', 'loved it', 'absolutely love', 'really love',
+  'highly satisfied', 'very satisfied', 'extremely satisfied',
+  'works great', 'works well', 'works perfectly'
 ];
 
 /**
- * Analyze sentiment with keyword detection, avoiding double-counting of overlapping phrases
+ * Analyze sentiment based on feedback text ONLY (ignoring star rating)
  * @param {string} message - The text to analyze
- * @param {number} rating - Star rating (1-5)
+ * @param {number} rating - Star rating (1-5) - NOT USED for sentiment determination
  * @param {object} sentimentAnalyzer - Sentiment library instance
  * @returns {object} - { score: number, label: string }
  */
 function analyzeSentiment(message, rating, sentimentAnalyzer) {
-  // Constants for sentiment thresholds
-  const SARCASM_DETECTION_THRESHOLD = 10; // Overwhelmingly positive score that may indicate sarcasm
-  const NEGATIVE_SARCASM_THRESHOLD = -10; // Overwhelmingly negative score
-  
   // Base sentiment from library
   const sentimentResult = sentimentAnalyzer.analyze(message);
   let sentimentScore = sentimentResult.score;
@@ -60,7 +71,8 @@ function analyzeSentiment(message, rating, sentimentAnalyzer) {
     while (index !== -1) {
       const end = index + keyword.length;
       if (!isOverlapping(index, end)) {
-        sentimentScore -= 3;
+        // Weight negative keywords more heavily (5 instead of 3)
+        sentimentScore -= 5;
         matchedRanges.push([index, end]);
       }
       index = lowerMessage.indexOf(keyword, end);
@@ -74,38 +86,22 @@ function analyzeSentiment(message, rating, sentimentAnalyzer) {
     while (index !== -1) {
       const end = index + keyword.length;
       if (!isOverlapping(index, end)) {
-        sentimentScore += 3;
+        // Weight positive keywords more heavily (5 instead of 3)
+        sentimentScore += 5;
         matchedRanges.push([index, end]);
       }
       index = lowerMessage.indexOf(keyword, end);
     }
   }
   
-  // Add rating adjustment with stronger weighting
-  // Rating contributes: (rating - 3) × 2.0, range: [-4.0, +4.0]
-  // Each keyword contributes: ±3.0
-  // This ensures rating has significant influence especially at extremes (1 or 5 stars)
-  const ratingAdjustment = (rating - 3) * 2.0;
-  sentimentScore += ratingAdjustment;
-  
-  // Determine sentiment label
-  // Rating takes strong precedence at extremes (1-2 stars = negative, 4-5 stars = positive)
+  // Determine sentiment label based ONLY on text analysis
+  // Star rating is NOT considered per user request
   let sentimentLabel = 'neutral';
   
-  // For extreme low ratings (1-2 stars), it should almost always be negative
-  // Only mark as neutral if sentiment is overwhelmingly positive (possible sarcasm)
-  if (rating <= 2) {
-    sentimentLabel = sentimentScore > SARCASM_DETECTION_THRESHOLD ? 'neutral' : 'negative';
-  } 
-  // For extreme high ratings (4-5 stars), it should almost always be positive
-  // Only mark as neutral if sentiment is overwhelmingly negative
-  else if (rating >= 4) {
-    sentimentLabel = sentimentScore < NEGATIVE_SARCASM_THRESHOLD ? 'neutral' : 'positive';
-  } 
-  // For neutral rating (3 stars), use sentiment score
-  else {
-    if (sentimentScore > 1) sentimentLabel = 'positive';
-    else if (sentimentScore < -1) sentimentLabel = 'negative';
+  if (sentimentScore > 2) {
+    sentimentLabel = 'positive';
+  } else if (sentimentScore < -2) {
+    sentimentLabel = 'negative';
   }
   
   return {
