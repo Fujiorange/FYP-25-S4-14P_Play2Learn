@@ -202,6 +202,14 @@ export default function StudentDashboard() {
       icon: '📢',
       action: () => navigate('/student/announcements'),
     },
+    // 7.5️⃣ News & Updates
+    {
+      id: 'news',
+      title: 'News & Updates',
+      description: 'View system news and broadcast messages',
+      icon: '📰',
+      action: () => navigate('/student/news'),
+    },
     // 8️⃣ Write Testimonial
     {
       id: 'testimonial',
