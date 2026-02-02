@@ -1123,10 +1123,10 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
           if (alreadyLinkedStudents.length === 1) {
             errorMsg = `${alreadyLinkedStudents[0].studentName} is already linked to parent ${alreadyLinkedStudents[0].parentEmail}`;
           } else {
-            const conflicts = alreadyLinkedStudents.map((s, idx) => 
-              `\n  ${idx + 1}. ${s.studentName} → already linked to ${s.parentEmail}`
-            ).join('');
-            errorMsg = `Multiple students are already linked to other parents:${conflicts}`;
+            const studentList = alreadyLinkedStudents
+              .map(s => `${s.studentName} (linked to ${s.parentEmail})`)
+              .join(', ');
+            errorMsg = `These students are already linked to other parents: ${studentList}`;
           }
           
           return res.status(409).json({
@@ -1201,11 +1201,10 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
             if (firstStudent && firstStudent.name) {
               studentName = firstStudent.name;
             }
-            // Note: If student exists but has no name, keep default 'your child'
+            // If student exists but has no name, keep default 'your child'
           } catch (err) {
             console.error('Error fetching student name:', err);
-            // On error, use fallback indicating lookup issue
-            studentName = 'your child (name unavailable)';
+            // On lookup error, keep default fallback
           }
         }
         await sendParentWelcomeEmail(newUser, tempPassword, studentName, schoolName);
