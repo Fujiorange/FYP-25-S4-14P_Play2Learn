@@ -285,11 +285,22 @@ router.get('/users', authenticateSchoolAdmin, async (req, res) => {
     const classIds = [...new Set(users.map(u => u.class).filter(Boolean))];
     const classLookup = {};
     if (classIds.length > 0) {
-      const classDocs = await Class.find({ _id: { $in: classIds }, school_id: schoolAdmin.schoolId })
-        .select('class_name');
-      classDocs.forEach(cls => {
-        classLookup[cls._id.toString()] = cls.class_name;
+      // Filter to only valid ObjectIds to avoid query errors
+      const validClassIds = classIds.filter(id => {
+        try {
+          return mongoose.Types.ObjectId.isValid(id);
+        } catch (e) {
+          return false;
+        }
       });
+      
+      if (validClassIds.length > 0) {
+        const classDocs = await Class.find({ _id: { $in: validClassIds }, school_id: schoolAdmin.schoolId })
+          .select('class_name');
+        classDocs.forEach(cls => {
+          classLookup[cls._id.toString()] = cls.class_name;
+        });
+      }
     }
 
     // For students, find their linked parent
@@ -400,8 +411,14 @@ router.get('/users/:id/details', authenticateSchoolAdmin, async (req, res) => {
     // Get class name if applicable
     let className = null;
     if (user.class) {
-      const classDoc = await Class.findById(user.class).select('class_name');
-      className = classDoc ? classDoc.class_name : null;
+      // Only lookup if it's a valid ObjectId
+      if (mongoose.Types.ObjectId.isValid(user.class)) {
+        const classDoc = await Class.findById(user.class).select('class_name');
+        className = classDoc ? classDoc.class_name : user.class;
+      } else {
+        // If it's not a valid ObjectId, it might be a plain class name string
+        className = user.class;
+      }
     }
     
     const result = {
@@ -1877,6 +1894,35 @@ router.get('/users/pending-credentials', authenticateSchoolAdmin, async (req, re
       role: { $in: ['Teacher', 'Student', 'Parent'] }
     }).select('name email role tempPassword class gradeLevel createdAt');
     
+    // Build class lookup map to resolve class IDs to class names
+    const classIds = [...new Set(users.map(u => u.class).filter(Boolean))];
+    const classLookup = {};
+    if (classIds.length > 0) {
+      // Filter to only valid ObjectIds
+      const validClassIds = classIds.filter(id => {
+        try {
+          return mongoose.Types.ObjectId.isValid(id);
+        } catch (e) {
+          return false;
+        }
+      });
+      
+      if (validClassIds.length > 0) {
+        const classDocs = await Class.find({ _id: { $in: validClassIds }, school_id: schoolAdmin.schoolId })
+          .select('class_name');
+        classDocs.forEach(cls => {
+          classLookup[cls._id.toString()] = cls.class_name;
+        });
+      }
+    }
+    
+    // Helper function to resolve class name
+    const resolveClassName = (classId) => {
+      if (!classId) return null;
+      const classKey = classId.toString();
+      return classLookup[classKey] || classKey;
+    };
+    
     // Format response
     const formattedUsers = users.map(user => ({
       id: user._id,
@@ -1884,7 +1930,7 @@ router.get('/users/pending-credentials', authenticateSchoolAdmin, async (req, re
       email: user.email,
       role: user.role,
       tempPassword: user.tempPassword,
-      className: user.class || null,
+      className: resolveClassName(user.class),
       gradeLevel: user.gradeLevel || null,
       createdAt: user.createdAt
     }));
