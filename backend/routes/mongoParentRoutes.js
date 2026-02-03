@@ -215,6 +215,23 @@ router.get('/dashboard', authenticateParent, async (req, res) => {
       role: 'Student'
     }).select('name email class gradeLevel gender date_of_birth contact');
 
+    // ✅ Get class information for all students
+    const classIds = [...new Set(students.map(s => s.class).filter(id => id && mongoose.Types.ObjectId.isValid(id)))];
+    let classMap = {};
+    
+    if (classIds.length > 0) {
+      // Fetch class details from Classes collection
+      const db = mongoose.connection.db;
+      const classes = await db.collection('classes')
+        .find({ _id: { $in: classIds.map(id => new mongoose.Types.ObjectId(id)) } })
+        .toArray();
+      
+      // Create a map of classId -> class_name
+      classes.forEach(cls => {
+        classMap[cls._id.toString()] = cls.class_name || 'N/A';
+      });
+    }
+
     const enrichedLinkedStudents = parent.linkedStudents.map(linkedStudent => {
       const fullStudent = students.find(s => s._id.toString() === linkedStudent.studentId.toString());
       
@@ -225,7 +242,7 @@ router.get('/dashboard', authenticateParent, async (req, res) => {
           studentEmail: fullStudent.email,
           relationship: linkedStudent.relationship || 'Parent',
           gradeLevel: fullStudent.gradeLevel || 'Primary 1',
-          class: fullStudent.class || 'N/A',
+          class: fullStudent.class ? (classMap[fullStudent.class.toString()] || 'N/A') : 'N/A',
           gender: fullStudent.gender,
           dateOfBirth: fullStudent.date_of_birth,
           contact: fullStudent.contact
@@ -413,11 +430,28 @@ router.get('/children/summary', authenticateParent, async (req, res) => {
       });
     }
 
+    // ✅ Get class information for all students
+    const classIds = [...new Set(students.map(s => s.class).filter(id => id && mongoose.Types.ObjectId.isValid(id)))];
+    let classMap = {};
+    
+    if (classIds.length > 0) {
+      // Fetch class details from Classes collection
+      const db = mongoose.connection.db;
+      const classes = await db.collection('classes')
+        .find({ _id: { $in: classIds.map(id => new mongoose.Types.ObjectId(id)) } })
+        .toArray();
+      
+      // Create a map of classId -> class_name
+      classes.forEach(cls => {
+        classMap[cls._id.toString()] = cls.class_name || 'N/A';
+      });
+    }
+
     const childrenSummary = students.map(student => ({
       studentId: student._id,
       name: student.name,
       email: student.email,
-      class: student.class || 'N/A',
+      class: student.class ? (classMap[student.class.toString()] || 'N/A') : 'N/A',
       gradeLevel: student.gradeLevel || 'Primary 1',
       schoolName: student.schoolId ? (schoolMap[student.schoolId] || 'N/A') : 'N/A', // ✅ Real school from database!
       gender: student.gender,
