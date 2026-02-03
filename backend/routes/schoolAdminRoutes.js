@@ -1240,7 +1240,7 @@ router.post('/bulk-import-users', authenticateSchoolAdmin, upload.single('file')
   }
 
   const rows = [];
-  const summary = { created: 0, failed: 0, emailsSent: 0, errors: [] };
+  const summary = { created: 0, failed: 0, errors: [] };
 
   try {
     await new Promise((resolve, reject) => {
@@ -1390,7 +1390,8 @@ router.post('/bulk-import-users', authenticateSchoolAdmin, upload.single('file')
       }
     }
 
-    res.json({ success: true, message: 'Bulk import completed', results: summary });
+    // Return both 'results' and 'summary' for backward compatibility
+    res.json({ success: true, message: 'Bulk import completed', results: summary, summary });
   } catch (error) {
     console.error('Bulk import users error:', error);
     res.status(500).json({ success: false, error: 'Failed to import users: ' + error.message });
