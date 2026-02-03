@@ -335,7 +335,7 @@ export default function PlacementQuiz() {
             onMouseEnter={(e) => !submitting && (e.target.style.transform = 'translateY(-2px)')}
             onMouseLeave={(e) => !submitting && (e.target.style.transform = 'translateY(0)')}
           >
-            {submitting ? '⏳ Submitting...' : `🚀 Submit Placement Quiz (${answeredCount}/15 answered)`}
+            {submitting ? '⏳ Submitting...' : `🚀 Submit Placement Quiz (${answeredCount}/${quizData.total_questions} answered)`}
           </button>
         </div>
       </div>
