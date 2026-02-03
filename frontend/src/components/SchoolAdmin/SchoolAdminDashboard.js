@@ -177,12 +177,12 @@ export default function SchoolAdminDashboard() {
                 <span style={styles.arrow}>→</span>
               </li>
               <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'remove-user' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('remove-user')}
+                style={{ ...styles.menuItem, ...(hoveredItem === 'pending-credentials' ? styles.menuItemHover : {}) }}
+                onMouseEnter={() => setHoveredItem('pending-credentials')}
                 onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/school-admin/users/remove')}
+                onClick={() => handleMenuClick('/school-admin/users/pending-credentials')}
               >
-                <span>Remove User</span>
+                <span>📧 Send Credentials</span>
                 <span style={styles.arrow}>→</span>
               </li>
             </ul>
