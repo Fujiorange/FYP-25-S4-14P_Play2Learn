@@ -1357,6 +1357,18 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
       createdBy: 'school-admin',
       ...(linkedStudentsData && { linkedStudents: linkedStudentsData })
     });
+
+    // If class assignment provided, attach user to class document as well
+    if (className) {
+      const classFilter = { _id: className, school_id: schoolAdmin.schoolId };
+      if (role === 'Student') {
+        await Class.findOneAndUpdate(classFilter, { $addToSet: { students: newUser._id } });
+      } else if (role === 'Teacher') {
+        await Class.findOneAndUpdate(classFilter, { $addToSet: { teachers: newUser._id } });
+        // Track assigned classes on teacher profile
+        await User.findByIdAndUpdate(newUser._id, { assignedClasses: [className] });
+      }
+    }
     
     // Update school's current teacher/student count using atomic increment
     if (role === 'Teacher' || role === 'Student') {
