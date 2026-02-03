@@ -1,5 +1,5 @@
 // User Management Component - Dashboard for all users
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAllUsers, getUserSchools, bulkDeleteUsers } from '../../services/p2lAdminService';
 import './UserManagement.css';
@@ -13,6 +13,7 @@ function UserManagement() {
   const [selectedRole, setSelectedRole] = useState('');
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [deleting, setDeleting] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const roles = [
     'Platform Admin',
@@ -125,6 +126,60 @@ function UserManagement() {
     setSelectedRole('');
   };
 
+  const handleSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedUsers = useMemo(() => {
+    if (!sortConfig.key) return users;
+    
+    return [...users].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortConfig.key) {
+        case 'name':
+          aValue = (a.name || '').toLowerCase();
+          bValue = (b.name || '').toLowerCase();
+          break;
+        case 'email':
+          aValue = (a.email || '').toLowerCase();
+          bValue = (b.email || '').toLowerCase();
+          break;
+        case 'role':
+          aValue = (a.role || '').toLowerCase();
+          bValue = (b.role || '').toLowerCase();
+          break;
+        case 'school':
+          aValue = (a.schoolName || '').toLowerCase();
+          bValue = (b.schoolName || '').toLowerCase();
+          break;
+        case 'createdAt':
+          aValue = new Date(a.createdAt);
+          bValue = new Date(b.createdAt);
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [users, sortConfig]);
+
+  const getSortIndicator = (key) => {
+    if (sortConfig.key !== key) return ' ↕';
+    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
+  };
+
   if (loading) {
     return <div className="loading">Loading...</div>;
   }
@@ -216,16 +271,25 @@ function UserManagement() {
                       onChange={handleSelectAll}
                     />
                   </th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>School</th>
-                  <th>Status</th>
-                  <th>Created</th>
+                  <th className="sortable-header" onClick={() => handleSort('name')}>
+                    Name{getSortIndicator('name')}
+                  </th>
+                  <th className="sortable-header" onClick={() => handleSort('email')}>
+                    Email{getSortIndicator('email')}
+                  </th>
+                  <th className="sortable-header" onClick={() => handleSort('role')}>
+                    Role{getSortIndicator('role')}
+                  </th>
+                  <th className="sortable-header" onClick={() => handleSort('school')}>
+                    School{getSortIndicator('school')}
+                  </th>
+                  <th className="sortable-header" onClick={() => handleSort('createdAt')}>
+                    Created{getSortIndicator('createdAt')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {sortedUsers.map((user) => (
                   <tr 
                     key={user._id} 
                     className={selectedUsers.includes(user._id) ? 'selected' : ''}
@@ -245,11 +309,6 @@ function UserManagement() {
                       </span>
                     </td>
                     <td>{user.schoolName || 'N/A'}</td>
-                    <td>
-                      <span className={`status-badge ${user.accountActive ? 'active' : 'inactive'}`}>
-                        {user.accountActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
                     <td>{new Date(user.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
