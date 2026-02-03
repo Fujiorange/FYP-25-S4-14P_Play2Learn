@@ -646,15 +646,22 @@ export default function ManualAddUser() {
             {(formData.role === 'teacher' || formData.role === 'parent') && (
               <div style={styles.formGroup}>
                 <label style={styles.label}>Salutation</label>
-                <input
-                  type="text"
+                <select
                   name="salutation"
                   value={formData.salutation}
                   onChange={handleChange}
-                  placeholder="e.g., Mr, Ms, Dr"
                   disabled={loading}
-                  style={styles.input}
-                />
+                  style={styles.select}
+                >
+                  <option value="">Select salutation</option>
+                  <option value="Mr">Mr</option>
+                  <option value="Mrs">Mrs</option>
+                  <option value="Ms">Ms</option>
+                  <option value="Miss">Miss</option>
+                  <option value="Dr">Dr</option>
+                  <option value="Prof">Prof</option>
+                  <option value="Mdm">Mdm</option>
+                </select>
               </div>
             )}
 
@@ -786,7 +793,7 @@ export default function ManualAddUser() {
                     <option value="Primary 3" disabled>Primary 3 (coming soon)</option>
                     <option value="Primary 4" disabled>Primary 4 (coming soon)</option>
                     <option value="Primary 5" disabled>Primary 5 (coming soon)</option>
-                    <option value="Primary 6">Primary 6</option>
+                    <option value="Primary 6" disabled>Primary 6 (coming soon)</option>
                   </select>
                 </div>
 

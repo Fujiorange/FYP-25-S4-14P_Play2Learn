@@ -1267,6 +1267,7 @@ router.post('/bulk-import-users', authenticateSchoolAdmin, upload.single('file')
           password: hashedPassword,
           role,
           schoolId: schoolAdmin.schoolId,
+          salutation: (role === 'Teacher' || role === 'Parent') ? (row.Salutation || row.salutation || null) : null,
           contact: row.ContactNumber || row.contactNumber || row['Contact Number'] || row.contact || null,
           gender: row.Gender || row.gender || null,
           date_of_birth: row.DateOfBirth || row.dateOfBirth || row['Date of Birth'] || row.date_of_birth || null,

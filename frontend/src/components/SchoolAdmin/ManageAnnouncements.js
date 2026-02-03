@@ -7,8 +7,8 @@ import './SchoolAdmin.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 
   (window.location.hostname === 'localhost' 
-    ? 'http://localhost:5000'
-    : window.location.origin);
+    ? 'http://localhost:5000/api/mongo'
+    : `${window.location.origin}/api/mongo`);
 
 export default function ManageAnnouncements() {
   const navigate = useNavigate();
