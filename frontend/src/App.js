@@ -108,6 +108,7 @@ import TeacherAssignment from './components/SchoolAdmin/TeacherAssignment';
 import P2LAdminDashboard from './components/P2LAdmin/P2LAdminDashboard';
 import SchoolManagement from './components/P2LAdmin/SchoolManagement';
 import SchoolAdminManagement from './components/P2LAdmin/SchoolAdminManagement';
+import ManualAddSchoolAdmin from './components/P2LAdmin/ManualAddSchoolAdmin';
 import QuestionBank from './components/P2LAdmin/QuestionBank';
 import QuizManager from './components/P2LAdmin/QuizManager';
 import AdaptiveQuizCreator from './components/P2LAdmin/AdaptiveQuizCreator';
@@ -263,6 +264,7 @@ function App() {
           <Route path="/p2ladmin/dashboard" element={<P2LAdminDashboard />} />
           <Route path="/p2ladmin/schools" element={<SchoolManagement />} />
           <Route path="/p2ladmin/school-admins" element={<SchoolAdminManagement />} />
+          <Route path="/p2ladmin/school-admins/manual-add" element={<ManualAddSchoolAdmin />} />
           <Route path="/p2ladmin/questions" element={<QuestionBank />} />
           <Route path="/p2ladmin/quizzes" element={<QuizManager />} />
           <Route path="/p2ladmin/quizzes/create-adaptive" element={<AdaptiveQuizCreator />} />

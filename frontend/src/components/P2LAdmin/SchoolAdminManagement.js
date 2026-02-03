@@ -256,13 +256,22 @@ function SchoolAdminManagement() {
           <h1>School Admin Management</h1>
           <Link to="/p2ladmin/dashboard" className="back-link">← Back to Dashboard</Link>
         </div>
-        <button 
-          onClick={() => setShowForm(true)} 
-          className="btn-primary"
-          disabled={!selectedSchool}
-        >
-          + Create Admin(s)
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <Link 
+            to="/p2ladmin/school-admins/manual-add"
+            className="btn-secondary"
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+          >
+            + Add Single Admin
+          </Link>
+          <button 
+            onClick={() => setShowForm(true)} 
+            className="btn-primary"
+            disabled={!selectedSchool}
+          >
+            + Bulk Create Admin(s)
+          </button>
+        </div>
       </header>
 
       <div className="content-container">

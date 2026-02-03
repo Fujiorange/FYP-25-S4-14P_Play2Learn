@@ -235,9 +235,13 @@ export default function ManualAddUser() {
       const result = await schoolAdminService.createUser(userData);
 
       if (result.success) {
+        // Use the tempPassword from backend response (backend generates and stores the password)
+        const backendTempPassword = result.user.tempPassword;
+        setGeneratedPassword(backendTempPassword); // Update displayed password to match backend
+        
         setCreatedUser({
           ...result.user,
-          tempPassword: password
+          tempPassword: backendTempPassword
         });
         
         // If creating a student with parent info, create or link the parent
@@ -253,7 +257,7 @@ export default function ManualAddUser() {
               // Existing parent - student was linked
               setCreatedUser({
                 ...result.user,
-                tempPassword: password,
+                tempPassword: backendTempPassword,
                 parentLinked: true,
                 parentEmail: formData.parentEmail,
                 parentName: parentResult.parent.name
@@ -266,7 +270,7 @@ export default function ManualAddUser() {
               // New parent created - show temp password
               setCreatedUser({
                 ...result.user,
-                tempPassword: password,
+                tempPassword: backendTempPassword,
                 parentCreated: true,
                 parentEmail: formData.parentEmail,
                 parentTempPassword: parentResult.parent.tempPassword
