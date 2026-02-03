@@ -158,8 +158,8 @@ function UserManagement() {
           bValue = (b.schoolName || '').toLowerCase();
           break;
         case 'createdAt':
-          aValue = new Date(a.createdAt);
-          bValue = new Date(b.createdAt);
+          aValue = new Date(a.createdAt || 0);
+          bValue = new Date(b.createdAt || 0);
           break;
         default:
           return 0;
@@ -178,6 +178,18 @@ function UserManagement() {
   const getSortIndicator = (key) => {
     if (sortConfig.key !== key) return ' ↕';
     return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
+  };
+
+  const getAriaSort = (key) => {
+    if (sortConfig.key !== key) return 'none';
+    return sortConfig.direction === 'asc' ? 'ascending' : 'descending';
+  };
+
+  const handleKeyDown = (e, key) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSort(key);
+    }
   };
 
   if (loading) {
@@ -271,19 +283,54 @@ function UserManagement() {
                       onChange={handleSelectAll}
                     />
                   </th>
-                  <th className="sortable-header" onClick={() => handleSort('name')}>
+                  <th 
+                    className="sortable-header" 
+                    onClick={() => handleSort('name')}
+                    onKeyDown={(e) => handleKeyDown(e, 'name')}
+                    tabIndex={0}
+                    role="columnheader"
+                    aria-sort={getAriaSort('name')}
+                  >
                     Name{getSortIndicator('name')}
                   </th>
-                  <th className="sortable-header" onClick={() => handleSort('email')}>
+                  <th 
+                    className="sortable-header" 
+                    onClick={() => handleSort('email')}
+                    onKeyDown={(e) => handleKeyDown(e, 'email')}
+                    tabIndex={0}
+                    role="columnheader"
+                    aria-sort={getAriaSort('email')}
+                  >
                     Email{getSortIndicator('email')}
                   </th>
-                  <th className="sortable-header" onClick={() => handleSort('role')}>
+                  <th 
+                    className="sortable-header" 
+                    onClick={() => handleSort('role')}
+                    onKeyDown={(e) => handleKeyDown(e, 'role')}
+                    tabIndex={0}
+                    role="columnheader"
+                    aria-sort={getAriaSort('role')}
+                  >
                     Role{getSortIndicator('role')}
                   </th>
-                  <th className="sortable-header" onClick={() => handleSort('school')}>
+                  <th 
+                    className="sortable-header" 
+                    onClick={() => handleSort('school')}
+                    onKeyDown={(e) => handleKeyDown(e, 'school')}
+                    tabIndex={0}
+                    role="columnheader"
+                    aria-sort={getAriaSort('school')}
+                  >
                     School{getSortIndicator('school')}
                   </th>
-                  <th className="sortable-header" onClick={() => handleSort('createdAt')}>
+                  <th 
+                    className="sortable-header" 
+                    onClick={() => handleSort('createdAt')}
+                    onKeyDown={(e) => handleKeyDown(e, 'createdAt')}
+                    tabIndex={0}
+                    role="columnheader"
+                    aria-sort={getAriaSort('createdAt')}
+                  >
                     Created{getSortIndicator('createdAt')}
                   </th>
                 </tr>
