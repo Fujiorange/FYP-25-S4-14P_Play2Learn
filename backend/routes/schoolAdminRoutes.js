@@ -299,21 +299,36 @@ router.get('/users', authenticateSchoolAdmin, async (req, res) => {
 
     console.log(`✅ Found ${users.length} users`);
 
+    // Map class IDs to names for display
+    const classIds = [...new Set(users.map(u => u.class).filter(Boolean))];
+    const classLookup = {};
+    if (classIds.length > 0) {
+      const classDocs = await Class.find({ _id: { $in: classIds }, school_id: schoolAdmin.schoolId })
+        .select('class_name');
+      classDocs.forEach(cls => {
+        classLookup[cls._id.toString()] = cls.class_name;
+      });
+    }
+
     res.json({
       success: true,
-      users: users.map(user => ({
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        class: user.class,
-        gradeLevel: user.gradeLevel,
-        subject: user.subject,
-        contact: user.contact,
-        accountActive: user.accountActive,
-        emailVerified: user.emailVerified,
-        createdAt: user.createdAt,
-      }))
+      users: users.map(user => {
+        const classKey = user.class ? user.class.toString() : null;
+        return {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          class: user.class,
+          className: classKey ? (classLookup[classKey] || classKey) : null,
+          gradeLevel: user.gradeLevel,
+          subject: user.subject,
+          contact: user.contact,
+          accountActive: user.accountActive,
+          emailVerified: user.emailVerified,
+          createdAt: user.createdAt,
+        };
+      })
     });
   } catch (error) {
     console.error('❌ Get users error:', error);
@@ -1195,7 +1210,20 @@ router.post('/bulk-import-users', authenticateSchoolAdmin, upload.single('file')
 // ==================== MANUAL CREATE USER ====================
 router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
   try {
-    const { name, email, role: rawRole, gradeLevel, subject, gender, class: className, parentEmail, linkedStudents } = req.body;
+    const { 
+      name, 
+      email, 
+      role: rawRole, 
+      gradeLevel, 
+      subject, 
+      gender, 
+      class: className, 
+      parentEmail, 
+      linkedStudents,
+      salutation,
+      contact,
+      date_of_birth
+    } = req.body;
     
     if (!name || !email || !rawRole) {
       return res.status(400).json({ 
@@ -1320,6 +1348,9 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
       gradeLevel: gradeLevel || (role === 'Student' ? 'Primary 1' : null),
       subject: subject || (role === 'Teacher' ? 'Mathematics' : null),
       class: className || null,
+      contact: contact || null,
+      date_of_birth: date_of_birth ? new Date(date_of_birth) : null,
+      salutation: (role === 'Teacher' || role === 'Parent') ? (salutation || null) : null,
       emailVerified: true,
       accountActive: true,
       requirePasswordChange: true, // User must change password on first login

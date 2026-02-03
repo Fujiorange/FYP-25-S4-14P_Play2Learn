@@ -191,7 +191,7 @@ export default function RemoveUser() {
                       <td style={styles.td}>{user.name}</td>
                       <td style={styles.td}>{user.email}</td>
                      <td style={styles.td}>{user.role}</td>
-                     <td style={styles.td}>{user.class || '—'}</td>
+                      <td style={styles.td}>{user.className || user.class || '—'}</td>
                       <td style={styles.td}>
                         <button style={styles.deleteButton} onClick={() => setDeleteConfirm(user)}>
                           Delete

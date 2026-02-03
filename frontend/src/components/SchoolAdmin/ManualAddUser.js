@@ -28,10 +28,13 @@ export default function ManualAddUser() {
     name: '',
     email: '',
     role: '',
+    salutation: '',
     gender: '',
     gradeLevel: 'Primary 1', 
     subject: 'Mathematics',
     classId: '',
+    contact: '',
+    date_of_birth: '',
     // Parent fields
     parentName: '',
     parentEmail: '',
@@ -188,8 +191,11 @@ export default function ManualAddUser() {
         password: password,
         role: formData.role,
         gender: formData.gender,
-        gradeLevel: 'Primary 1',
-        subject: 'Mathematics'
+        gradeLevel: formData.role === 'student' ? formData.gradeLevel : null,
+        subject: 'Mathematics',
+        salutation: (formData.role === 'teacher' || formData.role === 'parent') ? formData.salutation : undefined,
+        contact: formData.contact || undefined,
+        date_of_birth: formData.date_of_birth || undefined,
       };
 
       // Add class assignment for students and teachers
@@ -277,10 +283,13 @@ export default function ManualAddUser() {
       name: '', 
       email: '', 
       role: '', 
+      salutation: '',
       gender: '', 
       gradeLevel: 'Primary 1', 
       subject: 'Mathematics',
       classId: '',
+      contact: '',
+      date_of_birth: '',
       parentName: '',
       parentEmail: '',
       createParent: false,
@@ -607,6 +616,21 @@ export default function ManualAddUser() {
               })()}
             </div>
 
+            {(formData.role === 'teacher' || formData.role === 'parent') && (
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Salutation</label>
+                <input
+                  type="text"
+                  name="salutation"
+                  value={formData.salutation}
+                  onChange={handleChange}
+                  placeholder="e.g., Mr, Ms, Dr"
+                  disabled={loading}
+                  style={styles.input}
+                />
+              </div>
+            )}
+
             {/* Password Generation Section */}
             <div style={styles.formGroup}>
               <label style={styles.label}>
@@ -695,13 +719,20 @@ export default function ManualAddUser() {
               <>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Grade Level</label>
-                  <input
-                    type="text"
-                    value="Primary 1"
-                    disabled
-                    style={styles.disabledInput}
-                  />
-                  <p style={styles.note}>Platform is currently scoped to Primary 1 only</p>
+                  <select
+                    name="gradeLevel"
+                    value={formData.gradeLevel}
+                    onChange={handleChange}
+                    disabled={loading}
+                    style={styles.select}
+                  >
+                    <option value="Primary 1">Primary 1</option>
+                    <option value="Primary 2" disabled>Primary 2 (coming soon)</option>
+                    <option value="Primary 3" disabled>Primary 3 (coming soon)</option>
+                    <option value="Primary 4" disabled>Primary 4 (coming soon)</option>
+                    <option value="Primary 5" disabled>Primary 5 (coming soon)</option>
+                    <option value="Primary 6">Primary 6</option>
+                  </select>
                 </div>
 
                 <div style={styles.formGroup}>

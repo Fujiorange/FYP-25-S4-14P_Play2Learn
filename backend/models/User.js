@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema({
 
   // ✅ dynamic profile fields
   contact: { type: String, default: null },
+  salutation: { type: String, default: null },
   gender: { type: String, enum: ['male', 'female', 'other', 'prefer-not-to-say'], default: null },
   date_of_birth: { type: Date, default: null },
 
