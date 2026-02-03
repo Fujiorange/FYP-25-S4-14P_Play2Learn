@@ -50,11 +50,26 @@ export default function ParentDashboard() {
           setParentData(dashboardResult.parent);
           setLinkedStudents(dashboardResult.parent.linkedStudents || []);
           
-          // Auto-select first child (defaultChild from backend)
-          if (dashboardResult.defaultChild) {
-            setSelectedChild(dashboardResult.defaultChild);
-            // Load stats for default child
-            await loadChildStats(dashboardResult.defaultChild.studentId);
+          // Check if there's a previously selected child in sessionStorage
+          const savedChildId = sessionStorage.getItem('selectedChildId');
+          let childToSelect = null;
+
+          if (savedChildId && dashboardResult.parent.linkedStudents) {
+            // Find the previously selected child
+            childToSelect = dashboardResult.parent.linkedStudents.find(
+              child => child.studentId === savedChildId
+            );
+          }
+
+          // Fall back to default child if no saved selection or child not found
+          if (!childToSelect) {
+            childToSelect = dashboardResult.defaultChild;
+          }
+
+          // Select the child and load stats
+          if (childToSelect) {
+            setSelectedChild(childToSelect);
+            await loadChildStats(childToSelect.studentId);
           }
         } else {
           console.error('Failed to load dashboard:', dashboardResult.error);
