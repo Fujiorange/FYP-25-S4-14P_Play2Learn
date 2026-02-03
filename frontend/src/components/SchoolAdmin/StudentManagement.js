@@ -249,7 +249,9 @@ export default function StudentManagement() {
     parentDetails: { fontSize: '12px', color: '#6b7280' },
     emptyList: { textAlign: 'center', padding: '20px', color: '#9ca3af', fontSize: '14px' },
     currentParentBadge: { marginLeft: '8px', padding: '2px 8px', background: '#d1fae5', color: '#065f46', borderRadius: '4px', fontSize: '11px', fontWeight: '600' },
-    unlinkOption: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: '#fef2f2', borderRadius: '6px', cursor: 'pointer', marginBottom: '8px', border: selectedParentId === null ? '2px solid #ef4444' : '1px solid #fecaca' },
+    unlinkOption: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: '#fef2f2', borderRadius: '6px', cursor: 'pointer', marginBottom: '8px' },
+    unlinkOptionSelected: { border: '2px solid #ef4444' },
+    unlinkOptionUnselected: { border: '1px solid #fecaca' },
   };
 
   return (
@@ -556,7 +558,7 @@ export default function StudentManagement() {
                 {/* Option to unlink */}
                 {linkedParent && (
                   <div 
-                    style={styles.unlinkOption}
+                    style={{ ...styles.unlinkOption, ...(selectedParentId === null ? styles.unlinkOptionSelected : styles.unlinkOptionUnselected) }}
                     onClick={() => setSelectedParentId(null)}
                   >
                     <input 

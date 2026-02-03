@@ -539,7 +539,7 @@ export default function ParentManagement() {
                   Select the students to link to this parent. A parent can have multiple children linked.
                 </p>
 
-                <div style={styles.sectionTitle}>📋 Currently Linked Children ({selectedStudentIds.length})</div>
+                <div style={styles.sectionTitle}>📋 Select Students to Link ({selectedStudentIds.length} selected)</div>
                 <div style={styles.studentList}>
                   {linkedStudents.length === 0 && availableStudents.length === 0 ? (
                     <div style={styles.emptyList}>No students available in the school</div>
