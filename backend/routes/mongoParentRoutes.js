@@ -232,25 +232,28 @@ router.get('/dashboard', authenticateParent, async (req, res) => {
       });
     }
 
-    const enrichedLinkedStudents = parent.linkedStudents.map(linkedStudent => {
-      const fullStudent = students.find(s => s._id.toString() === linkedStudent.studentId.toString());
-      
-      if (fullStudent) {
-        return {
-          studentId: fullStudent._id,
-          studentName: fullStudent.name,
-          studentEmail: fullStudent.email,
-          relationship: linkedStudent.relationship || 'Parent',
-          gradeLevel: fullStudent.gradeLevel || 'Primary 1',
-          class: fullStudent.class ? (classMap[fullStudent.class.toString()] || 'N/A') : 'N/A',
-          gender: fullStudent.gender,
-          dateOfBirth: fullStudent.date_of_birth,
-          contact: fullStudent.contact
-        };
-      }
-      
-      return linkedStudent;
-    });
+    const enrichedLinkedStudents = parent.linkedStudents
+      .map(linkedStudent => {
+        const fullStudent = students.find(s => s._id.toString() === linkedStudent.studentId.toString());
+        
+        if (fullStudent) {
+          return {
+            studentId: fullStudent._id,
+            studentName: fullStudent.name,
+            studentEmail: fullStudent.email,
+            relationship: linkedStudent.relationship || 'Parent',
+            gradeLevel: fullStudent.gradeLevel || 'Primary 1',
+            class: fullStudent.class ? (classMap[fullStudent.class.toString()] || 'N/A') : 'N/A',
+            gender: fullStudent.gender,
+            dateOfBirth: fullStudent.date_of_birth,
+            contact: fullStudent.contact
+          };
+        }
+        
+        // Student was deleted - return null to filter out
+        return null;
+      })
+      .filter(student => student !== null); // Filter out deleted students
 
     res.json({
       success: true,
@@ -262,7 +265,7 @@ router.get('/dashboard', authenticateParent, async (req, res) => {
         gender: parent.gender,
         linkedStudents: enrichedLinkedStudents
       },
-      defaultChild: enrichedLinkedStudents[0],
+      defaultChild: enrichedLinkedStudents[0] || null,
       totalChildren: enrichedLinkedStudents.length
     });
 

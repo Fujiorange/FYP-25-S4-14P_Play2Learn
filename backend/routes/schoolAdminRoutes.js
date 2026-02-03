@@ -1720,13 +1720,22 @@ router.delete('/users/:id', authenticateSchoolAdmin, async (req, res) => {
       );
     }
     
-    // If user is a student, remove them from their assigned class
+    // If user is a student, remove them from their assigned class and unlink from parents
     if (user.role === 'Student') {
       await Class.updateMany(
         { students: user._id },
         { $pull: { students: user._id } }
       );
+      
+      // Remove student from all parents' linkedStudents arrays
+      await User.updateMany(
+        { 'linkedStudents.studentId': user._id },
+        { $pull: { linkedStudents: { studentId: user._id } } }
+      );
     }
+    
+    // If user is a parent, no additional cleanup needed for linkedStudents
+    // (Students don't have a "linkedParents" field - the parent owns the relationship)
     
     // Now delete the user
     await User.findByIdAndDelete(req.params.id);
