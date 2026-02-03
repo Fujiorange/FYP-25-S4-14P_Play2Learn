@@ -146,8 +146,8 @@ export default function TrackSupportTicket() {
                       <div style={styles.ticketSubject}>{ticket.subject}</div>
                       <div style={styles.ticketMeta}>
                         <span>📁 {ticket.category}</span>
-                        <span>📅 Created: {formatDate(ticket.created)}</span>
-                        <span>🔄 Updated: {formatDate(ticket.updated)}</span>
+                        <span>📅 Created: {formatDate(ticket.createdAt)}</span>
+                        <span>🔄 Updated: {formatDate(ticket.updatedAt)}</span>
                       </div>
                     </div>
                     <div>
