@@ -2205,7 +2205,8 @@ router.get('/classes/available/teachers', authenticateSchoolAdmin, async (req, r
     const schoolAdmin = req.schoolAdmin;
     const { includeClassId } = req.query;
     
-    // Get all active teachers in the school
+    // Get all teachers in the school - accountActive filter removed to ensure
+    // all teachers show up when creating/editing classes, regardless of active status
     const teachers = await User.find({
       schoolId: schoolAdmin.schoolId,
       role: 'Teacher'
@@ -2247,7 +2248,9 @@ router.get('/classes/available/students', authenticateSchoolAdmin, async (req, r
     const schoolAdmin = req.schoolAdmin;
     const { unassigned, includeClassId } = req.query;
     
-    // Base filter - only students in this school (removed accountActive filter)
+    // Base filter - only students in this school
+    // Note: accountActive filter removed to ensure all students show up when
+    // creating/editing classes, regardless of account active status
     const filter = {
       schoolId: schoolAdmin.schoolId,
       role: 'Student'
