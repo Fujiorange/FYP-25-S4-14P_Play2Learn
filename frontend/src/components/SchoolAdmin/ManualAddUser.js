@@ -690,6 +690,31 @@ export default function ManualAddUser() {
               </select>
             </div>
 
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Date of Birth</label>
+              <input
+                type="date"
+                name="date_of_birth"
+                value={formData.date_of_birth}
+                onChange={handleChange}
+                disabled={loading}
+                style={styles.input}
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Contact Number</label>
+              <input
+                type="text"
+                name="contact"
+                value={formData.contact}
+                onChange={handleChange}
+                placeholder="e.g., +65 9123 4567"
+                disabled={loading}
+                style={styles.input}
+              />
+            </div>
+
             {/* Class Assignment for Students and Teachers */}
             {(formData.role === 'student' || formData.role === 'teacher') && (
               <div style={styles.formGroup}>
