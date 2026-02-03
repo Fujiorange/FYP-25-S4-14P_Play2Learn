@@ -324,15 +324,6 @@ export default function ParentDashboard() {
                 <span style={styles.arrow}>→</span>
               </li>
               <li
-                style={{ ...styles.menuItem, ...(hoveredItem === 'chat' ? styles.menuItemHover : {}) }}
-                onMouseEnter={() => setHoveredItem('chat')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('/parent/chat')}
-              >
-                <span>Chat with Teachers</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-              <li
                 style={{ ...styles.menuItem, ...(hoveredItem === 'testimonial' ? styles.menuItemHover : {}) }}
                 onMouseEnter={() => setHoveredItem('testimonial')}
                 onMouseLeave={() => setHoveredItem(null)}
