@@ -209,7 +209,10 @@ router.get('/dashboard', authenticateParent, async (req, res) => {
       });
     }
 
-    const studentIds = parent.linkedStudents.map(ls => ls.studentId);
+    const studentIds = parent.linkedStudents
+      .map(ls => ls.studentId)
+      .filter(id => id); // Filter out null/undefined student IDs
+    
     const students = await User.find({
       _id: { $in: studentIds },
       role: 'Student'
@@ -232,25 +235,35 @@ router.get('/dashboard', authenticateParent, async (req, res) => {
       });
     }
 
-    const enrichedLinkedStudents = parent.linkedStudents.map(linkedStudent => {
-      const fullStudent = students.find(s => s._id.toString() === linkedStudent.studentId.toString());
-      
-      if (fullStudent) {
+    const enrichedLinkedStudents = parent.linkedStudents
+      .filter(linkedStudent => linkedStudent.studentId) // Filter out invalid entries
+      .map(linkedStudent => {
+        const fullStudent = students.find(s => s._id.toString() === linkedStudent.studentId.toString());
+        
+        if (fullStudent) {
+          return {
+            studentId: fullStudent._id,
+            studentName: fullStudent.name,
+            studentEmail: fullStudent.email,
+            relationship: linkedStudent.relationship || 'Parent',
+            gradeLevel: fullStudent.gradeLevel || 'Primary 1',
+            class: fullStudent.class ? (classMap[fullStudent.class.toString()] || 'N/A') : 'N/A',
+            gender: fullStudent.gender,
+            dateOfBirth: fullStudent.date_of_birth,
+            contact: fullStudent.contact
+          };
+        }
+        
+        // If student not found, return minimal info
         return {
-          studentId: fullStudent._id,
-          studentName: fullStudent.name,
-          studentEmail: fullStudent.email,
+          studentId: linkedStudent.studentId,
+          studentName: 'Student Not Found',
+          studentEmail: 'N/A',
           relationship: linkedStudent.relationship || 'Parent',
-          gradeLevel: fullStudent.gradeLevel || 'Primary 1',
-          class: fullStudent.class ? (classMap[fullStudent.class.toString()] || 'N/A') : 'N/A',
-          gender: fullStudent.gender,
-          dateOfBirth: fullStudent.date_of_birth,
-          contact: fullStudent.contact
+          gradeLevel: 'N/A',
+          class: 'N/A'
         };
-      }
-      
-      return linkedStudent;
-    });
+      });
 
     res.json({
       success: true,
@@ -405,7 +418,9 @@ router.get('/children/summary', authenticateParent, async (req, res) => {
       });
     }
 
-    const studentIds = parent.linkedStudents.map(ls => ls.studentId);
+    const studentIds = parent.linkedStudents
+      .map(ls => ls.studentId)
+      .filter(id => id); // Filter out null/undefined student IDs
     
     // ✅ Get students with schoolId (string field)
     const students = await User.find({
@@ -707,7 +722,9 @@ router.get('/feedback', authenticateParent, async (req, res) => {
       });
     }
 
-    const studentIds = parent.linkedStudents.map(ls => ls.studentId);
+    const studentIds = parent.linkedStudents
+      .map(ls => ls.studentId)
+      .filter(id => id); // Filter out null/undefined student IDs
 
     const feedback = await Feedback.find({
       studentId: { $in: studentIds }
@@ -1284,14 +1301,19 @@ router.get('/announcements', authMiddleware, async (req, res) => {
     
     // Get schoolIds from all linked students
     if (parent.linkedStudents && parent.linkedStudents.length > 0) {
-      const studentIds = parent.linkedStudents.map(ls => ls.studentId);
-      const students = await User.find({ _id: { $in: studentIds } }).select('schoolId');
+      const studentIds = parent.linkedStudents
+        .map(ls => ls.studentId)
+        .filter(id => id); // Filter out null/undefined student IDs
       
-      students.forEach(student => {
-        if (student.schoolId) {
-          schoolIds.add(student.schoolId);
-        }
-      });
+      if (studentIds.length > 0) {
+        const students = await User.find({ _id: { $in: studentIds } }).select('schoolId');
+        
+        students.forEach(student => {
+          if (student.schoolId) {
+            schoolIds.add(student.schoolId);
+          }
+        });
+      }
     }
     
     if (schoolIds.size === 0) {
