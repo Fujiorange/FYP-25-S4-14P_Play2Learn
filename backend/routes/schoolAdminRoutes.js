@@ -17,6 +17,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/User');
 const School = require('../models/School');
 const Class = require('../models/Class');
+const Announcement = require('../models/Announcement');
 const { sendTeacherWelcomeEmail, sendParentWelcomeEmail, sendStudentCredentialsToParent } = require('../services/emailService');
 const { generateTempPassword } = require('../utils/passwordGenerator');
 const mongoose = require('mongoose');
@@ -2626,17 +2627,14 @@ router.delete('/classes/:id', authenticateSchoolAdmin, async (req, res) => {
 // ==================== GET ANNOUNCEMENTS (Admin View) ====================
 router.get('/announcements', authenticateSchoolAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const schoolAdmin = req.schoolAdmin;
     const schoolId = schoolAdmin.schoolId;
     
     // Filter announcements by schoolId to only show school admin's own announcements
     const filter = schoolId ? { schoolId: schoolId } : {};
     
-    const announcements = await db.collection('announcements')
-      .find(filter)
-      .sort({ pinned: -1, createdAt: -1 })
-      .toArray();
+    const announcements = await Announcement.find(filter)
+      .sort({ pinned: -1, createdAt: -1 });
     
     console.log(`📢 Admin fetched ${announcements.length} announcements for school ${schoolId}`);
     res.json({ success: true, announcements });
@@ -2712,7 +2710,6 @@ router.get('/announcements/public', async (req, res) => {
 // ==================== CREATE ANNOUNCEMENT ====================
 router.post('/announcements', authenticateSchoolAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const { title, content, priority, audience, pinned, expiresAt } = req.body;
     
     if (!title || !content) {
@@ -2733,7 +2730,7 @@ router.post('/announcements', authenticateSchoolAdmin, async (req, res) => {
       });
     }
     
-    const newAnnouncement = {
+    const announcement = new Announcement({
       title,
       content,
       priority: priority || 'info',
@@ -2741,17 +2738,15 @@ router.post('/announcements', authenticateSchoolAdmin, async (req, res) => {
       pinned: pinned || false,
       author: req.user.name || req.user.email,
       schoolId: schoolId,  // ✅ Store schoolId with announcement for school-scoped filtering
-      expiresAt: expiresAt ? new Date(expiresAt) : null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+      expiresAt: expiresAt ? new Date(expiresAt) : null
+    });
     
-    const result = await db.collection('announcements').insertOne(newAnnouncement);
+    await announcement.save();
     
-    console.log(`📢 Announcement created: "${title}" by ${newAnnouncement.author} for school ${schoolId}`);
+    console.log(`📢 Announcement created: "${title}" by ${announcement.author} for school ${schoolId}`);
     res.json({ 
       success: true, 
-      announcement: { ...newAnnouncement, _id: result.insertedId } 
+      announcement: announcement 
     });
   } catch (error) {
     console.error('❌ Create announcement error:', error);
@@ -2762,30 +2757,31 @@ router.post('/announcements', authenticateSchoolAdmin, async (req, res) => {
 // ==================== UPDATE ANNOUNCEMENT ====================
 router.put('/announcements/:id', authenticateSchoolAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const schoolAdmin = req.schoolAdmin;
     const schoolId = schoolAdmin.schoolId;
     
-    const updates = { ...req.body, updatedAt: new Date() };
+    const updates = { ...req.body };
     delete updates._id;
     delete updates.schoolId; // Prevent changing schoolId
+    delete updates.createdAt; // Prevent changing creation date
     
     if (updates.expiresAt) {
       updates.expiresAt = new Date(updates.expiresAt);
     }
     
     // Only update announcements belonging to this school
-    const result = await db.collection('announcements').updateOne(
-      { _id: new mongoose.Types.ObjectId(req.params.id), schoolId: schoolId },
-      { $set: updates }
+    const announcement = await Announcement.findOneAndUpdate(
+      { _id: req.params.id, schoolId: schoolId },
+      updates,
+      { new: true }
     );
     
-    if (result.matchedCount === 0) {
+    if (!announcement) {
       return res.status(404).json({ success: false, error: 'Announcement not found or access denied' });
     }
     
     console.log(`📢 Announcement updated: ${req.params.id} for school ${schoolId}`);
-    res.json({ success: true, message: 'Announcement updated' });
+    res.json({ success: true, message: 'Announcement updated', announcement });
   } catch (error) {
     console.error('❌ Update announcement error:', error);
     res.status(500).json({ success: false, error: 'Failed to update announcement' });
@@ -2795,16 +2791,15 @@ router.put('/announcements/:id', authenticateSchoolAdmin, async (req, res) => {
 // ==================== DELETE ANNOUNCEMENT ====================
 router.delete('/announcements/:id', authenticateSchoolAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const schoolAdmin = req.schoolAdmin;
     const schoolId = schoolAdmin.schoolId;
     
     // Only delete announcements belonging to this school
-    const result = await db.collection('announcements').deleteOne(
-      { _id: new mongoose.Types.ObjectId(req.params.id), schoolId: schoolId }
+    const result = await Announcement.findOneAndDelete(
+      { _id: req.params.id, schoolId: schoolId }
     );
     
-    if (result.deletedCount === 0) {
+    if (!result) {
       return res.status(404).json({ success: false, error: 'Announcement not found or access denied' });
     }
     

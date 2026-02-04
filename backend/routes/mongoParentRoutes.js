@@ -12,6 +12,7 @@ const StudentQuiz = require('../models/StudentQuiz');
 const Quiz = require('../models/Quiz');
 const QuizAttempt = require('../models/QuizAttempt');
 const Testimonial = require('../models/Testimonial');
+const Announcement = require('../models/Announcement');
 const { authMiddleware } = require('../middleware/auth');
 const { getValidStudentIds } = require('../utils/parentUtils');
 const Sentiment = require('sentiment');
@@ -1317,7 +1318,6 @@ router.get('/announcements', authMiddleware, async (req, res) => {
     }
     
     const schoolIdArray = Array.from(schoolIds);
-    const db = mongoose.connection.db;
     const now = new Date();
     
     // Build filter: announcements from all linked schools, not expired, and audience includes parents or all
@@ -1325,24 +1325,15 @@ router.get('/announcements', authMiddleware, async (req, res) => {
       schoolId: { $in: schoolIdArray },
       $or: [
         { expiresAt: { $gt: now } },
-        { expiresAt: null },
-        { expiresAt: { $exists: false } }
+        { expiresAt: null }
       ],
-      $and: [
-        {
-          $or: [
-            { audience: { $in: ['all', 'parent', 'parents'] } },
-            { audience: { $exists: false } }
-          ]
-        }
-      ]
+      audience: { $in: ['all', 'parent', 'parents'] }
     };
     
-    const announcements = await db.collection('announcements')
-      .find(filter)
+    const announcements = await Announcement.find(filter)
       .sort({ pinned: -1, createdAt: -1 })
       .limit(50)
-      .toArray();
+      .lean();
     
     console.log(`📢 Parent ${parentId} fetched ${announcements.length} announcements from schools: ${schoolIdArray.join(', ')}`);
     res.json({ success: true, announcements });

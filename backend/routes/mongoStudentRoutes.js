@@ -43,6 +43,7 @@ const MathSkill = require('../models/MathSkill');
 const SupportTicket = require('../models/SupportTicket');
 const Testimonial = require('../models/Testimonial');
 const Quiz = require('../models/Quiz');
+const Announcement = require('../models/Announcement');
 const Sentiment = require('sentiment');
 const sentiment = new Sentiment();
 const { analyzeSentiment } = require('../utils/sentimentKeywords');
@@ -1473,7 +1474,6 @@ router.get("/announcements", async (req, res) => {
       return res.json({ success: true, announcements: [], message: "No school assigned" });
     }
     
-    const db = mongoose.connection.db;
     const now = new Date();
     
     // Build filter: school-specific, not expired, and audience includes students or all
@@ -1481,24 +1481,15 @@ router.get("/announcements", async (req, res) => {
       schoolId: schoolId,
       $or: [
         { expiresAt: { $gt: now } },
-        { expiresAt: null },
-        { expiresAt: { $exists: false } }
+        { expiresAt: null }
       ],
-      $and: [
-        {
-          $or: [
-            { audience: { $in: ['all', 'student', 'students'] } },
-            { audience: { $exists: false } }
-          ]
-        }
-      ]
+      audience: { $in: ['all', 'student', 'students'] }
     };
     
-    const announcements = await db.collection('announcements')
-      .find(filter)
+    const announcements = await Announcement.find(filter)
       .sort({ pinned: -1, createdAt: -1 })
       .limit(50)
-      .toArray();
+      .lean();
     
     console.log(`📢 Student ${studentId} fetched ${announcements.length} announcements for school ${schoolId}`);
     res.json({ success: true, announcements });
