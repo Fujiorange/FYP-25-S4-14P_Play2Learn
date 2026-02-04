@@ -22,6 +22,7 @@ function SchoolManagement() {
   useEffect(() => {
     fetchSchools();
     fetchPricingPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchSchools = async () => {

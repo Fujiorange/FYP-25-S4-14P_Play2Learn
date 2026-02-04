@@ -10,9 +10,9 @@ const Footer = () => {
             <h3>Play2Learn</h3>
             <p>Transforming education through adaptive learning and incentive-driven engagement.</p>
             <div className="social-links">
-              <a href="#">LinkedIn</a>
-              <a href="#">Twitter</a>
-              <a href="#">Facebook</a>
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">Twitter</a>
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer">Facebook</a>
             </div>
           </div>
           
@@ -30,19 +30,19 @@ const Footer = () => {
             <h4>Support</h4>
             <ul>
               <li><a href="#contact">Contact Us</a></li>
-              <li><a href="#">Documentation</a></li>
-              <li><a href="#">Help Center</a></li>
-              <li><a href="#">Teacher Resources</a></li>
+              <li><a href="https://docs.play2learn.com" target="_blank" rel="noopener noreferrer">Documentation</a></li>
+              <li><a href="https://help.play2learn.com" target="_blank" rel="noopener noreferrer">Help Center</a></li>
+              <li><a href="https://resources.play2learn.com" target="_blank" rel="noopener noreferrer">Teacher Resources</a></li>
             </ul>
           </div>
           
           <div className="footer-section">
             <h4>Legal</h4>
             <ul>
-              <li><a href="#">Privacy Policy</a></li>
-              <li><a href="#">Terms of Service</a></li>
-              <li><a href="#">Data Protection</a></li>
-              <li><a href="#">Compliance</a></li>
+              <li><a href="https://play2learn.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
+              <li><a href="https://play2learn.com/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a></li>
+              <li><a href="https://play2learn.com/data-protection" target="_blank" rel="noopener noreferrer">Data Protection</a></li>
+              <li><a href="https://play2learn.com/compliance" target="_blank" rel="noopener noreferrer">Compliance</a></li>
             </ul>
           </div>
         </div>
