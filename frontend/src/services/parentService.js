@@ -6,11 +6,28 @@
 
 import authService from './authService';
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL ||
-  (window.location.hostname === 'localhost'
-    ? 'http://localhost:5000/api/mongo/parent'
-    : `${window.location.origin}/api/mongo/parent`);
+// Function to get API base URL dynamically
+const getApiBaseUrl = () => {
+  // Priority 1: Use environment variable if set
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL.endsWith('/parent') 
+      ? process.env.REACT_APP_API_URL 
+      : `${process.env.REACT_APP_API_URL}/mongo/parent`;
+  }
+  
+  // Priority 2: Check if running on localhost
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '';
+  
+  if (isLocalhost) {
+    return 'http://localhost:5000/api/mongo/parent';
+  }
+  
+  // Priority 3: Use current origin for production
+  return `${window.location.origin}/api/mongo/parent`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 console.log('🌐 Parent Service API_BASE_URL:', API_BASE_URL);
 

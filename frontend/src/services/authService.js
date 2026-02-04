@@ -1,6 +1,25 @@
-const API_URL =
-  process.env.REACT_APP_API_URL ||
-  (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : `${window.location.origin}/api`);
+// Function to get API URL dynamically
+const getApiUrl = () => {
+  // Priority 1: Use environment variable if set
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL.endsWith('/api') 
+      ? process.env.REACT_APP_API_URL 
+      : `${process.env.REACT_APP_API_URL}/api`;
+  }
+  
+  // Priority 2: Check if running on localhost
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '';
+  
+  if (isLocalhost) {
+    return 'http://localhost:5000/api';
+  }
+  
+  // Priority 3: Use current origin for production
+  return `${window.location.origin}/api`;
+};
+
+const API_URL = getApiUrl();
 
 class AuthService {
   async register(userData) {
