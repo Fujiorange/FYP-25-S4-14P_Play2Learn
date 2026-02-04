@@ -2709,8 +2709,8 @@ router.put('/announcements/:id', authenticateSchoolAdmin, async (req, res) => {
     // Only update announcements belonging to this school
     const announcement = await Announcement.findOneAndUpdate(
       { _id: req.params.id, schoolId: schoolId },
-      updates,
-      { new: true }
+      { $set: updates },
+      { new: true, runValidators: true }
     );
     
     if (!announcement) {
