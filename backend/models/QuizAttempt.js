@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const quizAttemptSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', required: true, index: true },
   score: { type: Number, default: 0 },
   answers: [{
     questionId: { type: mongoose.Schema.Types.ObjectId },
@@ -21,5 +21,9 @@ const quizAttemptSchema = new mongoose.Schema({
   completedAt: { type: Date },
   timeSpent: { type: Number } // in seconds
 });
+
+// Add compound index for efficient querying of user's attempts
+quizAttemptSchema.index({ userId: 1, is_completed: 1 });
+quizAttemptSchema.index({ userId: 1, startedAt: -1 });
 
 module.exports = mongoose.model('QuizAttempt', quizAttemptSchema);
