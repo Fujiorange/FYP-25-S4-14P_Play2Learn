@@ -20,6 +20,7 @@ const Class = require('../models/Class');
 const Announcement = require('../models/Announcement');
 const { sendTeacherWelcomeEmail, sendParentWelcomeEmail, sendStudentCredentialsToParent } = require('../services/emailService');
 const { generateTempPassword } = require('../utils/passwordGenerator');
+const { convertSchoolIdToObjectId } = require('../utils/objectIdConverter');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 
@@ -2634,11 +2635,11 @@ router.get('/announcements', authenticateSchoolAdmin, async (req, res) => {
     let filter = {};
     if (schoolId) {
       try {
-        const schoolObjectId = new mongoose.Types.ObjectId(schoolId);
+        const schoolObjectId = convertSchoolIdToObjectId(schoolId);
         filter = { schoolId: schoolObjectId };
       } catch (err) {
-        console.error("❌ Invalid schoolId format:", schoolId);
-        return res.status(400).json({ success: false, error: "Invalid school ID format" });
+        console.error("❌ Invalid schoolId:", err.message);
+        return res.status(400).json({ success: false, error: err.message });
       }
     }
     
@@ -2679,10 +2680,10 @@ router.post('/announcements', authenticateSchoolAdmin, async (req, res) => {
     // Convert schoolId to ObjectId
     let schoolObjectId;
     try {
-      schoolObjectId = new mongoose.Types.ObjectId(schoolId);
+      schoolObjectId = convertSchoolIdToObjectId(schoolId);
     } catch (err) {
-      console.error("❌ Invalid schoolId format:", schoolId);
-      return res.status(400).json({ success: false, error: "Invalid school ID format" });
+      console.error("❌ Invalid schoolId:", err.message);
+      return res.status(400).json({ success: false, error: err.message });
     }
     
     const announcement = new Announcement({
@@ -2718,10 +2719,10 @@ router.put('/announcements/:id', authenticateSchoolAdmin, async (req, res) => {
     // Convert schoolId to ObjectId
     let schoolObjectId;
     try {
-      schoolObjectId = new mongoose.Types.ObjectId(schoolId);
+      schoolObjectId = convertSchoolIdToObjectId(schoolId);
     } catch (err) {
-      console.error("❌ Invalid schoolId format:", schoolId);
-      return res.status(400).json({ success: false, error: "Invalid school ID format" });
+      console.error("❌ Invalid schoolId:", err.message);
+      return res.status(400).json({ success: false, error: err.message });
     }
     
     const updates = { ...req.body };
@@ -2761,10 +2762,10 @@ router.delete('/announcements/:id', authenticateSchoolAdmin, async (req, res) =>
     // Convert schoolId to ObjectId
     let schoolObjectId;
     try {
-      schoolObjectId = new mongoose.Types.ObjectId(schoolId);
+      schoolObjectId = convertSchoolIdToObjectId(schoolId);
     } catch (err) {
-      console.error("❌ Invalid schoolId format:", schoolId);
-      return res.status(400).json({ success: false, error: "Invalid school ID format" });
+      console.error("❌ Invalid schoolId:", err.message);
+      return res.status(400).json({ success: false, error: err.message });
     }
     
     // Only delete announcements belonging to this school

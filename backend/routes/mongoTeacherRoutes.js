@@ -15,6 +15,7 @@ const QuizAttempt = require('../models/QuizAttempt');
 const MathProfile = require('../models/MathProfile');
 const MathSkill = require('../models/MathSkill');
 const Announcement = require('../models/Announcement');
+const { convertSchoolIdToObjectId } = require('../utils/objectIdConverter');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
 
@@ -784,10 +785,10 @@ router.get('/announcements', async (req, res) => {
     // Convert schoolId to ObjectId for querying announcements
     let schoolObjectId;
     try {
-      schoolObjectId = new mongoose.Types.ObjectId(schoolId);
+      schoolObjectId = convertSchoolIdToObjectId(schoolId);
     } catch (err) {
-      console.error("❌ Invalid schoolId format:", schoolId);
-      return res.status(400).json({ success: false, error: "Invalid school ID format" });
+      console.error("❌ Invalid schoolId:", err.message);
+      return res.status(400).json({ success: false, error: err.message });
     }
     
     const now = new Date();

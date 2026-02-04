@@ -15,6 +15,7 @@ const Testimonial = require('../models/Testimonial');
 const Announcement = require('../models/Announcement');
 const { authMiddleware } = require('../middleware/auth');
 const { getValidStudentIds } = require('../utils/parentUtils');
+const { convertSchoolIdsToObjectIds } = require('../utils/objectIdConverter');
 const Sentiment = require('sentiment');
 const sentiment = new Sentiment();
 const { analyzeSentiment } = require('../utils/sentimentKeywords');
@@ -1322,10 +1323,10 @@ router.get('/announcements', authMiddleware, async (req, res) => {
     // Convert schoolIds to ObjectIds for querying announcements
     let schoolObjectIds;
     try {
-      schoolObjectIds = schoolIdArray.map(id => new mongoose.Types.ObjectId(id));
+      schoolObjectIds = convertSchoolIdsToObjectIds(schoolIdArray);
     } catch (err) {
-      console.error("❌ Invalid schoolId format in array:", schoolIdArray);
-      return res.status(400).json({ success: false, error: "Invalid school ID format" });
+      console.error("❌ Invalid schoolId:", err.message);
+      return res.status(400).json({ success: false, error: err.message });
     }
     
     const now = new Date();

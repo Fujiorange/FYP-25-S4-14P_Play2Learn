@@ -47,6 +47,7 @@ const Announcement = require('../models/Announcement');
 const Sentiment = require('sentiment');
 const sentiment = new Sentiment();
 const { analyzeSentiment } = require('../utils/sentimentKeywords');
+const { convertSchoolIdToObjectId } = require('../utils/objectIdConverter');
 
 // ==================== TIME HELPERS ====================
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -1477,10 +1478,10 @@ router.get("/announcements", async (req, res) => {
     // Convert schoolId to ObjectId for querying announcements
     let schoolObjectId;
     try {
-      schoolObjectId = new mongoose.Types.ObjectId(schoolId);
+      schoolObjectId = convertSchoolIdToObjectId(schoolId);
     } catch (err) {
-      console.error("❌ Invalid schoolId format:", schoolId);
-      return res.status(400).json({ success: false, error: "Invalid school ID format" });
+      console.error("❌ Invalid schoolId:", err.message);
+      return res.status(400).json({ success: false, error: err.message });
     }
     
     const now = new Date();
