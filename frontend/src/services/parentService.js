@@ -9,8 +9,8 @@ import authService from './authService';
 const API_BASE_URL =
   process.env.REACT_APP_API_URL ||
   (window.location.hostname === 'localhost'
-    ? 'http://localhost:5000/api'
-    : `${window.location.origin}/api`);
+    ? 'http://localhost:5000/api/mongo/parent'
+    : `${window.location.origin}/api/mongo/parent`);
 
 console.log('🌐 Parent Service API_BASE_URL:', API_BASE_URL);
 
