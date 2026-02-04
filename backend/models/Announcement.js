@@ -59,9 +59,8 @@ const announcementSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt timestamp on save
-announcementSchema.pre('save', function(next) {
+announcementSchema.pre('save', function() {
   this.updatedAt = Date.now();
-  next();
 });
 
 // Create compound index for efficient queries
