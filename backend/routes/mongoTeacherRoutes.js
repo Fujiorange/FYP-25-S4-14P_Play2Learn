@@ -64,7 +64,8 @@ const authenticateTeacher = async (req, res, next) => {
   }
 };
 
-router.use(authenticateToken);
+// NOTE: authenticateToken is already applied when mounting this router in server.js
+// We only need to apply the teacher-specific role check here
 router.use(authenticateTeacher);
 
 // ==================== DASHBOARD ====================

@@ -32,7 +32,8 @@ function authenticateToken(req, res, next) {
   }
 }
 
-router.use(authenticateToken);
+// NOTE: authenticateToken is already applied when mounting this router in server.js
+// No need to apply it again here
 
 // ==================== MODELS ====================
 const User = require('../models/User');
