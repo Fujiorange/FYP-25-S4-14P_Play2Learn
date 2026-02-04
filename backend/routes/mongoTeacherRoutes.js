@@ -768,4 +768,143 @@ router.get('/my-classes', async (req, res) => {
   }
 });
 
+
+// ==================== FEEDBACK ====================
+router.get('/feedback', async (req, res) => {
+  try {
+    const teacherId = req.user.userId;
+    const db = mongoose.connection.db;
+    
+    const feedback = await db.collection('feedback')
+      .find({ teacherId: new mongoose.Types.ObjectId(teacherId) })
+      .sort({ createdAt: -1 })
+      .toArray();
+    
+    res.json({ success: true, feedback });
+  } catch (error) {
+    console.error('Get feedback error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load feedback' });
+  }
+});
+
+router.post('/feedback', async (req, res) => {
+  try {
+    const teacherId = req.user.userId;
+    const teacher = req.teacher;
+    const { studentId, type, content } = req.body;
+    
+    if (!studentId || !content) {
+      return res.status(400).json({ success: false, error: 'Student and content are required' });
+    }
+    
+    const db = mongoose.connection.db;
+    
+    // Get student info
+    const student = await User.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+    
+    const feedbackDoc = {
+      teacherId: new mongoose.Types.ObjectId(teacherId),
+      teacherName: teacher.name,
+      studentId: new mongoose.Types.ObjectId(studentId),
+      studentName: student.name,
+      type: type || 'general',
+      content,
+      createdAt: new Date()
+    };
+    
+    await db.collection('feedback').insertOne(feedbackDoc);
+    
+    res.json({ success: true, message: 'Feedback sent successfully' });
+  } catch (error) {
+    console.error('Create feedback error:', error);
+    res.status(500).json({ success: false, error: 'Failed to send feedback' });
+  }
+});
+
+// ==================== SUPPORT TICKETS ====================
+router.get('/support-tickets', async (req, res) => {
+  try {
+    const teacherId = req.user.userId;
+    const db = mongoose.connection.db;
+    
+    const tickets = await db.collection('supporttickets')
+      .find({ createdBy: new mongoose.Types.ObjectId(teacherId) })
+      .sort({ createdAt: -1 })
+      .toArray();
+    
+    res.json({ success: true, tickets });
+  } catch (error) {
+    console.error('Get support tickets error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load support tickets' });
+  }
+});
+
+router.post('/support-tickets', async (req, res) => {
+  try {
+    const teacherId = req.user.userId;
+    const teacher = req.teacher;
+    const { subject, description, priority } = req.body;
+    
+    if (!subject || !description) {
+      return res.status(400).json({ success: false, error: 'Subject and description are required' });
+    }
+    
+    const db = mongoose.connection.db;
+    
+    const ticket = {
+      createdBy: new mongoose.Types.ObjectId(teacherId),
+      createdByName: teacher.name,
+      createdByRole: 'Teacher',
+      schoolId: teacher.schoolId,
+      subject,
+      description,
+      priority: priority || 'medium',
+      status: 'open',
+      createdAt: new Date()
+    };
+    
+    const result = await db.collection('supporttickets').insertOne(ticket);
+    
+    res.json({ success: true, ticket: { ...ticket, _id: result.insertedId } });
+  } catch (error) {
+    console.error('Create support ticket error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create support ticket' });
+  }
+});
+
+// ==================== TESTIMONIALS ====================
+router.post('/testimonials', async (req, res) => {
+  try {
+    const teacherId = req.user.userId;
+    const teacher = req.teacher;
+    const { content, rating } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ success: false, error: 'Content is required' });
+    }
+    
+    const db = mongoose.connection.db;
+    
+    const testimonial = {
+      userId: new mongoose.Types.ObjectId(teacherId),
+      userName: teacher.name,
+      userRole: 'Teacher',
+      content,
+      rating: rating || 5,
+      approved: false,
+      createdAt: new Date()
+    };
+    
+    await db.collection('testimonials').insertOne(testimonial);
+    
+    res.json({ success: true, message: 'Testimonial submitted successfully' });
+  } catch (error) {
+    console.error('Create testimonial error:', error);
+    res.status(500).json({ success: false, error: 'Failed to submit testimonial' });
+  }
+});
+
 module.exports = router;

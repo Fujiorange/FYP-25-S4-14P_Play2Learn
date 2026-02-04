@@ -20,10 +20,6 @@ import StudentList from './components/Teacher/StudentList';
 import StudentPerformance from './components/Teacher/StudentPerformance';
 import StudentLeaderboard from './components/Teacher/StudentLeaderboard';
 import StudentMatrix from './components/Teacher/StudentMatrix';
-import CreateAssignment from './components/Teacher/CreateAssignment';
-import ModifyAssignment from './components/Teacher/ModifyAssignment';
-import ViewSubmissions from './components/Teacher/ViewSubmissions';
-import TrackCompletion from './components/Teacher/TrackCompletion';
 import CreateFeedback from './components/Teacher/CreateFeedback';
 import ViewFeedback from './components/Teacher/ViewFeedback';
 import Chat from './components/Teacher/Chat';
@@ -161,10 +157,6 @@ function App() {
           <Route path="/teacher/students/performance" element={<StudentPerformance />} />
           <Route path="/teacher/students/leaderboard" element={<StudentLeaderboard />} />
           <Route path="/teacher/students/matrix" element={<StudentMatrix />} />
-          <Route path="/teacher/assignment/create" element={<CreateAssignment />} />
-          <Route path="/teacher/assignment/modify" element={<ModifyAssignment />} />
-          <Route path="/teacher/submissions" element={<ViewSubmissions />} />
-          <Route path="/teacher/completion" element={<TrackCompletion />} />
           <Route path="/teacher/feedback/create" element={<CreateFeedback />} />
           <Route path="/teacher/feedback/view" element={<ViewFeedback />} />
           <Route path="/teacher/chat" element={<Chat />} />

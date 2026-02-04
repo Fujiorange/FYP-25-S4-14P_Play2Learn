@@ -75,7 +75,7 @@ export default function ManageClasses() {
     try {
        const [teachersResult, studentsResult] = await Promise.all([
          schoolAdminService.getAvailableTeachers(),
-         schoolAdminService.getAvailableStudents(true)
+         schoolAdminService.getAvailableStudents(false)
        ]);
       
       if (teachersResult.success) {
@@ -182,7 +182,7 @@ export default function ManageClasses() {
      });
      // include currently assigned students in selection list
      try {
-       const studentsResult = await schoolAdminService.getAvailableStudents(true, cls.id);
+       const studentsResult = await schoolAdminService.getAvailableStudents(false, cls.id);
        if (studentsResult.success) {
          setStudents(studentsResult.students || []);
        }

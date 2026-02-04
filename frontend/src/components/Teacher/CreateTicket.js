@@ -1,103 +1,112 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 
 export default function CreateTicket() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [subject, setSubject] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState('medium');
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [formData, setFormData] = useState({
-    category: 'technical',
-    priority: 'normal',
-    subject: '',
-    description: '',
-  });
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!authService.isAuthenticated()) {
-        navigate('/login');
-        return;
-      }
-      setLoading(false);
-    };
-    loadData();
-  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+
+    if (!subject.trim() || !description.trim()) {
+      setMessage({ type: 'error', text: 'Please fill in all fields' });
+      return;
+    }
+
     setSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setMessage({ type: 'success', text: 'Support ticket created successfully! We will get back to you soon.' });
-    setSubmitting(false);
-    setTimeout(() => {
-      setFormData({ category: 'technical', priority: 'normal', subject: '', description: '' });
-      setMessage({ type: '', text: '' });
-    }, 3000);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/mongo/teacher/support-tickets', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ subject, description, priority })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Ticket created successfully!' });
+        setSubject('');
+        setDescription('');
+        setPriority('medium');
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Failed to create ticket' });
+      }
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      setMessage({ type: 'error', text: 'Failed to connect to server' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const styles = {
     container: { minHeight: '100vh', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)', padding: '32px' },
-    content: { maxWidth: '800px', margin: '0 auto', background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' },
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', paddingBottom: '16px', borderBottom: '2px solid #e5e7eb' },
-    title: { fontSize: '28px', fontWeight: '700', color: '#1f2937', margin: 0 },
-    backButton: { padding: '10px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-    form: { display: 'flex', flexDirection: 'column', gap: '20px' },
-    formGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
-    label: { fontSize: '14px', fontWeight: '600', color: '#374151' },
-    input: { padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit' },
-    select: { padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit', cursor: 'pointer' },
-    textarea: { padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', fontFamily: 'inherit', minHeight: '150px', resize: 'vertical' },
-    submitButton: { padding: '12px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' },
-    message: { padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', marginBottom: '16px' },
-    successMessage: { background: '#d1fae5', color: '#065f46', border: '1px solid #34d399' },
-    loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
-    loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
+    content: { maxWidth: '700px', margin: '0 auto' },
+    card: { background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' },
+    title: { fontSize: '28px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' },
+    form: { display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px' },
+    label: { fontWeight: '500', color: '#374151', marginBottom: '8px', display: 'block' },
+    input: { width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px' },
+    select: { width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px' },
+    textarea: { width: '100%', padding: '12px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px', minHeight: '150px', resize: 'vertical' },
+    btn: { padding: '14px 24px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontSize: '16px' },
+    backBtn: { padding: '10px 20px', background: '#f1f5f9', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '500', marginBottom: '20px' },
   };
-
-  if (loading) return (<div style={styles.loadingContainer}><div style={styles.loadingText}>Loading...</div></div>);
 
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        <div style={styles.header}>
+        <button style={styles.backBtn} onClick={() => navigate('/teacher')}>← Back to Dashboard</button>
+        
+        <div style={styles.card}>
           <h1 style={styles.title}>🎫 Create Support Ticket</h1>
-          <button style={styles.backButton} onClick={() => navigate('/teacher')}>← Back to Dashboard</button>
+          <p style={{ color: '#64748b' }}>Submit a request for assistance</p>
+
+          {message.text && (
+            <div style={{ padding: '12px 16px', borderRadius: '8px', marginTop: '16px', background: message.type === 'success' ? '#dcfce7' : '#fee2e2', color: message.type === 'success' ? '#16a34a' : '#dc2626' }}>
+              {message.text}
+            </div>
+          )}
+
+          <form style={styles.form} onSubmit={handleSubmit}>
+            <div>
+              <label style={styles.label}>Subject</label>
+              <input style={styles.input} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Brief description of your issue" />
+            </div>
+
+            <div>
+              <label style={styles.label}>Priority</label>
+              <select style={styles.select} value={priority} onChange={(e) => setPriority(e.target.value)}>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={styles.label}>Description</label>
+              <textarea style={styles.textarea} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Please describe your issue in detail..." />
+            </div>
+
+            <button type="submit" style={{ ...styles.btn, opacity: submitting ? 0.7 : 1 }} disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Submit Ticket'}
+            </button>
+          </form>
         </div>
-        {message.text && <div style={{...styles.message, ...styles.successMessage}}>{message.text}</div>}
-        <form style={styles.form} onSubmit={handleSubmit}>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Category *</label>
-            <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} required style={styles.select}>
-              <option value="technical">Technical Issue</option>
-              <option value="account">Account Issue</option>
-              <option value="feature">Feature Request</option>
-              <option value="billing">Billing Question</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Priority *</label>
-            <select value={formData.priority} onChange={(e) => setFormData({...formData, priority: e.target.value})} required style={styles.select}>
-              <option value="low">Low</option>
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-          </div>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Subject *</label>
-            <input type="text" value={formData.subject} onChange={(e) => setFormData({...formData, subject: e.target.value})} required placeholder="Brief description of the issue" style={styles.input} />
-          </div>
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Description *</label>
-            <textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} required placeholder="Please provide detailed information about your issue..." style={styles.textarea} />
-          </div>
-          <button type="submit" disabled={submitting} style={styles.submitButton}>
-            {submitting ? '📤 Submitting...' : '📤 Submit Ticket'}
-          </button>
-        </form>
       </div>
     </div>
   );

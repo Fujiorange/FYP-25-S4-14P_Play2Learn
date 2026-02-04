@@ -6,7 +6,7 @@ export default function TrackTicket() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [tickets, setTickets] = useState([]);
-  const [filter, setFilter] = useState('all');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     const loadTickets = async () => {
@@ -14,93 +14,89 @@ export default function TrackTicket() {
         navigate('/login');
         return;
       }
-      const mockTickets = [
-        { id: 'TKT-001', subject: 'Cannot upload assignment files', category: 'technical', priority: 'high', status: 'in-progress', createdOn: '2024-12-10', lastUpdate: '2024-12-11' },
-        { id: 'TKT-002', subject: 'Feature request: Bulk student import', category: 'feature', priority: 'normal', status: 'open', createdOn: '2024-12-09', lastUpdate: '2024-12-09' },
-        { id: 'TKT-003', subject: 'Question about billing cycle', category: 'billing', priority: 'low', status: 'resolved', createdOn: '2024-12-05', lastUpdate: '2024-12-06' },
-      ];
-      setTickets(mockTickets);
-      setLoading(false);
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:5000/api/mongo/teacher/support-tickets', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setTickets(data.tickets || []);
+        } else {
+          setError(data.error || 'Failed to load tickets');
+        }
+      } catch (error) {
+        console.error('Error loading tickets:', error);
+        setError('Failed to connect to server');
+      } finally {
+        setLoading(false);
+      }
     };
+
     loadTickets();
   }, [navigate]);
 
-  const filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
-
-  const getStatusColor = (status) => {
-    if (status === 'open') return { background: '#dbeafe', color: '#1e40af' };
-    if (status === 'in-progress') return { background: '#fef3c7', color: '#92400e' };
-    if (status === 'resolved') return { background: '#d1fae5', color: '#065f46' };
-    return { background: '#f3f4f6', color: '#6b7280' };
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'open': return { background: '#dbeafe', color: '#1d4ed8' };
+      case 'in-progress': return { background: '#fef3c7', color: '#d97706' };
+      case 'resolved': return { background: '#dcfce7', color: '#16a34a' };
+      default: return { background: '#f3f4f6', color: '#6b7280' };
+    }
   };
 
   const styles = {
     container: { minHeight: '100vh', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)', padding: '32px' },
-    content: { maxWidth: '1200px', margin: '0 auto' },
-    header: { background: 'white', borderRadius: '16px', padding: '32px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
-    headerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-    title: { fontSize: '28px', fontWeight: '700', color: '#1f2937', margin: 0 },
-    backButton: { padding: '10px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-    filterButtons: { display: 'flex', gap: '8px' },
-    filterButton: { padding: '8px 16px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', background: 'white' },
-    filterButtonActive: { borderColor: '#10b981', background: '#d1fae5', color: '#065f46' },
-    ticketGrid: { display: 'flex', flexDirection: 'column', gap: '16px' },
-    ticketCard: { background: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
-    ticketHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' },
-    ticketId: { fontSize: '14px', fontWeight: '700', color: '#10b981' },
-    ticketSubject: { fontSize: '18px', fontWeight: '600', color: '#1f2937', marginBottom: '12px' },
-    ticketInfo: { display: 'flex', gap: '16px', marginBottom: '12px' },
-    badge: { display: 'inline-block', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' },
-    emptyState: { textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: '16px', color: '#6b7280' },
-    loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
-    loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
+    content: { maxWidth: '900px', margin: '0 auto' },
+    header: { background: 'white', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' },
+    title: { fontSize: '28px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' },
+    card: { background: 'white', borderRadius: '12px', padding: '20px', marginBottom: '16px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' },
+    backBtn: { padding: '10px 20px', background: '#f1f5f9', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '500', marginBottom: '20px' },
+    emptyState: { textAlign: 'center', padding: '60px 20px', color: '#64748b', background: 'white', borderRadius: '16px' },
+    badge: { padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
   };
 
-  if (loading) return (<div style={styles.loadingContainer}><div style={styles.loadingText}>Loading tickets...</div></div>);
+  if (loading) {
+    return <div style={styles.container}><div style={styles.content}><div style={{ textAlign: 'center', padding: '60px' }}><p>Loading tickets...</p></div></div></div>;
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.content}>
+        <button style={styles.backBtn} onClick={() => navigate('/teacher')}>← Back to Dashboard</button>
+        
         <div style={styles.header}>
-          <div style={styles.headerTop}>
-            <h1 style={styles.title}>🎫 Track Support Tickets</h1>
-            <button style={styles.backButton} onClick={() => navigate('/teacher')}>← Back to Dashboard</button>
-          </div>
-          <div style={styles.filterButtons}>
-            {['all', 'open', 'in-progress', 'resolved'].map(status => (
-              <button key={status} onClick={() => setFilter(status)} style={{...styles.filterButton, ...(filter === status ? styles.filterButtonActive : {})}}>
-                {status === 'all' ? 'All' : status === 'in-progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
-              </button>
-            ))}
-          </div>
+          <h1 style={styles.title}>🎫 Support Tickets</h1>
+          <p style={{ color: '#64748b' }}>Track your support requests</p>
         </div>
 
-        {filteredTickets.length > 0 ? (
-          <div style={styles.ticketGrid}>
-            {filteredTickets.map(ticket => (
-              <div key={ticket.id} style={styles.ticketCard}>
-                <div style={styles.ticketHeader}>
-                  <div style={styles.ticketId}>{ticket.id}</div>
-                  <span style={{...styles.badge, ...getStatusColor(ticket.status)}}>
-                    {ticket.status === 'in-progress' ? 'In Progress' : ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
-                  </span>
-                </div>
-                <div style={styles.ticketSubject}>{ticket.subject}</div>
-                <div style={styles.ticketInfo}>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>📁 {ticket.category}</span>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>🔔 {ticket.priority} priority</span>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>📅 Created: {ticket.createdOn}</span>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>🔄 Updated: {ticket.lastUpdate}</span>
-                </div>
-              </div>
-            ))}
+        {error && <div style={{ background: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px' }}>{error}</div>}
+
+        {tickets.length === 0 ? (
+          <div style={styles.emptyState}>
+            <p style={{ fontSize: '48px', marginBottom: '10px' }}>🎫</p>
+            <p style={{ fontSize: '18px', fontWeight: '500' }}>No tickets yet</p>
+            <p>Your support tickets will appear here</p>
           </div>
         ) : (
-          <div style={styles.emptyState}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎫</div>
-            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No tickets found</p>
-            <p>You don't have any {filter === 'all' ? '' : filter} support tickets</p>
-          </div>
+          tickets.map((ticket) => (
+            <div key={ticket._id} style={styles.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <span style={{ fontWeight: '600', color: '#1e293b' }}>{ticket.subject}</span>
+                <span style={{ ...styles.badge, ...getStatusStyle(ticket.status) }}>{ticket.status}</span>
+              </div>
+              <p style={{ color: '#475569', marginBottom: '12px' }}>{ticket.description}</p>
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                Priority: {ticket.priority} | Created: {new Date(ticket.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+          ))
         )}
       </div>
     </div>
