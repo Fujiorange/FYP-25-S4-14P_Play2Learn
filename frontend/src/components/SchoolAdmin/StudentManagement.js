@@ -30,6 +30,11 @@ export default function StudentManagement() {
   const [selectedParentId, setSelectedParentId] = useState(null);
   const [savingParent, setSavingParent] = useState(false);
   const [loadingParentData, setLoadingParentData] = useState(false);
+  const [parentSearchTerm, setParentSearchTerm] = useState('');
+  
+  // Sorting State
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -66,6 +71,54 @@ export default function StudentManagement() {
   const filteredStudents = students.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Sort students
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    let aValue, bValue;
+    switch (sortField) {
+      case 'name':
+        aValue = a.name?.toLowerCase() || '';
+        bValue = b.name?.toLowerCase() || '';
+        break;
+      case 'email':
+        aValue = a.email?.toLowerCase() || '';
+        bValue = b.email?.toLowerCase() || '';
+        break;
+      case 'className':
+        aValue = a.className?.toLowerCase() || '';
+        bValue = b.className?.toLowerCase() || '';
+        break;
+      case 'gradeLevel':
+        aValue = a.gradeLevel?.toLowerCase() || '';
+        bValue = b.gradeLevel?.toLowerCase() || '';
+        break;
+      default:
+        return 0;
+    }
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIndicator = (field) => {
+    if (sortField !== field) return ' ↕';
+    return sortDirection === 'asc' ? ' ↑' : ' ↓';
+  };
+
+  // Filter available parents by search term
+  const filteredAvailableParents = availableParents.filter(p =>
+    p.name.toLowerCase().includes(parentSearchTerm.toLowerCase()) ||
+    p.email.toLowerCase().includes(parentSearchTerm.toLowerCase())
   );
 
   const formatDate = (dateString) => {
@@ -204,6 +257,7 @@ export default function StudentManagement() {
   const handleOpenLinkParent = async (student) => {
     setLinkParentStudent(student);
     setLoadingParentData(true);
+    setParentSearchTerm(''); // Reset search term when opening modal
     try {
       const result = await schoolAdminService.getStudentParent(student.id);
       if (result.success) {
@@ -263,6 +317,7 @@ export default function StudentManagement() {
     searchInput: { width: '100%', padding: '10px 12px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', background: '#f9fafb', fontFamily: 'inherit', marginBottom: '24px', boxSizing: 'border-box' },
     table: { width: '100%', borderCollapse: 'collapse' },
     th: { padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '700', color: '#374151', borderBottom: '2px solid #e5e7eb', background: '#f9fafb' },
+    thSortable: { padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '700', color: '#374151', borderBottom: '2px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', userSelect: 'none' },
     td: { padding: '12px', fontSize: '14px', color: '#374151', borderBottom: '1px solid #e5e7eb' },
     viewButton: { padding: '6px 12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', marginRight: '8px' },
     linkParentButton: { padding: '6px 12px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', marginRight: '8px' },
@@ -298,9 +353,11 @@ export default function StudentManagement() {
     infoText: { fontSize: '13px', color: '#6b7280', marginBottom: '16px' },
     // Link Parent Modal Styles
     sectionTitle: { fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '12px', marginTop: '16px' },
+    parentSearchInput: { width: '100%', padding: '10px 12px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', background: '#f9fafb', fontFamily: 'inherit', marginBottom: '12px', boxSizing: 'border-box' },
     parentList: { display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px' },
     parentItem: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: '#f9fafb', borderRadius: '6px', cursor: 'pointer' },
     parentItemSelected: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: '#dbeafe', borderRadius: '6px', cursor: 'pointer', border: '2px solid #3b82f6' },
+    parentItemDisabled: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: '#f3f4f6', borderRadius: '6px', cursor: 'not-allowed', opacity: 0.6 },
     radio: { width: '18px', height: '18px', cursor: 'pointer' },
     parentInfo: { flex: 1 },
     parentName: { fontWeight: '600', fontSize: '14px', color: '#1f2937' },
@@ -310,6 +367,8 @@ export default function StudentManagement() {
     unlinkOption: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', background: '#fef2f2', borderRadius: '6px', cursor: 'pointer', marginBottom: '8px' },
     unlinkOptionSelected: { border: '2px solid #ef4444' },
     unlinkOptionUnselected: { border: '1px solid #fecaca' },
+    linkedInfoBox: { padding: '16px', background: '#fef3c7', borderRadius: '8px', border: '2px solid #fcd34d', marginBottom: '16px' },
+    linkedInfoText: { fontSize: '14px', color: '#92400e', fontWeight: '500' },
   };
 
   return (
@@ -352,15 +411,15 @@ export default function StudentManagement() {
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Name</th>
-                    <th style={styles.th}>Email</th>
-                    <th style={styles.th}>Class</th>
-                    <th style={styles.th}>Grade Level</th>
+                    <th style={styles.thSortable} onClick={() => handleSort('name')}>Name{getSortIndicator('name')}</th>
+                    <th style={styles.thSortable} onClick={() => handleSort('email')}>Email{getSortIndicator('email')}</th>
+                    <th style={styles.thSortable} onClick={() => handleSort('className')}>Class{getSortIndicator('className')}</th>
+                    <th style={styles.thSortable} onClick={() => handleSort('gradeLevel')}>Grade Level{getSortIndicator('gradeLevel')}</th>
                     <th style={styles.th}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStudents.map((student) => (
+                  {sortedStudents.map((student) => (
                     <tr key={student.id}>
                       <td style={styles.td}><strong>{student.name}</strong></td>
                       <td style={styles.td}>{student.email}</td>
@@ -385,7 +444,7 @@ export default function StudentManagement() {
                 </tbody>
               </table>
 
-              {filteredStudents.length === 0 && (
+              {sortedStudents.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
                   No students found
                 </div>
@@ -662,72 +721,88 @@ export default function StudentManagement() {
               <div style={styles.loadingText}>Loading parent data...</div>
             ) : (
               <>
-                <p style={styles.infoText}>
-                  Select a parent to link to this student. Each student can only be linked to one parent.
-                </p>
-
-                {linkedParent && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={styles.sectionTitle}>📋 Currently Linked Parent</div>
-                    <div style={{ padding: '12px', background: '#d1fae5', borderRadius: '8px', border: '2px solid #10b981' }}>
-                      <div style={styles.parentName}>{linkedParent.name}</div>
-                      <div style={styles.parentDetails}>{linkedParent.email}</div>
-                    </div>
-                  </div>
-                )}
-
-                <div style={styles.sectionTitle}>👨‍👩‍👧 Available Parents</div>
-                
-                {/* Option to unlink */}
-                {linkedParent && (
-                  <div 
-                    style={{ ...styles.unlinkOption, ...(selectedParentId === null ? styles.unlinkOptionSelected : styles.unlinkOptionUnselected) }}
-                    onClick={() => setSelectedParentId(null)}
-                  >
-                    <input 
-                      type="radio"
-                      checked={selectedParentId === null}
-                      onChange={() => {}}
-                      style={styles.radio}
-                    />
-                    <div style={styles.parentInfo}>
-                      <div style={{ ...styles.parentName, color: '#dc2626' }}>❌ Unlink Parent</div>
-                      <div style={styles.parentDetails}>Remove parent link from this student</div>
-                    </div>
-                  </div>
-                )}
-
-                <div style={styles.parentList}>
-                  {availableParents.length === 0 ? (
-                    <div style={styles.emptyList}>No parents available in the school</div>
-                  ) : (
-                    availableParents.map(parent => (
-                      <div 
-                        key={parent.id}
-                        style={selectedParentId === parent.id ? styles.parentItemSelected : styles.parentItem}
-                        onClick={() => handleSelectParent(parent.id)}
-                      >
-                        <input 
-                          type="radio"
-                          checked={selectedParentId === parent.id}
-                          onChange={() => {}}
-                          style={styles.radio}
-                        />
-                        <div style={styles.parentInfo}>
-                          <div style={styles.parentName}>
-                            {parent.name}
-                            {linkedParent && linkedParent.id === parent.id && (
-                              <span style={styles.currentParentBadge}>Current</span>
-                            )}
-                          </div>
-                          <div style={styles.parentDetails}>
-                            {parent.email} {parent.contact && parent.contact !== 'N/A' ? `• ${parent.contact}` : ''}
-                          </div>
-                        </div>
+                {linkedParent ? (
+                  <>
+                    {/* Student already has a linked parent - show info and only allow unlinking */}
+                    <div style={styles.linkedInfoBox}>
+                      <div style={styles.linkedInfoText}>
+                        ⚠️ This student is already linked to a parent. Each student can only be linked to one parent. You can unlink the current parent if needed.
                       </div>
-                    ))
-                  )}
-                </div>
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={styles.sectionTitle}>📋 Currently Linked Parent</div>
+                      <div style={{ padding: '12px', background: '#d1fae5', borderRadius: '8px', border: '2px solid #10b981' }}>
+                        <div style={styles.parentName}>{linkedParent.name}</div>
+                        <div style={styles.parentDetails}>{linkedParent.email}</div>
+                      </div>
+                    </div>
+
+                    {/* Option to unlink */}
+                    <div style={styles.sectionTitle}>🔗 Actions</div>
+                    <div 
+                      style={{ ...styles.unlinkOption, ...(selectedParentId === null ? styles.unlinkOptionSelected : styles.unlinkOptionUnselected) }}
+                      onClick={() => setSelectedParentId(null)}
+                    >
+                      <input 
+                        type="radio"
+                        checked={selectedParentId === null}
+                        onChange={() => {}}
+                        style={styles.radio}
+                      />
+                      <div style={styles.parentInfo}>
+                        <div style={{ ...styles.parentName, color: '#dc2626' }}>❌ Unlink Parent</div>
+                        <div style={styles.parentDetails}>Remove parent link from this student</div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* No linked parent - allow searching and selecting a parent */}
+                    <p style={styles.infoText}>
+                      Select a parent to link to this student. Each student can only be linked to one parent.
+                    </p>
+
+                    <div style={styles.sectionTitle}>🔍 Search Parents</div>
+                    <input
+                      type="text"
+                      placeholder="Search by name or email..."
+                      value={parentSearchTerm}
+                      onChange={(e) => setParentSearchTerm(e.target.value)}
+                      style={styles.parentSearchInput}
+                    />
+
+                    <div style={styles.sectionTitle}>👨‍👩‍👧 Available Parents ({filteredAvailableParents.length})</div>
+                    <div style={styles.parentList}>
+                      {filteredAvailableParents.length === 0 ? (
+                        <div style={styles.emptyList}>
+                          {parentSearchTerm ? 'No parents match your search' : 'No parents available in the school'}
+                        </div>
+                      ) : (
+                        filteredAvailableParents.map(parent => (
+                          <div 
+                            key={parent.id}
+                            style={selectedParentId === parent.id ? styles.parentItemSelected : styles.parentItem}
+                            onClick={() => handleSelectParent(parent.id)}
+                          >
+                            <input 
+                              type="radio"
+                              checked={selectedParentId === parent.id}
+                              onChange={() => {}}
+                              style={styles.radio}
+                            />
+                            <div style={styles.parentInfo}>
+                              <div style={styles.parentName}>{parent.name}</div>
+                              <div style={styles.parentDetails}>
+                                {parent.email} {parent.contact && parent.contact !== 'N/A' ? `• ${parent.contact}` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <div style={styles.modalButtons}>
                   <button style={styles.cancelButton} onClick={() => setLinkParentStudent(null)}>
