@@ -548,12 +548,21 @@ router.get('/my-attempts', authenticateToken, async (req, res) => {
       .limit(20)
       .lean();
 
-    const attemptsWithStats = attempts.map(attempt => ({
+    // Filter out attempts with missing quiz references and log them for debugging
+    const validAttempts = attempts.filter(attempt => {
+      if (!attempt.quizId) {
+        console.warn(`Orphaned quiz attempt found: attemptId=${attempt._id}, quizId reference is null`);
+        return false;
+      }
+      return true;
+    });
+
+    const attemptsWithStats = validAttempts.map(attempt => ({
       attemptId: attempt._id,
-      quizTitle: attempt.quizId?.title || 'Unknown Quiz',
+      quizTitle: attempt.quizId.title,
       correct_count: attempt.correct_count,
       total_answered: attempt.total_answered,
-      target_correct_answers: attempt.quizId?.adaptive_config?.target_correct_answers || 10,
+      target_correct_answers: attempt.quizId.adaptive_config?.target_correct_answers || 10,
       accuracy: attempt.total_answered > 0 
         ? Math.round((attempt.correct_count / attempt.total_answered) * 100) 
         : 0,
