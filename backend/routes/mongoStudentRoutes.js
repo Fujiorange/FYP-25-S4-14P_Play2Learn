@@ -51,6 +51,48 @@ const { analyzeSentiment } = require('../utils/sentimentKeywords');
 // ==================== TIME HELPERS ====================
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// Helper function to calculate level from points
+// Level system based on accumulated points:
+// Level 0: 0-24 points
+// Level 1: 25-49 points
+// Level 2: 50-99 points
+// Level 3: 100-199 points
+// Level 4: 200-399 points
+// Level 5: 400+ points
+function calculateLevelFromPoints(points) {
+  if (points >= 400) return 5;
+  if (points >= 200) return 4;
+  if (points >= 100) return 3;
+  if (points >= 50) return 2;
+  if (points >= 25) return 1;
+  return 0;
+}
+
+// Helper function to calculate progress percentage within current level
+function calculateLevelProgress(points) {
+  const level = calculateLevelFromPoints(points);
+  
+  // Define thresholds for each level
+  const thresholds = [
+    { min: 0, max: 25 },      // Level 0
+    { min: 25, max: 50 },     // Level 1
+    { min: 50, max: 100 },    // Level 2
+    { min: 100, max: 200 },   // Level 3
+    { min: 200, max: 400 },   // Level 4
+    { min: 400, max: 400 }    // Level 5 (max level)
+  ];
+  
+  const threshold = thresholds[level];
+  
+  // If at max level, return 100%
+  if (level === 5) return 100;
+  
+  // Calculate percentage progress within current level range
+  const rangeSize = threshold.max - threshold.min;
+  const progressInRange = points - threshold.min;
+  return Math.min(100, Math.floor((progressInRange / rangeSize) * 100));
+}
+
 function getSingaporeTime() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Singapore" }));
 }
@@ -409,11 +451,13 @@ async function updateSkillsFromQuiz(studentId, questions, percentage, currentPro
       if (existingSkill) {
         // Update existing skill using bulk operation
         const newXp = existingSkill.xp + xpGain;
-        const newLevel = Math.min(5, Math.floor(newXp / 100));
         
         // Calculate new points (minimum 0 - cannot go negative)
         const currentPoints = existingSkill.points || 0;
         const newPoints = Math.max(0, currentPoints + stats.pointsChange);
+        
+        // Calculate level based on points using helper function
+        const newLevel = calculateLevelFromPoints(newPoints);
         
         bulkOps.push({
           updateOne: {
@@ -431,10 +475,12 @@ async function updateSkillsFromQuiz(studentId, questions, percentage, currentPro
       } else {
         // Insert new skill using bulk operation
         const newXp = xpGain;
-        const newLevel = Math.min(5, Math.floor(newXp / 100));
         
         // New skill starts with calculated points (minimum 0)
         const newPoints = Math.max(0, stats.pointsChange);
+        
+        // Calculate level based on points using helper function
+        const newLevel = calculateLevelFromPoints(newPoints);
         
         bulkOps.push({
           insertOne: {
@@ -621,7 +667,7 @@ router.get("/math-skills", async (req, res) => {
         points: s.points || 0,
         max_level: 5,
         unlocked: s.unlocked,
-        percentage: Math.min(100, (s.xp % 100)),
+        percentage: calculateLevelProgress(s.points || 0),
       }))
     });
   } catch (error) {

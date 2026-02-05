@@ -29,6 +29,21 @@ export default function DisplaySkillMatrix() {
   const [currentProfile, setCurrentProfile] = useState(1);
   const [error, setError] = useState("");
 
+  // Helper function to get next level threshold
+  const getNextLevelThreshold = (currentLevel) => {
+    const thresholds = [25, 50, 100, 200, 400];
+    if (currentLevel >= 5) return null;
+    return thresholds[currentLevel];
+  };
+
+  // Helper function to get current level's point range
+  const getLevelPointRange = (level) => {
+    const ranges = [
+      "0-24", "25-49", "50-99", "100-199", "200-399", "400+"
+    ];
+    return ranges[level] || "0-24";
+  };
+
   useEffect(() => {
     const loadSkills = async () => {
       if (!authService.isAuthenticated()) {
@@ -234,7 +249,8 @@ export default function DisplaySkillMatrix() {
           </div>
 
           <p style={styles.subtitle}>
-            Track your progress in the 4 core math operations. Skills improve automatically as you complete quizzes!
+            Track your progress in math skills. Earn points by completing quizzes correctly - harder questions award more points! 
+            Each skill has 6 levels (0-5) based on points earned.
           </p>
 
           {error && <div style={styles.errorMessage}>⚠️ {error}</div>}
@@ -242,6 +258,8 @@ export default function DisplaySkillMatrix() {
           <div style={styles.infoBox}>
             <div style={styles.infoText}>
               🎯 You are currently at Profile {currentProfile}. Multiplication & Division will unlock at Profile 6!
+              <br />
+              💡 Points-based leveling: Level 0 (0-24pts) → Level 1 (25-49pts) → Level 2 (50-99pts) → Level 3 (100-199pts) → Level 4 (200-399pts) → Level 5 (400+pts)
             </div>
           </div>
         </div>
@@ -297,9 +315,9 @@ export default function DisplaySkillMatrix() {
                 </div>
 
                 <div style={{ ...styles.badge, background: levelInfo.color }}>{levelInfo.label}</div>
-                <div style={styles.xp}>XP: {skill.xp || 0} / 100</div>
+                <div style={styles.xp}>Level Range: {getLevelPointRange(skill.current_level)} points</div>
                 <div style={{
-                  marginTop: "8px",
+                  marginTop: "4px",
                   fontSize: "14px",
                   color: "#3b82f6",
                   fontWeight: "600",
@@ -307,8 +325,18 @@ export default function DisplaySkillMatrix() {
                   alignItems: "center",
                   gap: "4px"
                 }}>
-                  🎯 Skill Points: {skill.points || 0}
+                  🎯 Current Points: {skill.points || 0}
                 </div>
+                {skill.current_level < 5 && (
+                  <div style={{
+                    marginTop: "4px",
+                    fontSize: "12px",
+                    color: "#6b7280",
+                    fontStyle: "italic"
+                  }}>
+                    Next level at {getNextLevelThreshold(skill.current_level)} points
+                  </div>
+                )}
               </div>
             );
           })}

@@ -35,6 +35,23 @@ function getDefaultDifficultyPoints() {
   };
 }
 
+// Helper function to calculate level from points
+// Level system based on accumulated points:
+// Level 0: 0-24 points
+// Level 1: 25-49 points
+// Level 2: 50-99 points
+// Level 3: 100-199 points
+// Level 4: 200-399 points
+// Level 5: 400+ points
+function calculateLevelFromPoints(points) {
+  if (points >= 400) return 5;
+  if (points >= 200) return 4;
+  if (points >= 100) return 3;
+  if (points >= 50) return 2;
+  if (points >= 25) return 1;
+  return 0;
+}
+
 // Helper function to update skills from adaptive quiz answers
 async function updateSkillsFromAdaptiveQuiz(userId, answers) {
   try {
@@ -132,11 +149,13 @@ async function updateSkillsFromAdaptiveQuiz(userId, answers) {
       if (existingSkill) {
         // Update existing skill
         const newXp = existingSkill.xp + xpGain;
-        const newLevel = Math.min(5, Math.floor(newXp / 100));
         
         // Calculate new points (minimum 0 - cannot go negative)
         const currentPoints = existingSkill.points || 0;
         const newPoints = Math.max(0, currentPoints + stats.pointsChange);
+        
+        // Calculate level based on points using helper function
+        const newLevel = calculateLevelFromPoints(newPoints);
         
         bulkOps.push({
           updateOne: {
@@ -154,8 +173,10 @@ async function updateSkillsFromAdaptiveQuiz(userId, answers) {
       } else {
         // Insert new skill
         const newXp = xpGain;
-        const newLevel = Math.min(5, Math.floor(newXp / 100));
         const newPoints = Math.max(0, stats.pointsChange);
+        
+        // Calculate level based on points using helper function
+        const newLevel = calculateLevelFromPoints(newPoints);
         
         bulkOps.push({
           insertOne: {
