@@ -1038,25 +1038,75 @@ router.get("/quiz-history", async (req, res) => {
 router.get("/leaderboard", async (req, res) => {
   try {
     const currentUserId = req.user.userId;
+    const { schoolId, class: classId } = req.query;
+
+    // Get current user's school and class
+    const currentUser = await User.findById(currentUserId).lean();
     
-    // Use lean() for read-only query to improve performance
-    const students = await MathProfile.find()
-      .populate("student_id", "name email")
-      .sort({ total_points: -1 })
-      .limit(20)
+    if (!currentUser) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Use provided parameters or fall back to current user's school/class
+    const filterSchoolId = schoolId || currentUser.schoolId;
+    const filterClass = classId || currentUser.class;
+
+    // Build filter query - must match school AND class
+    const filterQuery = {
+      ...(filterSchoolId && { schoolId: filterSchoolId }),
+      ...(filterClass && { class: filterClass }),
+      role: 'Student' // Only show students
+    };
+
+    console.log(`🎯 Leaderboard filter:`, filterQuery);
+
+    // Find students matching school and class
+    const matchingStudents = await User.find(filterQuery)
+      .select('_id name email schoolId class')
       .lean();
+
+    if (matchingStudents.length === 0) {
+      return res.json({
+        success: true,
+        leaderboard: [],
+        filterInfo: {
+          schoolId: filterSchoolId,
+          class: filterClass,
+          totalMatches: 0
+        }
+      });
+    }
+
+    const studentIds = matchingStudents.map(s => s._id);
+
+    // Get math profiles for these students, sorted by points
+    const students = await MathProfile.find({ student_id: { $in: studentIds } })
+      .sort({ total_points: -1 })
+      .limit(50)
+      .lean();
+
+    // Enrich with student details
+    const studentMap = new Map(matchingStudents.map(s => [s._id.toString(), s]));
 
     res.json({
       success: true,
-      leaderboard: students.map((p, idx) => ({
-        rank: idx + 1,
-        name: p.student_id ? p.student_id.name : "Unknown",
-        points: p.total_points,
-        level: p.current_profile,
-        profile: p.current_profile,
-        achievements: 0,
-        isCurrentUser: p.student_id && p.student_id._id.toString() === currentUserId,
-      })),
+      leaderboard: students.map((p, idx) => {
+        const student = studentMap.get(p.student_id.toString());
+        return {
+          rank: idx + 1,
+          name: student ? student.name : "Unknown",
+          points: p.total_points,
+          level: p.current_profile,
+          profile: p.current_profile,
+          achievements: 0,
+          isCurrentUser: p.student_id.toString() === currentUserId,
+        };
+      }),
+      filterInfo: {
+        schoolId: filterSchoolId,
+        class: filterClass,
+        totalMatches: matchingStudents.length
+      }
     });
   } catch (error) {
     console.error("❌ Leaderboard error:", error);
