@@ -1012,7 +1012,8 @@ router.get("/quiz-history", async (req, res) => {
       maxScore: a.total_answered || 0,
       totalQuestions: a.total_answered || 0,
       percentage: a.total_answered > 0 ? Math.round((a.correct_count / a.total_answered) * 100) : 0,
-      points_earned: 0, // Adaptive quizzes may have different point calculation
+      // Calculate approximate points: 10 points per correct answer (adaptive quizzes don't store points_earned)
+      points_earned: (a.correct_count || 0) * 10,
       completedAt: a.completedAt
     }));
 

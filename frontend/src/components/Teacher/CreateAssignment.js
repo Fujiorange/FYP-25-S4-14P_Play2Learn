@@ -53,8 +53,9 @@ export default function CreateAssignment() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setCreating(true);
-    // Note: Assignment creation endpoint would need to be implemented in backend
-    // For now, show informational message
+    // TODO: Assignment creation endpoint needs to be implemented in backend (POST /api/mongo/teacher/assignments)
+    // Currently the backend only supports quiz-based assignments via the Quiz Assignment feature.
+    // For now, show informational message directing teachers to use Quiz Assignment
     setMessage({ type: 'info', text: 'Assignment feature is being implemented. Please use Quiz Assignment for now.' });
     setCreating(false);
   };
