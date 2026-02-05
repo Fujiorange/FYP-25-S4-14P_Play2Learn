@@ -477,19 +477,15 @@ router.get('/available-quizzes', async (req, res) => {
     .select('title description quiz_type adaptive_config is_launched launched_by launched_for_classes createdAt')
     .sort({ createdAt: -1 });
     
-    // Mark which ones are launched by this teacher for their classes
-    // A quiz can be launched by multiple teachers for different classes
-    const teacher = req.teacher;
+    // Mark which ones are launched by this teacher
+    // launchedByMe is true if this teacher launched the quiz (regardless of current class assignments)
+    // This ensures the quiz appears in "My Launched Quizzes" tab after the teacher launches it
     const quizzesWithStatus = quizzes.map(quiz => {
-      // Check if this teacher has launched this quiz for any of their assigned classes
       const launchedByMe = quiz.launched_by?.toString() === req.user.userId;
-      const launchedForMyClasses = quiz.launched_for_classes?.some(c => 
-        teacher.assignedClasses?.includes(c)
-      );
       
       return {
         ...quiz.toObject(),
-        launchedByMe: launchedByMe && launchedForMyClasses
+        launchedByMe: launchedByMe
       };
     });
     

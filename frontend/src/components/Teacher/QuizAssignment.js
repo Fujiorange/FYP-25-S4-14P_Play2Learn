@@ -266,6 +266,20 @@ export default function QuizAssignment() {
       background: '#fee2e2',
       color: '#991b1b',
     },
+    placementBadge: {
+      background: '#dbeafe',
+      color: '#1e40af',
+    },
+    adaptiveBadge: {
+      background: '#fef3c7',
+      color: '#92400e',
+    },
+    quizCardHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '8px',
+    },
     launchButton: {
       padding: '10px 20px',
       background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -447,12 +461,11 @@ export default function QuizAssignment() {
             ) : (
               availableQuizzes.filter(q => !q.launchedByMe).map(quiz => (
                 <div key={quiz._id} style={styles.quizCard}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={styles.quizCardHeader}>
                     <div style={styles.quizTitle}>{quiz.title}</div>
                     <span style={{
                       ...styles.badge,
-                      background: quiz.quiz_type === 'placement' ? '#dbeafe' : '#fef3c7',
-                      color: quiz.quiz_type === 'placement' ? '#1e40af' : '#92400e'
+                      ...(quiz.quiz_type === 'placement' ? styles.placementBadge : styles.adaptiveBadge)
                     }}>
                       {quiz.quiz_type === 'placement' ? '📋 Placement' : '🎯 Adaptive'}
                     </span>
@@ -507,12 +520,11 @@ export default function QuizAssignment() {
             ) : (
               launchedQuizzes.map(quiz => (
                 <div key={quiz._id} style={styles.quizCard}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={styles.quizCardHeader}>
                     <div style={styles.quizTitle}>{quiz.title}</div>
                     <span style={{
                       ...styles.badge,
-                      background: quiz.quiz_type === 'placement' ? '#dbeafe' : '#fef3c7',
-                      color: quiz.quiz_type === 'placement' ? '#1e40af' : '#92400e'
+                      ...(quiz.quiz_type === 'placement' ? styles.placementBadge : styles.adaptiveBadge)
                     }}>
                       {quiz.quiz_type === 'placement' ? '📋 Placement' : '🎯 Adaptive'}
                     </span>
