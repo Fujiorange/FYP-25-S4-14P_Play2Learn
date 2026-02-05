@@ -11,6 +11,7 @@ export default function CreateSupportTicket() {
   const [formData, setFormData] = useState({
     category: '',
     priority: 'medium',
+    routeTo: 'website',
     subject: '',
     description: '',
   });
@@ -155,6 +156,21 @@ export default function CreateSupportTicket() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Route To *</label>
+              <select 
+                name="routeTo" 
+                value={formData.routeTo} 
+                onChange={handleChange} 
+                style={styles.select} 
+                required
+                disabled={submitting}
+              >
+                <option value="website">Website-Related Matters (P2L Admin)</option>
+                <option value="school">School-Related Matters (School Admin)</option>
+              </select>
             </div>
 
             <div style={styles.formGroup}>

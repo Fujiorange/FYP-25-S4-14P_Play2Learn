@@ -12,6 +12,7 @@ export default function CreateSupportTicket() {
   const [formData, setFormData] = useState({
     category: 'technical',
     priority: 'normal',
+    routeTo: 'website',
     subject: '',
     description: '',
   });
@@ -47,6 +48,7 @@ export default function CreateSupportTicket() {
           setFormData({ 
             category: 'technical', 
             priority: 'normal', 
+            routeTo: 'website',
             subject: '', 
             description: '' 
           });
@@ -136,6 +138,20 @@ export default function CreateSupportTicket() {
               <option value="normal">Normal</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Route To *</label>
+            <select 
+              value={formData.routeTo} 
+              onChange={(e) => setFormData({...formData, routeTo: e.target.value})} 
+              required 
+              disabled={submitting}
+              style={styles.select}
+            >
+              <option value="website">Website-Related Matters (P2L Admin)</option>
+              <option value="school">School-Related Matters (School Admin)</option>
             </select>
           </div>
           

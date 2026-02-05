@@ -77,13 +77,24 @@ router.get('/dashboard', async (req, res) => {
     const assignedClasses = teacher.assignedClasses || [];
     const assignedSubjects = teacher.assignedSubjects || [];
     
-    // Count students in assigned classes
+    console.log('📊 Teacher dashboard for:', teacher.email);
+    console.log('📊 Assigned classes:', assignedClasses);
+    console.log('📊 Teacher schoolId:', teacher.schoolId);
+    
+    // Count students - if no assigned classes, count all students in same school
     let totalStudents = 0;
     if (assignedClasses.length > 0) {
       totalStudents = await User.countDocuments({
         role: 'Student',
         class: { $in: assignedClasses }
       });
+    } else if (teacher.schoolId) {
+      // Fallback: count all students in the same school
+      totalStudents = await User.countDocuments({
+        role: 'Student',
+        schoolId: teacher.schoolId
+      });
+      console.log('📊 Using schoolId fallback, found', totalStudents, 'students');
     }
     
     // Count active quizzes launched by this teacher
@@ -96,11 +107,14 @@ router.get('/dashboard', async (req, res) => {
       ]
     });
     
-    // Get recent quiz attempts from students in assigned classes
-    const students = await User.find({
-      role: 'Student',
-      class: { $in: assignedClasses }
-    }).select('_id');
+    // Get recent quiz attempts from students
+    let studentQuery = { role: 'Student' };
+    if (assignedClasses.length > 0) {
+      studentQuery.class = { $in: assignedClasses };
+    } else if (teacher.schoolId) {
+      studentQuery.schoolId = teacher.schoolId;
+    }
+    const students = await User.find(studentQuery).select('_id');
     
     const studentIds = students.map(s => s._id);
     
