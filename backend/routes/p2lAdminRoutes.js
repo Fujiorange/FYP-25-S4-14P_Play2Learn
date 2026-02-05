@@ -2311,6 +2311,55 @@ router.post('/support-tickets/:id/close', authenticateP2LAdmin, async (req, res)
   }
 });
 
+// Update support ticket status
+router.put('/support-tickets/:id/status', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (!status || !['open', 'pending', 'closed'].includes(status)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Valid status is required (open, pending, or closed)' 
+      });
+    }
+    
+    const ticket = await SupportTicket.findById(req.params.id);
+    
+    if (!ticket) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Ticket not found' 
+      });
+    }
+    
+    ticket.status = status;
+    ticket.updated_at = new Date();
+    
+    if (status === 'closed') {
+      ticket.closed_at = new Date();
+    }
+    
+    await ticket.save();
+    
+    res.json({
+      success: true,
+      message: `Ticket status updated to ${status}`,
+      data: {
+        _id: ticket._id,
+        status: ticket.status,
+        updated_at: ticket.updated_at,
+        closed_at: ticket.closed_at
+      }
+    });
+  } catch (error) {
+    console.error('Update support ticket status error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to update ticket status' 
+    });
+  }
+});
+
 // Get support ticket statistics
 router.get('/support-tickets-stats', authenticateP2LAdmin, async (req, res) => {
   try {

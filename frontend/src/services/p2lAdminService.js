@@ -385,6 +385,13 @@ export const closeSupportTicket = async (id) => {
   });
 };
 
+export const updateSupportTicketStatus = async (id, status) => {
+  return apiCall(`/api/p2ladmin/support-tickets/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  });
+};
+
 export const getSupportTicketStats = async () => {
   return apiCall('/api/p2ladmin/support-tickets-stats');
 };
@@ -447,6 +454,7 @@ export default {
   getSupportTicket,
   replySupportTicket,
   closeSupportTicket,
+  updateSupportTicketStatus,
   getSupportTicketStats,
   getSkillPointsConfig,
   updateSkillPointsConfig,

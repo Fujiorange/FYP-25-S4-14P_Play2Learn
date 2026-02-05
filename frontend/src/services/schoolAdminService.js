@@ -644,6 +644,209 @@ const schoolAdminService = {
       console.error('updateStudentParent error:', error);
       return { success: false, error: error.message || 'Failed to update student-parent link' };
     }
+  },
+
+  // ==================== SUPPORT TICKETS ====================
+  
+  async getSupportTickets(filters = {}) {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const queryString = new URLSearchParams(filters).toString();
+      const url = queryString 
+        ? `${API_URL}/mongo/school-admin/support-tickets?${queryString}`
+        : `${API_URL}/mongo/school-admin/support-tickets`;
+
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch support tickets');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('getSupportTickets error:', error);
+      return { success: false, error: 'Failed to load support tickets' };
+    }
+  },
+
+  async getSupportTicket(ticketId) {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/school-admin/support-tickets/${ticketId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch support ticket');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('getSupportTicket error:', error);
+      return { success: false, error: 'Failed to load support ticket' };
+    }
+  },
+
+  async replySupportTicket(ticketId, response) {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const res = await fetch(`${API_URL}/mongo/school-admin/support-tickets/${ticketId}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ response })
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to send reply');
+      }
+
+      return await res.json();
+    } catch (error) {
+      console.error('replySupportTicket error:', error);
+      return { success: false, error: error.message || 'Failed to send reply' };
+    }
+  },
+
+  async updateSupportTicketStatus(ticketId, status) {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/school-admin/support-tickets/${ticketId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update ticket status');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('updateSupportTicketStatus error:', error);
+      return { success: false, error: error.message || 'Failed to update ticket status' };
+    }
+  },
+
+  async closeSupportTicket(ticketId) {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/school-admin/support-tickets/${ticketId}/close`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to close ticket');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('closeSupportTicket error:', error);
+      return { success: false, error: error.message || 'Failed to close ticket' };
+    }
+  },
+
+  async getSupportTicketStats() {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/school-admin/support-tickets-stats`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch ticket statistics');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('getSupportTicketStats error:', error);
+      return { success: false, error: 'Failed to load ticket statistics' };
+    }
+  },
+
+  async createSupportTicket(ticketData) {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/school-admin/support-tickets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(ticketData)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create support ticket');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('createSupportTicket error:', error);
+      return { success: false, error: error.message || 'Failed to create support ticket' };
+    }
+  },
+
+  async getMySupportTickets() {
+    try {
+      const token = this.getToken();
+      if (!token) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      const response = await fetch(`${API_URL}/mongo/school-admin/my-support-tickets`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch my support tickets');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('getMySupportTickets error:', error);
+      return { success: false, error: 'Failed to load my support tickets' };
+    }
   }
 };
 

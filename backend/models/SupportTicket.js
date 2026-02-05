@@ -23,7 +23,7 @@ const supportTicketSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   user_name: { type: String, required: true },
   user_email: { type: String, required: true },
-  user_role: { type: String, enum: ['Student', 'Teacher', 'Parent'], default: 'Student' },
+  user_role: { type: String, enum: ['Student', 'Teacher', 'Parent', 'School Admin'], default: 'Student' },
   
   // School information
   school_id: { type: mongoose.Schema.Types.ObjectId, ref: 'School' },
@@ -87,5 +87,6 @@ supportTicketSchema.index({ user_id: 1, created_at: -1 });
 supportTicketSchema.index({ student_id: 1, created_at: -1 });
 supportTicketSchema.index({ status: 1 });
 supportTicketSchema.index({ category: 1, status: 1 });
+supportTicketSchema.index({ school_id: 1, category: 1, status: 1 });
 
 module.exports = mongoose.model('SupportTicket', supportTicketSchema);

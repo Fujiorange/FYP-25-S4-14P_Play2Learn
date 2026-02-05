@@ -888,4 +888,89 @@ router.get('/feedback', async (req, res) => {
   }
 });
 
+// ==================== SUPPORT TICKETS ====================
+const SupportTicket = require('../models/SupportTicket');
+
+// Create support ticket
+router.post('/support-tickets', async (req, res) => {
+  try {
+    const teacherId = req.user.userId;
+    const teacher = req.teacher;
+    const { subject, category, message, description, priority } = req.body;
+    
+    const finalSubject = subject || 'Support Request';
+    const finalMessage = message || description || '';
+    
+    if (!finalMessage) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Message is required' 
+      });
+    }
+    
+    const ticket = await SupportTicket.create({
+      user_id: teacherId,
+      user_name: teacher.name,
+      user_email: teacher.email,
+      user_role: 'Teacher',
+      school_id: teacher.school,
+      school_name: teacher.schoolName || '',
+      subject: finalSubject,
+      category: category || 'general',
+      message: finalMessage,
+      status: 'open',
+      priority: priority || 'normal'
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Support ticket created successfully',
+      ticketId: ticket._id,
+      ticket: {
+        id: ticket._id,
+        subject: ticket.subject,
+        category: ticket.category,
+        status: ticket.status,
+        created_at: ticket.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Create support ticket error:', error);
+    res.status(500).json({ success: false, error: 'Failed to create support ticket' });
+  }
+});
+
+// Get teacher's support tickets
+router.get('/support-tickets', async (req, res) => {
+  try {
+    const teacherId = req.user.userId;
+    
+    const tickets = await SupportTicket.find({ 
+      user_id: teacherId 
+    })
+      .sort({ created_at: -1 })
+      .lean();
+    
+    res.json({
+      success: true,
+      tickets: tickets.map(t => ({
+        id: t._id,
+        subject: t.subject,
+        category: t.category,
+        message: t.message,
+        status: t.status,
+        priority: t.priority,
+        createdOn: t.created_at.toLocaleDateString(),
+        lastUpdate: t.updated_at.toLocaleDateString(),
+        created_at: t.created_at,
+        updated_at: t.updated_at,
+        admin_response: t.admin_response
+      }))
+    });
+  } catch (error) {
+    console.error('Get support tickets error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load support tickets' });
+  }
+});
+
 module.exports = router;

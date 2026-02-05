@@ -1,14 +1,7 @@
-// P2L Admin Support Ticket Management Component
+// School Admin Support Ticket Management Component
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  getSupportTickets,
-  getSupportTicket,
-  replySupportTicket,
-  closeSupportTicket,
-  updateSupportTicketStatus,
-  getSupportTicketStats
-} from '../../services/p2lAdminService';
+import schoolAdminService from '../../services/schoolAdminService';
 import './SupportTicketManagement.css';
 
 function SupportTicketManagement() {
@@ -31,13 +24,13 @@ function SupportTicketManagement() {
     try {
       setLoading(true);
       const [ticketsResponse, statsResponse] = await Promise.all([
-        getSupportTickets({ 
+        schoolAdminService.getSupportTickets({ 
           status: statusFilter, 
           sortBy, 
           sortOrder,
           search: searchTerm 
         }),
-        getSupportTicketStats()
+        schoolAdminService.getSupportTicketStats()
       ]);
       
       if (ticketsResponse.success) {
@@ -55,14 +48,14 @@ function SupportTicketManagement() {
   }, [statusFilter, sortBy, sortOrder, searchTerm]);
 
   useEffect(() => {
-    // Check admin auth
+    // Check school admin auth
     const storedUser = localStorage.getItem('user');
     if (!storedUser) {
       navigate('/login');
       return;
     }
     const userData = JSON.parse(storedUser);
-    if (userData.role !== 'p2ladmin' && userData.role !== 'Platform Admin') {
+    if (userData.role !== 'School Admin') {
       navigate('/login');
       return;
     }
@@ -72,7 +65,7 @@ function SupportTicketManagement() {
 
   const handleViewTicket = async (ticketId) => {
     try {
-      const response = await getSupportTicket(ticketId);
+      const response = await schoolAdminService.getSupportTicket(ticketId);
       if (response.success) {
         setSelectedTicket(response.data);
         setReplyText(response.data.admin_response || '');
@@ -91,7 +84,7 @@ function SupportTicketManagement() {
 
     try {
       setSubmitting(true);
-      const response = await replySupportTicket(selectedTicket._id, replyText);
+      const response = await schoolAdminService.replySupportTicket(selectedTicket._id, replyText);
       if (response.success) {
         setMessage({ type: 'success', text: 'Reply sent successfully' });
         setSelectedTicket({ ...selectedTicket, admin_response: replyText });
@@ -105,27 +98,10 @@ function SupportTicketManagement() {
     }
   };
 
-  const handleCloseTicket = async () => {
-    try {
-      setSubmitting(true);
-      const response = await closeSupportTicket(selectedTicket._id);
-      if (response.success) {
-        setMessage({ type: 'success', text: 'Ticket closed successfully' });
-        setSelectedTicket({ ...selectedTicket, status: 'closed' });
-        loadTickets();
-      }
-    } catch (error) {
-      console.error('Failed to close ticket:', error);
-      setMessage({ type: 'error', text: 'Failed to close ticket' });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleStatusChange = async (newStatus) => {
     try {
       setSubmitting(true);
-      const response = await updateSupportTicketStatus(selectedTicket._id, newStatus);
+      const response = await schoolAdminService.updateSupportTicketStatus(selectedTicket._id, newStatus);
       if (response.success) {
         setMessage({ type: 'success', text: `Ticket status updated to ${newStatus}` });
         setSelectedTicket({ ...selectedTicket, status: newStatus });
@@ -134,6 +110,23 @@ function SupportTicketManagement() {
     } catch (error) {
       console.error('Failed to update ticket status:', error);
       setMessage({ type: 'error', text: 'Failed to update ticket status' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCloseTicket = async () => {
+    try {
+      setSubmitting(true);
+      const response = await schoolAdminService.closeSupportTicket(selectedTicket._id);
+      if (response.success) {
+        setMessage({ type: 'success', text: 'Ticket closed successfully' });
+        setSelectedTicket({ ...selectedTicket, status: 'closed' });
+        loadTickets();
+      }
+    } catch (error) {
+      console.error('Failed to close ticket:', error);
+      setMessage({ type: 'error', text: 'Failed to close ticket' });
     } finally {
       setSubmitting(false);
     }
@@ -170,7 +163,7 @@ function SupportTicketManagement() {
     <div className="support-ticket-management">
       <header className="page-header">
         <div className="header-left">
-          <button className="btn-back" onClick={() => navigate('/p2ladmin/dashboard')}>
+          <button className="btn-back" onClick={() => navigate('/school-admin')}>
             ← Back to Dashboard
           </button>
           <h1>🎫 Support Ticket Management</h1>
@@ -245,7 +238,7 @@ function SupportTicketManagement() {
       <div className="content-layout">
         {/* Tickets List */}
         <div className="tickets-list">
-          <h2>Website-Related Tickets ({tickets.length})</h2>
+          <h2>School-Related Tickets ({tickets.length})</h2>
           {tickets.length === 0 ? (
             <p className="no-tickets">No tickets found</p>
           ) : (
@@ -313,10 +306,6 @@ function SupportTicketManagement() {
                 <span>{selectedTicket.user_email}</span>
               </div>
               <div className="detail-row">
-                <strong>School:</strong>
-                <span>{selectedTicket.school_name || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
                 <strong>Subject:</strong>
                 <span>{selectedTicket.subject}</span>
               </div>
@@ -338,7 +327,6 @@ function SupportTicketManagement() {
                   value={selectedTicket.status} 
                   onChange={(e) => handleStatusChange(e.target.value)}
                   disabled={submitting}
-                  style={{ marginLeft: '8px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #e5e7eb' }}
                 >
                   <option value="open">Open</option>
                   <option value="pending">Pending</option>
