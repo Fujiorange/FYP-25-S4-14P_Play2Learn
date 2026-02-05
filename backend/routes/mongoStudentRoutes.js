@@ -51,38 +51,32 @@ const { analyzeSentiment } = require('../utils/sentimentKeywords');
 // ==================== TIME HELPERS ====================
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// Level thresholds for points-based leveling system
+// Each entry defines the min points required to reach that level
+const LEVEL_THRESHOLDS = [
+  { level: 0, min: 0, max: 25 },      // Level 0: 0-24 points
+  { level: 1, min: 25, max: 50 },     // Level 1: 25-49 points
+  { level: 2, min: 50, max: 100 },    // Level 2: 50-99 points
+  { level: 3, min: 100, max: 200 },   // Level 3: 100-199 points
+  { level: 4, min: 200, max: 400 },   // Level 4: 200-399 points
+  { level: 5, min: 400, max: Infinity } // Level 5: 400+ points (max level)
+];
+
 // Helper function to calculate level from points
-// Level system based on accumulated points:
-// Level 0: 0-24 points
-// Level 1: 25-49 points
-// Level 2: 50-99 points
-// Level 3: 100-199 points
-// Level 4: 200-399 points
-// Level 5: 400+ points
 function calculateLevelFromPoints(points) {
-  if (points >= 400) return 5;
-  if (points >= 200) return 4;
-  if (points >= 100) return 3;
-  if (points >= 50) return 2;
-  if (points >= 25) return 1;
+  // Find the highest level threshold that the points meet
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (points >= LEVEL_THRESHOLDS[i].min) {
+      return LEVEL_THRESHOLDS[i].level;
+    }
+  }
   return 0;
 }
 
 // Helper function to calculate progress percentage within current level
 function calculateLevelProgress(points) {
   const level = calculateLevelFromPoints(points);
-  
-  // Define thresholds for each level
-  const thresholds = [
-    { min: 0, max: 25 },      // Level 0
-    { min: 25, max: 50 },     // Level 1
-    { min: 50, max: 100 },    // Level 2
-    { min: 100, max: 200 },   // Level 3
-    { min: 200, max: 400 },   // Level 4
-    { min: 400, max: 400 }    // Level 5 (max level)
-  ];
-  
-  const threshold = thresholds[level];
+  const threshold = LEVEL_THRESHOLDS[level];
   
   // If at max level, return 100%
   if (level === 5) return 100;
@@ -444,6 +438,8 @@ async function updateSkillsFromQuiz(studentId, questions, percentage, currentPro
 
     for (const [skillName, stats] of Object.entries(skillUpdates)) {
       const skillPercentage = (stats.correct / stats.total) * 100;
+      // XP is still calculated and stored for backward compatibility and display purposes
+      // but is no longer used for level calculation (points are used instead)
       const xpGain = Math.floor(skillPercentage / 10);
 
       const existingSkill = skillMap.get(skillName);
