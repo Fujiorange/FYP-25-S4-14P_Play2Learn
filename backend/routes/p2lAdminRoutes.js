@@ -813,9 +813,20 @@ router.get('/questions-grades', authenticateP2LAdmin, async (req, res) => {
       .filter(g => g && g.trim())
       .sort((a, b) => {
         // Extract number from grade string (e.g., "Primary 1" -> 1)
-        const numA = parseInt(a.match(/\d+/)?.[0] || '0');
-        const numB = parseInt(b.match(/\d+/)?.[0] || '0');
-        return numA - numB;
+        const matchA = a.match(/\d+/);
+        const matchB = b.match(/\d+/);
+        
+        // If both have numbers, sort numerically
+        if (matchA && matchB) {
+          return parseInt(matchA[0]) - parseInt(matchB[0]);
+        }
+        
+        // If only one has a number, prioritize the one with a number
+        if (matchA && !matchB) return -1;
+        if (!matchA && matchB) return 1;
+        
+        // If neither has a number, sort alphabetically
+        return a.localeCompare(b);
       });
     
     res.json({

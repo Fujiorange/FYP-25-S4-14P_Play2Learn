@@ -502,11 +502,11 @@ function QuestionBank() {
                   onChange={handleInputChange}
                 >
                   <option value="Primary 1">Primary 1</option>
-                  <option value="Primary 2">Primary 2 (Coming Soon)</option>
-                  <option value="Primary 3">Primary 3 (Coming Soon)</option>
-                  <option value="Primary 4">Primary 4 (Coming Soon)</option>
-                  <option value="Primary 5">Primary 5 (Coming Soon)</option>
-                  <option value="Primary 6">Primary 6 (Coming Soon)</option>
+                  <option value="Primary 2" disabled>Primary 2 (Coming Soon)</option>
+                  <option value="Primary 3" disabled>Primary 3 (Coming Soon)</option>
+                  <option value="Primary 4" disabled>Primary 4 (Coming Soon)</option>
+                  <option value="Primary 5" disabled>Primary 5 (Coming Soon)</option>
+                  <option value="Primary 6" disabled>Primary 6 (Coming Soon)</option>
                 </select>
               </div>
 
