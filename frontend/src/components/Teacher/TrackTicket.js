@@ -2,11 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+
 export default function TrackTicket() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [tickets, setTickets] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [error, setError] = useState('');
+
+  const getToken = () => localStorage.getItem('token');
 
   useEffect(() => {
     const loadTickets = async () => {
@@ -14,13 +21,29 @@ export default function TrackTicket() {
         navigate('/login');
         return;
       }
-      const mockTickets = [
-        { id: 'TKT-001', subject: 'Cannot upload assignment files', category: 'technical', priority: 'high', status: 'in-progress', createdOn: '2024-12-10', lastUpdate: '2024-12-11' },
-        { id: 'TKT-002', subject: 'Feature request: Bulk student import', category: 'feature', priority: 'normal', status: 'open', createdOn: '2024-12-09', lastUpdate: '2024-12-09' },
-        { id: 'TKT-003', subject: 'Question about billing cycle', category: 'billing', priority: 'low', status: 'resolved', createdOn: '2024-12-05', lastUpdate: '2024-12-06' },
-      ];
-      setTickets(mockTickets);
-      setLoading(false);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/mongo/teacher/support-tickets`, {
+          headers: {
+            'Authorization': `Bearer ${getToken()}`
+          }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          setTickets(data.tickets || []);
+        } else {
+          setError('Failed to load support tickets');
+          setTickets([]);
+        }
+      } catch (error) {
+        console.error('Load tickets error:', error);
+        setError('Failed to load support tickets');
+        setTickets([]);
+      } finally {
+        setLoading(false);
+      }
     };
     loadTickets();
   }, [navigate]);
@@ -52,6 +75,7 @@ export default function TrackTicket() {
     ticketInfo: { display: 'flex', gap: '16px', marginBottom: '12px' },
     badge: { display: 'inline-block', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' },
     emptyState: { textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: '16px', color: '#6b7280' },
+    errorMessage: { padding: '12px 16px', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' },
     loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
     loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
   };
@@ -66,6 +90,13 @@ export default function TrackTicket() {
             <h1 style={styles.title}>🎫 Track Support Tickets</h1>
             <button style={styles.backButton} onClick={() => navigate('/teacher')}>← Back to Dashboard</button>
           </div>
+          
+          {error && (
+            <div style={styles.errorMessage}>
+              ⚠️ {error}
+            </div>
+          )}
+          
           <div style={styles.filterButtons}>
             {['all', 'open', 'in-progress', 'resolved'].map(status => (
               <button key={status} onClick={() => setFilter(status)} style={{...styles.filterButton, ...(filter === status ? styles.filterButtonActive : {})}}>

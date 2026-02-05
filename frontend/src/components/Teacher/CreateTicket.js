@@ -40,16 +40,17 @@ export default function CreateTicket() {
     try {
       const user = authService.getCurrentUser();
       
-      const response = await fetch(`${API_BASE_URL}/api/mongo/student/support-tickets`, {
+      const response = await fetch(`${API_BASE_URL}/api/mongo/teacher/support-tickets`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${getToken()}`
         },
         body: JSON.stringify({
-          ...formData,
-          student_email: user?.email,
-          student_name: user?.name
+          subject: formData.subject,
+          category: formData.category,
+          description: formData.description,
+          priority: formData.priority
         })
       });
       
