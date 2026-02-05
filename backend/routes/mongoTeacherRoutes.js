@@ -929,6 +929,8 @@ router.post('/support-tickets', async (req, res) => {
       status: 'open',
       priority: priority || 'normal',
       // Legacy fields for backward compatibility
+      // NOTE: These student_* fields are maintained for compatibility with older code
+      // that expects these fields. They will be removed in a future update.
       student_id: userId,
       student_name: teacher.name || 'Unknown',
       student_email: teacher.email || 'unknown@email.com',

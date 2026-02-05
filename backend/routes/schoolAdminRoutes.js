@@ -3312,6 +3312,7 @@ router.get('/support-tickets/:id', authenticateSchoolAdmin, async (req, res) => 
     }
     
     // If ticket is 'open' and admin is viewing it, change status to 'pending'
+    const updatedStatus = ticket.status === 'open' ? 'pending' : ticket.status;
     if (ticket.status === 'open') {
       await SupportTicket.findByIdAndUpdate(req.params.id, {
         status: 'pending',
@@ -3329,7 +3330,7 @@ router.get('/support-tickets/:id', authenticateSchoolAdmin, async (req, res) => 
         subject: ticket.subject,
         category: ticket.category,
         message: ticket.message,
-        status: ticket.status === 'open' ? 'pending' : ticket.status,
+        status: updatedStatus, // Return the updated status
         priority: ticket.priority,
         created_at: ticket.created_at,
         updated_at: ticket.updated_at,
