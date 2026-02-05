@@ -807,9 +807,20 @@ router.get('/questions-topics', authenticateP2LAdmin, async (req, res) => {
 router.get('/questions-grades', authenticateP2LAdmin, async (req, res) => {
   try {
     const grades = await Question.distinct('grade');
+    
+    // Custom sort to order by grade level number (Primary 1, Primary 2, etc.)
+    const sortedGrades = grades
+      .filter(g => g && g.trim())
+      .sort((a, b) => {
+        // Extract number from grade string (e.g., "Primary 1" -> 1)
+        const numA = parseInt(a.match(/\d+/)?.[0] || '0');
+        const numB = parseInt(b.match(/\d+/)?.[0] || '0');
+        return numA - numB;
+      });
+    
     res.json({
       success: true,
-      data: grades.filter(g => g && g.trim()).sort() // Filter out empty/null values and sort alphabetically
+      data: sortedGrades
     });
   } catch (error) {
     console.error('Get grades error:', error);
