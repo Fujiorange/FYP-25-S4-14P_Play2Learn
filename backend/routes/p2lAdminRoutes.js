@@ -743,12 +743,13 @@ router.post('/school-admins/:id/reset-password', authenticateP2LAdmin, async (re
 // Get all questions
 router.get('/questions', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { subject, topic, difficulty, is_active } = req.query;
+    const { subject, topic, difficulty, grade, is_active } = req.query;
     
     const filter = {};
     if (subject) filter.subject = subject;
     if (topic) filter.topic = topic;
     if (difficulty) filter.difficulty = parseInt(difficulty);
+    if (grade) filter.grade = grade;
     if (is_active !== undefined) filter.is_active = is_active === 'true';
 
     const questions = await Question.find(filter)
@@ -798,6 +799,23 @@ router.get('/questions-topics', authenticateP2LAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to fetch topics' 
+    });
+  }
+});
+
+// Get unique grades
+router.get('/questions-grades', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const grades = await Question.distinct('grade');
+    res.json({
+      success: true,
+      data: grades.filter(g => g && g.trim()).sort() // Filter out empty/null values and sort alphabetically
+    });
+  } catch (error) {
+    console.error('Get grades error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch grades' 
     });
   }
 });
@@ -867,7 +885,7 @@ router.get('/questions/:id', authenticateP2LAdmin, async (req, res) => {
 // Create question
 router.post('/questions', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { text, choices, answer, difficulty, subject, topic, is_active } = req.body;
+    const { text, choices, answer, difficulty, subject, topic, grade, is_active } = req.body;
     
     // Validate required fields
     if (!text || !answer) {
@@ -884,6 +902,7 @@ router.post('/questions', authenticateP2LAdmin, async (req, res) => {
       difficulty: difficulty || 2,
       subject: subject || 'General',
       topic: topic || '',
+      grade: grade || 'Primary 1',
       is_active: is_active !== undefined ? is_active : true,
       created_by: req.user._id
     });
@@ -907,7 +926,7 @@ router.post('/questions', authenticateP2LAdmin, async (req, res) => {
 // Update question
 router.put('/questions/:id', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { text, choices, answer, difficulty, subject, topic, is_active } = req.body;
+    const { text, choices, answer, difficulty, subject, topic, grade, is_active } = req.body;
     
     const question = await Question.findById(req.params.id);
     if (!question) {
@@ -924,6 +943,7 @@ router.put('/questions/:id', authenticateP2LAdmin, async (req, res) => {
     if (difficulty !== undefined) question.difficulty = difficulty;
     if (subject) question.subject = subject;
     if (topic !== undefined) question.topic = topic;
+    if (grade !== undefined) question.grade = grade;
     if (is_active !== undefined) question.is_active = is_active;
 
     await question.save();
@@ -1060,6 +1080,7 @@ router.post('/questions/upload-csv', authenticateP2LAdmin, upload.single('file')
             difficulty: difficulty,
             subject: normalizedRow.subject || 'General',
             topic: normalizedRow.topic || '',
+            grade: normalizedRow.grade || 'Primary 1',
             is_active: normalizedRow.is_active !== 'false' && normalizedRow.is_active !== '0'
           });
         })

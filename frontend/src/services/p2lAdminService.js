@@ -240,6 +240,10 @@ export const getQuestionTopics = async () => {
   return apiCall('/api/p2ladmin/questions-topics');
 };
 
+export const getQuestionGrades = async () => {
+  return apiCall('/api/p2ladmin/questions-grades');
+};
+
 export const bulkDeleteQuestions = async (ids) => {
   return apiCall('/api/p2ladmin/questions/bulk-delete', {
     method: 'POST',
