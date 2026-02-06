@@ -1530,7 +1530,7 @@ router.get("/badges/progress", async (req, res) => {
       quizzes_completed: completedQuizzes.length,
       assignments_completed: completedAssignments.length,
       login_streak: mathProfile?.streak || 0,
-      perfect_scores: completedQuizzes.filter(q => q.score === 15).length, // 15/15 = 100%
+      perfect_scores: completedQuizzes.filter(q => q.percentage === 100).length, // Check percentage instead of hardcoded score
       high_scores: completedQuizzes.filter(q => q.percentage >= 90).length,
       points_earned: mathProfile?.total_points || 0
     };
