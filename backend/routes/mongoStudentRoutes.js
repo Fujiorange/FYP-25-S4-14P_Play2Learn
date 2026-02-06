@@ -1117,13 +1117,6 @@ router.get("/leaderboard", async (req, res) => {
 // ==================== SUPPORT TICKETS ====================
 router.post("/support-tickets", async (req, res) => {
   try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const studentId = req.user.userId;
-    const { subject, category, message, description, student_name, student_email } = req.body;
-=======
-=======
->>>>>>> Stashed changes
     const userId = req.user.userId;
     const { subject, category, message, description, student_name, student_email, user_name, user_email } = req.body;
 
@@ -1133,10 +1126,6 @@ router.post("/support-tickets", async (req, res) => {
     console.log('  user_email:', user_email);
     console.log('  subject:', subject);
     console.log('  message:', message);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
     const finalSubject = subject || 'Support Request';
     const finalMessage = message || description || '';
@@ -1148,35 +1137,16 @@ router.post("/support-tickets", async (req, res) => {
       });
     }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const ticket = await SupportTicket.create({
-      student_id: studentId,
-      student_name: student_name || req.user.name || 'Unknown',
-      student_email: student_email || req.user.email || 'unknown@email.com',
-=======
-=======
->>>>>>> Stashed changes
     // Create ticket with proper field mapping (use user_* fields for SupportTicket model)
     const ticketData = {
       user_id: userId,
       user_name: user_name || student_name || req.user.name || 'Unknown',
       user_email: user_email || student_email || req.user.email || 'unknown@email.com',
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
       subject: finalSubject,
       category: category || 'general',
       message: finalMessage,
       status: 'open',
       priority: req.body.priority || 'normal',
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    });
-=======
-=======
->>>>>>> Stashed changes
       // Keep legacy fields for backward compatibility
       student_id: userId,
       student_name: user_name || student_name || req.user.name || 'Unknown',
@@ -1188,10 +1158,6 @@ router.post("/support-tickets", async (req, res) => {
     const ticket = await SupportTicket.create(ticketData);
 
     console.log('✅ Ticket created successfully:', ticket._id);
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 
     res.status(201).json({
       success: true,

@@ -1,11 +1,5 @@
-﻿const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 
-<<<<<<< Updated upstream
-const supportTicketSchema = new mongoose.Schema({
-  student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  student_name: { type: String, required: true },
-  student_email: { type: String, required: true },
-=======
 /**
  * Unified Support Ticket Schema
  * Supports tickets from students, teachers, and parents
@@ -19,9 +13,9 @@ const supportTicketSchema = new mongoose.Schema({
  *                   and update of all consuming code to use user_* fields
  *
  * To migrate existing tickets, run a database update script to copy:
- * - student_id  user_id
- * - student_name  user_name
- * - student_email  user_email
+ * - student_id  => user_id
+ * - student_name => user_name
+ * - student_email => user_email
  * And set user_role to 'Student' for existing records
  */
 const supportTicketSchema = new mongoose.Schema({
@@ -36,21 +30,9 @@ const supportTicketSchema = new mongoose.Schema({
   school_name: { type: String },
 
   // Ticket details
->>>>>>> Stashed changes
   subject: { type: String, required: true },
   category: { type: String, default: 'general' },
   message: { type: String, required: true },
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-  status: { type: String, enum: ['open', 'in-progress', 'resolved', 'closed'], default: 'open' },
-  priority: { type: String, enum: ['low', 'normal', 'high', 'urgent'], default: 'normal' },
-  created_at: { type: Date, default: Date.now },
-  updated_at: { type: Date, default: Date.now },
-  resolved_at: { type: Date },
-  admin_response: { type: String }
-=======
-=======
->>>>>>> Stashed changes
 
   // Status: open (new), pending (admin has read), closed (resolved)
   status: { type: String, enum: ['open', 'pending', 'closed'], default: 'open' },
@@ -97,10 +79,6 @@ supportTicketSchema.pre('save', async function() {
   if (this.student_email && !this.user_email) {
     this.user_email = this.student_email;
   }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 });
 
 // Add indexes for performance on frequently queried fields
