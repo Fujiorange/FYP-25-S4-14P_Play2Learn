@@ -1,3 +1,5 @@
+// frontend/src/components/Teacher/TrackTicket.js
+// ✅ FIXED VERSION - Uses real API
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
@@ -48,13 +50,56 @@ export default function TrackTicket() {
     loadTickets();
   }, [navigate]);
 
-  const filteredTickets = filter === 'all' ? tickets : tickets.filter(t => t.status === filter);
+  const loadTickets = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/mongo/teacher/support-tickets`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setTickets(data.tickets || []);
+      } else {
+        setError(data.error || 'Failed to load tickets');
+      }
+    } catch (err) {
+      console.error('Error loading tickets:', err);
+      setError('Failed to load tickets');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status) => {
-    if (status === 'open') return { background: '#dbeafe', color: '#1e40af' };
-    if (status === 'in-progress') return { background: '#fef3c7', color: '#92400e' };
-    if (status === 'resolved') return { background: '#d1fae5', color: '#065f46' };
-    return { background: '#f3f4f6', color: '#6b7280' };
+    const colors = {
+      open: { bg: '#fef3c7', text: '#92400e', label: '🟡 Open' },
+      'in-progress': { bg: '#dbeafe', text: '#1e40af', label: '🔵 In Progress' },
+      resolved: { bg: '#d1fae5', text: '#065f46', label: '✅ Resolved' },
+      closed: { bg: '#e5e7eb', text: '#374151', label: '⬜ Closed' }
+    };
+    return colors[status] || colors.open;
+  };
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      low: '#10b981',
+      medium: '#f59e0b',
+      high: '#ef4444',
+      urgent: '#dc2626'
+    };
+    return colors[priority] || colors.medium;
+  };
+
+  const filteredTickets = filter === 'all' 
+    ? tickets 
+    : tickets.filter(t => t.status === filter);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   const styles = {
@@ -80,11 +125,28 @@ export default function TrackTicket() {
     loadingText: { fontSize: '24px', color: '#6b7280', fontWeight: '600' },
   };
 
-  if (loading) return (<div style={styles.loadingContainer}><div style={styles.loadingText}>Loading tickets...</div></div>);
+  if (loading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loading}>
+          <div style={{
+            width: '50px',
+            height: '50px',
+            border: '5px solid #e5e7eb',
+            borderTop: '5px solid #10b981',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+          }}></div>
+        </div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.content}>
+        {/* Header */}
         <div style={styles.header}>
           <div style={styles.headerTop}>
             <h1 style={styles.title}>🎫 Track Support Tickets</h1>
@@ -106,31 +168,88 @@ export default function TrackTicket() {
           </div>
         </div>
 
-        {filteredTickets.length > 0 ? (
-          <div style={styles.ticketGrid}>
-            {filteredTickets.map(ticket => (
-              <div key={ticket.id} style={styles.ticketCard}>
-                <div style={styles.ticketHeader}>
-                  <div style={styles.ticketId}>{ticket.id}</div>
-                  <span style={{...styles.badge, ...getStatusColor(ticket.status)}}>
-                    {ticket.status === 'in-progress' ? 'In Progress' : ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
-                  </span>
-                </div>
-                <div style={styles.ticketSubject}>{ticket.subject}</div>
-                <div style={styles.ticketInfo}>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>📁 {ticket.category}</span>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>🔔 {ticket.priority} priority</span>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>📅 Created: {ticket.createdOn}</span>
-                  <span style={{ fontSize: '13px', color: '#6b7280' }}>🔄 Updated: {ticket.lastUpdate}</span>
-                </div>
-              </div>
-            ))}
+        {error && <div style={styles.error}>{error}</div>}
+
+        {/* Filter Bar */}
+        <div style={styles.filterBar}>
+          {['all', 'open', 'in-progress', 'resolved', 'closed'].map(f => (
+            <button
+              key={f}
+              style={{
+                ...styles.filterButton,
+                ...(filter === f ? styles.filterActive : { background: 'white', color: '#374151' })
+              }}
+              onClick={() => setFilter(f)}
+            >
+              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1).replace('-', ' ')}
+              {' '}({f === 'all' ? tickets.length : tickets.filter(t => t.status === f).length})
+            </button>
+          ))}
+        </div>
+
+        {/* Ticket List */}
+        {filteredTickets.length === 0 ? (
+          <div style={styles.emptyState}>
+            <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎫</div>
+            <p style={{ fontSize: '18px', color: '#6b7280', margin: 0 }}>
+              {filter === 'all' ? 'No support tickets yet' : `No ${filter} tickets`}
+            </p>
+            <button
+              style={{ ...styles.createButton, marginTop: '20px' }}
+              onClick={() => navigate('/teacher/support/create')}
+            >
+              Create Your First Ticket
+            </button>
           </div>
         ) : (
-          <div style={styles.emptyState}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎫</div>
-            <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No tickets found</p>
-            <p>You don't have any {filter === 'all' ? '' : filter} support tickets</p>
+          <div style={styles.ticketList}>
+            {filteredTickets.map((ticket) => {
+              const statusStyle = getStatusColor(ticket.status);
+              return (
+                <div key={ticket._id} style={styles.ticketCard}>
+                  <div style={styles.ticketHeader}>
+                    <div>
+                      <h3 style={styles.ticketSubject}>{ticket.subject}</h3>
+                      <span style={styles.ticketId}>Ticket #{ticket._id?.slice(-6) || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div style={styles.ticketMeta}>
+                    <span style={{
+                      ...styles.badge,
+                      background: statusStyle.bg,
+                      color: statusStyle.text
+                    }}>
+                      {statusStyle.label}
+                    </span>
+                    <span style={{
+                      ...styles.badge,
+                      background: `${getPriorityColor(ticket.priority)}20`,
+                      color: getPriorityColor(ticket.priority)
+                    }}>
+                      {ticket.priority || 'medium'} priority
+                    </span>
+                    <span style={{
+                      ...styles.badge,
+                      background: '#f3f4f6',
+                      color: '#6b7280'
+                    }}>
+                      {ticket.category || 'general'}
+                    </span>
+                  </div>
+                  <p style={styles.ticketDescription}>
+                    {ticket.description?.length > 200 
+                      ? ticket.description.substring(0, 200) + '...' 
+                      : ticket.description}
+                  </p>
+                  <div style={styles.ticketFooter}>
+                    <span>Created: {formatDate(ticket.createdAt)}</span>
+                    {ticket.updatedAt && ticket.updatedAt !== ticket.createdAt && (
+                      <span>Updated: {formatDate(ticket.updatedAt)}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

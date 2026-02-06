@@ -133,6 +133,8 @@ router.get('/dashboard-stats', authenticateSchoolAdmin, async (req, res) => {
     const schoolAdmin = req.schoolAdmin;
     const schoolId = schoolAdmin.schoolId;
     
+    console.log('🔍 Admin:', schoolAdmin.email, 'SchoolId:', schoolId, 'Type:', typeof schoolId);
+    
     // ✅ FIX: Query the 'users' collection with role field, scoped to school
     const [
       totalStudents,
@@ -147,6 +149,11 @@ router.get('/dashboard-stats', authenticateSchoolAdmin, async (req, res) => {
     ]);
 
     console.log(`✅ Found: ${totalStudents} students, ${totalTeachers} teachers, ${totalParents} parents, ${totalClasses} classes`);
+    
+    // Debug: Check what's actually in DB
+    const allStudents = await User.countDocuments({ role: 'Student' });
+    const allTeachers = await User.countDocuments({ role: 'Teacher' });
+    console.log(`📊 Total in DB (all schools): ${allStudents} students, ${allTeachers} teachers`);
 
     res.json({
       success: true,
@@ -246,6 +253,14 @@ router.get('/users', authenticateSchoolAdmin, async (req, res) => {
     const schoolAdmin = req.schoolAdmin;
     const { gradeLevel, subject, role } = req.query;
     
+    // ✅ DEBUG: Log admin info
+    console.log('🔍 Admin user:', {
+      id: schoolAdmin._id,
+      email: schoolAdmin.email,
+      schoolId: schoolAdmin.schoolId,
+      schoolIdType: typeof schoolAdmin.schoolId
+    });
+    
     // Filter by school ID to ensure school admin only sees their school's users
     const filter = { schoolId: schoolAdmin.schoolId };
     
@@ -264,17 +279,54 @@ router.get('/users', authenticateSchoolAdmin, async (req, res) => {
       filter.subject = subject;
     }
 
-    console.log('🔍 Fetching users with filter:', filter);
+    console.log('🔍 Fetching users with filter:', JSON.stringify(filter, null, 2));
+    
+    // ✅ DEBUG: Count all users with this schoolId first
+    const totalWithSchoolId = await User.countDocuments({ schoolId: schoolAdmin.schoolId });
+    console.log(`📊 Total users with schoolId ${schoolAdmin.schoolId}: ${totalWithSchoolId}`);
+    
+    // ✅ DEBUG: Check if there are ANY teachers
+    const allTeachers = await User.find({ role: 'Teacher' }).select('email schoolId');
+    console.log('📊 All teachers in DB:', allTeachers.map(t => ({ email: t.email, schoolId: t.schoolId })));
 
     const users = await User.find(filter)
       .select('-password')
       .sort({ createdAt: -1 });
 
-    console.log(`✅ Found ${users.length} users`);
+    console.log(`✅ Found ${users.length} users matching filter`);
 
-    // Map class IDs to names for display
-    const classIds = [...new Set(users.map(u => u.class).filter(Boolean))];
+    // Map class values to display names
+    // Note: user.class can be either an ObjectId OR a class name string
+    const classValues = [...new Set(users.map(u => u.class).filter(Boolean))];
     const classLookup = {};
+<<<<<<< HEAD
+    
+    if (classValues.length > 0) {
+      // Filter out non-ObjectId values (class names like "1A", "1-Excellence")
+      const mongoose = require('mongoose');
+      const validObjectIds = classValues.filter(id => {
+        try {
+          return mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === id;
+        } catch {
+          return false;
+        }
+      });
+      
+      // Only query if we have valid ObjectIds
+      if (validObjectIds.length > 0) {
+        const classDocs = await Class.find({ _id: { $in: validObjectIds }, school_id: schoolAdmin.schoolId })
+          .select('class_name');
+        classDocs.forEach(cls => {
+          classLookup[cls._id.toString()] = cls.class_name;
+        });
+      }
+      
+      // For string class names, use them directly
+      classValues.forEach(cv => {
+        if (!classLookup[cv]) {
+          classLookup[cv] = cv; // Use the string value as-is
+        }
+=======
     if (classIds.length > 0) {
       // Filter to only valid ObjectIds to avoid query errors
       const validClassIds = classIds.filter(id => {
@@ -283,6 +335,7 @@ router.get('/users', authenticateSchoolAdmin, async (req, res) => {
         } catch (e) {
           return false;
         }
+>>>>>>> 959d1151c635f6878edae148a5506befea64de5c
       });
       
       if (validClassIds.length > 0) {
@@ -2286,14 +2339,43 @@ router.get('/classes/available/students', authenticateSchoolAdmin, async (req, r
     const schoolAdmin = req.schoolAdmin;
     const { unassigned, includeClassId } = req.query;
     
+<<<<<<< HEAD
+    // ✅ FIX: Base filter - get all students from this school
+=======
     // Base filter - only students in this school
     // Note: accountActive filter removed to ensure all students show up when
     // creating/editing classes, regardless of account active status
+>>>>>>> 959d1151c635f6878edae148a5506befea64de5c
     const filter = {
       schoolId: schoolAdmin.schoolId,
       role: 'Student'
     };
     
+<<<<<<< HEAD
+    console.log('📊 Getting available students for school:', schoolAdmin.schoolId);
+    console.log('📊 Query params - unassigned:', unassigned, 'includeClassId:', includeClassId);
+    
+    // Only filter by unassigned if explicitly requested with unassigned=true
+    // By default, show ALL students so they can be reassigned to different classes
+    if (unassigned === 'true') {
+      // Only unassigned students (null or empty class)
+      filter.$or = [
+        { class: null },
+        { class: '' },
+        { class: { $exists: false } }
+      ];
+      
+      // Also include students from a specific class if editing that class
+      if (includeClassId) {
+        try {
+          const cls = await Class.findOne({ _id: includeClassId, school_id: schoolAdmin.schoolId });
+          if (cls && cls.students && cls.students.length > 0) {
+            filter.$or.push({ _id: { $in: cls.students } });
+          }
+        } catch (err) {
+          console.warn('Include class lookup failed:', err.message);
+        }
+=======
     // Build conditions for students without classes assigned
     const orConditions = [
       { class: { $in: [null, ''] } },
@@ -2312,16 +2394,22 @@ router.get('/classes/available/students', authenticateSchoolAdmin, async (req, r
         orConditions.push({ class: includeClassId.toString() });
       } catch (err) {
         console.warn('Include class lookup failed:', err.message);
+>>>>>>> 959d1151c635f6878edae148a5506befea64de5c
       }
     }
+    // If unassigned is not 'true', we return ALL students
     
+<<<<<<< HEAD
+    const students = await User.find(filter).select('name email class gradeLevel');
+=======
     // Apply OR conditions unless explicitly showing all students
     const limitToUnassigned = unassigned !== 'false';
     if (limitToUnassigned) {
       filter.$or = orConditions;
     }
+>>>>>>> 959d1151c635f6878edae148a5506befea64de5c
     
-    const students = await User.find(filter).select('name email class');
+    console.log(`✅ Found ${students.length} students`);
     
     res.json({
       success: true,
@@ -2329,7 +2417,8 @@ router.get('/classes/available/students', authenticateSchoolAdmin, async (req, r
         id: s._id,
         name: s.name,
         email: s.email,
-        currentClass: s.class
+        currentClass: s.class,
+        gradeLevel: s.gradeLevel
       }))
     });
   } catch (error) {
