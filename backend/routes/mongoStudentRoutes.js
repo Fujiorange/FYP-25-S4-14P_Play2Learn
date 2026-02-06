@@ -556,7 +556,7 @@ router.get("/math-skills", async (req, res) => {
         student_id: studentId,
         skill_name: skillName,
         current_level: 0,
-        xp: 0,
+        experience_points: 0,
         unlocked: true,
       }));
       const createdSkills = await MathSkill.insertMany(newSkillDocs);
@@ -565,14 +565,14 @@ router.get("/math-skills", async (req, res) => {
 
     res.json({
       success: true,
-      currentProfile: mathProfile?.current_profile || 1,
+      student_rank: mathProfile?.current_profile || 1,
       skills: skills.map(s => ({
         skill_name: s.skill_name,
         current_level: s.current_level,
-        xp: s.xp,
+        experience_points: s.experience_points || 0,
         max_level: 5,
         unlocked: s.unlocked,
-        percentage: Math.min(100, (s.xp % 100)),
+        percentage: Math.min(100, ((s.experience_points || 0) % 100)),
       }))
     });
   } catch (error) {

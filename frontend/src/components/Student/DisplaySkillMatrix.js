@@ -17,11 +17,24 @@ function sortSkillsBySequence(skills) {
   });
 }
 
+// Calculate tier information from experience points
+function calculateTierInfo(experiencePoints) {
+  const xpPerTier = 100;
+  const maxTier = 5;
+  
+  const tier = Math.min(Math.floor(experiencePoints / xpPerTier), maxTier);
+  const xpInCurrentTier = experiencePoints % xpPerTier;
+  const xpToNextTier = tier < maxTier ? xpPerTier - xpInCurrentTier : 0;
+  const tierProgress = tier < maxTier ? Math.floor((xpInCurrentTier / xpPerTier) * 100) : 100;
+  
+  return { tier, xpInCurrentTier, xpToNextTier, tierProgress };
+}
+
 export default function DisplaySkillMatrix() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [skills, setSkills] = useState([]);
-  const [currentProfile, setCurrentProfile] = useState(1);
+  const [studentRank, setStudentRank] = useState(1);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -37,17 +50,17 @@ export default function DisplaySkillMatrix() {
         if (result?.success) {
           const sorted = sortSkillsBySequence(result.skills || []);
           setSkills(sorted);
-          setCurrentProfile(result.currentProfile || 1);
+          setStudentRank(result.student_rank || 1);
         } else {
           setError("Failed to load skill matrix");
           const fallback = sortSkillsBySequence([
-            { skill_name: "Addition", current_level: 0, xp: 0, max_level: 5, unlocked: true, percentage: 0 },
-            { skill_name: "Subtraction", current_level: 0, xp: 0, max_level: 5, unlocked: true, percentage: 0 },
-            { skill_name: "Multiplication", current_level: 0, xp: 0, max_level: 5, unlocked: false, percentage: 0 },
-            { skill_name: "Division", current_level: 0, xp: 0, max_level: 5, unlocked: false, percentage: 0 },
+            { skill_name: "Addition", current_level: 0, experience_points: 0, max_level: 5, unlocked: true, percentage: 0 },
+            { skill_name: "Subtraction", current_level: 0, experience_points: 0, max_level: 5, unlocked: true, percentage: 0 },
+            { skill_name: "Multiplication", current_level: 0, experience_points: 0, max_level: 5, unlocked: false, percentage: 0 },
+            { skill_name: "Division", current_level: 0, experience_points: 0, max_level: 5, unlocked: false, percentage: 0 },
           ]);
           setSkills(fallback);
-          setCurrentProfile(1);
+          setStudentRank(1);
         }
       } catch (err) {
         console.error("Load skills error:", err);
@@ -78,12 +91,12 @@ export default function DisplaySkillMatrix() {
     return "📊";
   };
 
-  const getSkillLevel = (level) => {
-    if (level >= 5) return { label: "🏆 Master", color: "#10b981" };
-    if (level >= 4) return { label: "⭐ Advanced", color: "#f59e0b" };
-    if (level >= 3) return { label: "📈 Intermediate", color: "#3b82f6" };
-    if (level >= 2) return { label: "🌟 Beginner", color: "#a855f7" };
-    if (level >= 1) return { label: "🌱 Learning", color: "#8b5cf6" };
+  const getSkillLevel = (tier) => {
+    if (tier >= 5) return { label: "🏆 Master", color: "#10b981" };
+    if (tier >= 4) return { label: "⭐ Advanced", color: "#f59e0b" };
+    if (tier >= 3) return { label: "📈 Intermediate", color: "#3b82f6" };
+    if (tier >= 2) return { label: "🌟 Beginner", color: "#a855f7" };
+    if (tier >= 1) return { label: "🌱 Learning", color: "#8b5cf6" };
     return { label: "✨ Novice", color: "#ef4444" };
   };
 
@@ -236,25 +249,23 @@ export default function DisplaySkillMatrix() {
 
           <div style={styles.infoBox}>
             <div style={styles.infoText}>
-              🎯 You are currently at Profile {currentProfile}. Multiplication & Division will unlock at Profile 6!
+              🎯 You are currently at Profile {studentRank}. Multiplication & Division will unlock at Profile 6!
             </div>
           </div>
         </div>
 
         <div style={styles.skillsGrid}>
           {skills.map((skill, idx) => {
-            const pct = Number.isFinite(skill.percentage)
-              ? skill.percentage
-              : Number.isFinite(skill.xp)
-              ? skill.xp
-              : 0;
+            const experiencePoints = skill.experience_points || 0;
+            const tierInfo = calculateTierInfo(experiencePoints);
+            const { tier, xpInCurrentTier, xpToNextTier, tierProgress } = tierInfo;
 
-            const color = getSkillColor(skill.current_level, skill.max_level);
-            const levelInfo = getSkillLevel(skill.current_level);
+            const color = getSkillColor(tier, skill.max_level);
+            const levelInfo = getSkillLevel(tier);
 
             // Lock rule by profile (spec): ×/÷ locked below 6
             const isAdvanced = ["Multiplication", "Division"].includes(skill.skill_name);
-            const isLocked = isAdvanced && currentProfile < 6;
+            const isLocked = isAdvanced && studentRank < 6;
 
             return (
               <div key={idx} style={styles.skillCard}>
@@ -278,21 +289,24 @@ export default function DisplaySkillMatrix() {
                   <div
                     style={{
                       ...styles.progressFill,
-                      width: `${Math.max(0, Math.min(100, pct))}%`,
+                      width: `${tierProgress}%`,
                       background: color,
                     }}
                   />
                 </div>
 
                 <div style={styles.row}>
-                  <span>
-                    Level {skill.current_level} / {skill.max_level}
-                  </span>
-                  <span>{Math.max(0, Math.min(100, pct))}%</span>
+                  <span>Tier {tier} / {skill.max_level}</span>
+                  <span>{tierProgress}%</span>
                 </div>
 
                 <div style={{ ...styles.badge, background: levelInfo.color }}>{levelInfo.label}</div>
-                <div style={styles.xp}>XP: {skill.xp || 0} / 100</div>
+                <div style={styles.xp}>
+                  {tier < 5 
+                    ? `Tier ${tier} - ${xpInCurrentTier} XP / 100 XP to next tier`
+                    : `Max Tier Reached - ${experiencePoints} Total XP`
+                  }
+                </div>
               </div>
             );
           })}
