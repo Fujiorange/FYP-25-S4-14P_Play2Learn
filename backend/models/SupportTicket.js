@@ -79,7 +79,6 @@ supportTicketSchema.pre('save', async function() {
   if (this.student_email && !this.user_email) {
     this.user_email = this.student_email;
   }
-  next();
 });
 
 // Add indexes for performance on frequently queried fields
