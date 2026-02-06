@@ -372,7 +372,7 @@ const studentService = {
       const user = JSON.parse(localStorage.getItem('user'));
       if (!user) return { success: false, error: 'User data not found' };
 
-      const response = await fetch(`${API_URL}/mongo/student/support-tickets`, {
+      const response = await fetch(`${API_URL}/student/support-tickets`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -399,7 +399,7 @@ const studentService = {
       const token = localStorage.getItem('token');
       if (!token) return { success: false, error: 'Not authenticated' };
 
-      const response = await fetch(`${API_URL}/mongo/student/support-tickets`, {
+      const response = await fetch(`${API_URL}/student/support-tickets`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
