@@ -246,7 +246,7 @@ const studentService = {
       const token = localStorage.getItem('token');
       if (!token) return { success: false, error: 'Not authenticated' };
 
-      const response = await fetch(`${API_URL}/mongo/student/quiz/results`, {
+      const response = await fetch(`${API_URL}/mongo/student/quiz-results`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

@@ -828,59 +828,8 @@ router.post("/quiz/submit", async (req, res) => {
   }
 });
 
-// Quiz Results
-router.get("/quiz-results", async (req, res) => {
-  try {
-    const studentId = req.user.userId;
-
-    const mathProfile = await MathProfile.findOne({ student_id: studentId });
-    const { effective: effectiveStreak, shouldPersistReset } = computeEffectiveStreak(mathProfile);
-
-    if (mathProfile && shouldPersistReset) {
-      mathProfile.streak = 0;
-      await mathProfile.save();
-    }
-
-    // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
-    const allQuizzes = await Quiz.find({ 
-      student_id: studentId, 
-      quiz_type: "regular" 
-    }).sort({ completed_at: -1 });
-
-    // Filter: Only include quizzes that have been submitted (have student answers)
-    const quizzes = allQuizzes.filter(isQuizCompleted);
-
-    const totalQuizzes = quizzes.length;
-    const averageScore =
-      totalQuizzes > 0
-        ? Math.round(quizzes.reduce((sum, q) => sum + q.percentage, 0) / totalQuizzes)
-        : 0;
-    const totalPoints = mathProfile?.total_points || 0;
-
-
-    res.json({
-      success: true,
-      progressData: {
-        currentProfile: mathProfile ? mathProfile.current_profile : 1,
-        totalQuizzes,
-        averageScore,
-        totalPoints,
-        streak: effectiveStreak,
-        recentQuizzes: quizzes.slice(0, 10).map((q) => ({
-          date: q.completed_at.toLocaleDateString(),
-          time: q.completed_at.toLocaleTimeString(),
-          profile: q.profile_level,
-          score: q.score,
-          total: q.total_questions,
-          percentage: q.percentage,
-        })),
-      },
-    });
-  } catch (error) {
-    console.error("❌ Math progress error:", error);
-    res.status(500).json({ success: false, error: "Failed to load progress data" });
-  }
-});
+// ==================== QUIZ RESULTS / HISTORY ====================
+// (First duplicate route removed - see below for the correct quiz-results endpoint)
 
 // Leaderboard
 router.get("/leaderboard", async (req, res) => {
