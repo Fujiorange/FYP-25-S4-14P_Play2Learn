@@ -58,7 +58,7 @@ const supportTicketSchema = new mongoose.Schema({
 // Pre-save hook to sync legacy fields for backward compatibility
 // This ensures data consistency while both field sets are in use
 // TODO: Remove this hook when legacy fields are deprecated
-supportTicketSchema.pre('save', function(next) {
+supportTicketSchema.pre('save', async function() {
   // Sync user fields to legacy student fields for backward compatibility
   if (this.user_id && !this.student_id) {
     this.student_id = this.user_id;
