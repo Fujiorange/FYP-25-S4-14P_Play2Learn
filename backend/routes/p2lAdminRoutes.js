@@ -867,7 +867,7 @@ router.get('/questions/:id', authenticateP2LAdmin, async (req, res) => {
 // Create question
 router.post('/questions', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { text, choices, answer, difficulty, subject, topic, is_active } = req.body;
+    const { text, choices, answer, difficulty, grade, subject, topic, is_active } = req.body;
     
     // Validate required fields
     if (!text || !answer) {
@@ -882,6 +882,7 @@ router.post('/questions', authenticateP2LAdmin, async (req, res) => {
       choices: choices || [],
       answer,
       difficulty: difficulty || 2,
+      grade: grade || 1,
       subject: subject || 'General',
       topic: topic || '',
       is_active: is_active !== undefined ? is_active : true,
@@ -907,7 +908,7 @@ router.post('/questions', authenticateP2LAdmin, async (req, res) => {
 // Update question
 router.put('/questions/:id', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { text, choices, answer, difficulty, subject, topic, is_active } = req.body;
+    const { text, choices, answer, difficulty, grade, subject, topic, is_active } = req.body;
     
     const question = await Question.findById(req.params.id);
     if (!question) {
@@ -922,6 +923,7 @@ router.put('/questions/:id', authenticateP2LAdmin, async (req, res) => {
     if (choices) question.choices = choices;
     if (answer) question.answer = answer;
     if (difficulty !== undefined) question.difficulty = difficulty;
+    if (grade !== undefined) question.grade = grade;
     if (subject) question.subject = subject;
     if (topic !== undefined) question.topic = topic;
     if (is_active !== undefined) question.is_active = is_active;
@@ -1053,11 +1055,18 @@ router.post('/questions/upload-csv', authenticateP2LAdmin, upload.single('file')
             difficulty = 3;
           }
 
+          // Parse grade (default to 1 if not provided or invalid)
+          let grade = parseInt(normalizedRow.grade) || 1;
+          if (grade < 1 || grade > 6) {
+            grade = 1;
+          }
+
           results.push({
             text: text.trim(),
             choices: choices,
             answer: answer.trim(),
             difficulty: difficulty,
+            grade: grade,
             subject: normalizedRow.subject || 'General',
             topic: normalizedRow.topic || '',
             is_active: normalizedRow.is_active !== 'false' && normalizedRow.is_active !== '0'
@@ -2063,4 +2072,90 @@ router.post('/users/bulk-delete', authenticateP2LAdmin, async (req, res) => {
 });
 
 // Other Admin Functions...
+
+// ==================== XP REWARD CONFIGURATION ROUTES ====================
+
+// Retrieve XP reward settings for all difficulty levels
+router.get('/xp-rewards', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const SkillRewardSettings = require('../models/SkillRewardSettings');
+    
+    let rewardSettings = await SkillRewardSettings.find().sort({ challengeLevel: 1 });
+    
+    // Bootstrap default settings if database is empty
+    if (rewardSettings.length === 0) {
+      const baseSettings = [
+        { challengeLevel: 1, successReward: 1, failurePenalty: -2.5 },
+        { challengeLevel: 2, successReward: 2, failurePenalty: -2.0 },
+        { challengeLevel: 3, successReward: 3, failurePenalty: -1.5 },
+        { challengeLevel: 4, successReward: 4, failurePenalty: -1.0 },
+        { challengeLevel: 5, successReward: 5, failurePenalty: -0.5 }
+      ];
+      
+      rewardSettings = await SkillRewardSettings.insertMany(baseSettings);
+    }
+    
+    res.json({
+      success: true,
+      rewardSettings: rewardSettings
+    });
+  } catch (error) {
+    console.error('Error fetching XP reward settings:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Unable to retrieve XP reward configuration' 
+    });
+  }
+});
+
+// Modify XP reward settings for specific difficulty level
+router.put('/xp-rewards/:level', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const targetLevel = parseInt(req.params.level);
+    const { successReward, failurePenalty } = req.body;
+    
+    if (successReward === undefined || failurePenalty === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Both successReward and failurePenalty must be provided'
+      });
+    }
+    
+    if (targetLevel < 1 || targetLevel > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Challenge level must be between 1 and 5'
+      });
+    }
+    
+    const SkillRewardSettings = require('../models/SkillRewardSettings');
+    const { invalidateRewardCache } = require('../utils/experienceCalculator');
+    
+    const updatedSetting = await SkillRewardSettings.findOneAndUpdate(
+      { challengeLevel: targetLevel },
+      { 
+        successReward: parseFloat(successReward),
+        failurePenalty: parseFloat(failurePenalty),
+        lastModified: new Date()
+      },
+      { new: true, upsert: true }
+    );
+    
+    // Clear cache so new settings take effect immediately
+    invalidateRewardCache();
+    
+    res.json({
+      success: true,
+      message: `XP rewards for level ${targetLevel} updated successfully`,
+      setting: updatedSetting
+    });
+  } catch (error) {
+    console.error('Error updating XP reward settings:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to update XP reward configuration' 
+    });
+  }
+});
+
 module.exports = router;

@@ -5,6 +5,8 @@ const mathProfileSchema = new mongoose.Schema({
   current_profile: { type: Number, default: 1, min: 1, max: 10 },
   placement_completed: { type: Boolean, default: false },
   total_points: { type: Number, default: 0 },
+  accumulated_experience: { type: Number, default: 0 },
+  student_rank: { type: Number, default: 1 },
   consecutive_fails: { type: Number, default: 0 },
   quizzes_today: { type: Number, default: 0 },
   last_reset_date: { type: Date, default: Date.now },

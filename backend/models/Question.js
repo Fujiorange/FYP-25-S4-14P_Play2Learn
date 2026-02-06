@@ -10,6 +10,12 @@ const questionSchema = new mongoose.Schema({
     default: 3,
     required: true 
   },
+  grade: {
+    type: Number,
+    enum: [1, 2, 3, 4, 5, 6],
+    default: 1,
+    required: true
+  },
   subject: { type: String, default: 'General' },
   topic: { type: String, default: '' },
   is_active: { type: Boolean, default: true },
