@@ -25,7 +25,7 @@ export default function CreateTicket() {
 
     setSubmitting(true);
     try {
-      const user = authService.getCurrentUser();
+      const token = localStorage.getItem('token');
       
       const response = await fetch(`${API_BASE_URL}/api/mongo/teacher/support-tickets`, {
         method: 'POST',
@@ -34,10 +34,10 @@ export default function CreateTicket() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          subject: formData.subject,
-          category: formData.category,
-          description: formData.description,
-          priority: formData.priority
+          subject: subject,
+          category: 'school', // Teacher tickets are school-related by default
+          description: description,
+          priority: priority
         })
       });
 
