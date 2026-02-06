@@ -18,6 +18,7 @@ function QuestionBank() {
     choices: ['', '', '', ''],
     answer: '',
     difficulty: 3,
+    grade: 1,
     subject: 'General',
     topic: ''
   });
@@ -119,6 +120,7 @@ function QuestionBank() {
       choices: question.choices || ['', '', '', ''],
       answer: question.answer,
       difficulty: question.difficulty,
+      grade: question.grade || 1,
       subject: question.subject || 'General',
       topic: question.topic || ''
     });
@@ -188,6 +190,7 @@ function QuestionBank() {
       choices: ['', '', '', ''],
       answer: '',
       difficulty: 3,
+      grade: 1,
       subject: 'General',
       topic: ''
     });
@@ -201,6 +204,28 @@ function QuestionBank() {
   const getDifficultyClass = (level) => {
     const classes = { 1: 'level-1', 2: 'level-2', 3: 'level-3', 4: 'level-4', 5: 'level-5' };
     return classes[level] || '';
+  };
+
+  const journeyStations = Array.from({ length: 6 }, (_, idx) => {
+    const station = idx + 1;
+    const constellations = ['🌟', '🔮', '💎', '🏆', '👑', '🚀'];
+    const cosmicPalette = ['#FFD700', '#9333EA', '#3B82F6', '#F59E0B', '#EC4899', '#EF4444'];
+    return {
+      voyagePoint: station,
+      celestialMarker: constellations[idx],
+      auraShade: cosmicPalette[idx],
+      pathOpen: station === 1,
+      nameplate: `Primary ${station}`
+    };
+  });
+
+  const navigateToStation = (destination) => {
+    const targetJourney = journeyStations[destination - 1];
+    targetJourney?.pathOpen && setFormData(curr => ({ ...curr, grade: destination }));
+  };
+
+  const locateCurrentStation = (waypoint) => {
+    return journeyStations.find(j => j.voyagePoint === waypoint) || journeyStations[0];
   };
 
   const handleFileSelect = (e) => {
@@ -251,18 +276,18 @@ function QuestionBank() {
   };
 
   const downloadTemplate = () => {
-    const template = `text,choice1,choice2,choice3,choice4,answer,difficulty,subject,topic
-"What is 2 + 2?","2","3","4","5","4",1,"Math","Addition"
-"What is the capital of France?","London","Berlin","Paris","Rome","Paris",2,"Geography","Capitals"
-"Which planet is closest to the sun?","Venus","Mars","Mercury","Earth","Mercury",3,"Science","Solar System"`;
-    
-    const blob = new Blob([template], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'questions_template.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
+    const templateRows = [
+      'text,choice1,choice2,choice3,choice4,answer,difficulty,grade,subject,topic',
+      '"What is 2 + 2?","2","3","4","5","4",1,1,"Math","Addition"',
+      '"What is the capital of France?","London","Berlin","Paris","Rome","Paris",2,1,"Geography","Capitals"',
+      '"Which planet is closest to the sun?","Venus","Mars","Mercury","Earth","Mercury",3,1,"Science","Solar System"'
+    ];
+    const csvBlob = new Blob([templateRows.join('\n')], { type: 'text/csv' });
+    const downloadLink = document.createElement('a');
+    downloadLink.href = window.URL.createObjectURL(csvBlob);
+    downloadLink.download = 'questions_template.csv';
+    downloadLink.click();
+    window.URL.revokeObjectURL(downloadLink.href);
   };
 
   if (loading) {
@@ -446,6 +471,29 @@ function QuestionBank() {
                 </div>
 
                 <div className="form-group">
+                  <label>Academic Journey *</label>
+                  <div className="constellation-voyage">
+                    {journeyStations.map(station => (
+                      <div
+                        key={station.voyagePoint}
+                        className={`voyage-constellation ${formData.grade === station.voyagePoint ? 'constellation-active' : ''} ${!station.pathOpen ? 'constellation-locked' : ''}`}
+                        onClick={() => navigateToStation(station.voyagePoint)}
+                        style={{ 
+                          borderColor: station.auraShade,
+                          backgroundColor: formData.grade === station.voyagePoint ? station.auraShade + '20' : 'transparent'
+                        }}
+                      >
+                        <span className="constellation-glyph">{station.celestialMarker}</span>
+                        <span className="constellation-label">P{station.voyagePoint}</span>
+                        {!station.pathOpen && <span className="constellation-badge">Soon</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
                   <label>Subject</label>
                   <input
                     type="text"
@@ -493,6 +541,7 @@ function QuestionBank() {
                   <li><strong>choice1, choice2, choice3, choice4</strong> - Answer choices (optional)</li>
                   <li><strong>answer</strong> - The correct answer (required)</li>
                   <li><strong>difficulty</strong> - Number from 1-5 (default: 3)</li>
+                  <li><strong>grade</strong> - Primary level from 1-6 (default: 1)</li>
                   <li><strong>subject</strong> - Subject name (default: General)</li>
                   <li><strong>topic</strong> - Topic name (optional)</li>
                 </ul>
@@ -598,6 +647,15 @@ function QuestionBank() {
                 <span className={`difficulty-badge ${getDifficultyClass(question.difficulty)}`}>
                   {getDifficultyLabel(question.difficulty)}
                 </span>
+                {question.grade && (
+                  <div 
+                    className="voyage-emblem" 
+                    style={{ backgroundColor: locateCurrentStation(question.grade).auraShade + '30', borderColor: locateCurrentStation(question.grade).auraShade }}
+                  >
+                    <span className="emblem-icon">{locateCurrentStation(question.grade).celestialMarker}</span>
+                    <span className="emblem-text">P{question.grade}</span>
+                  </div>
+                )}
                 <span className="subject-badge">{question.subject}</span>
               </div>
               

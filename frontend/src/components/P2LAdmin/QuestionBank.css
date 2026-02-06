@@ -414,3 +414,113 @@ textarea:focus {
   color: #666;
   font-size: 0.875rem;
 }
+
+/* Constellation Voyage Grade Selector */
+.constellation-voyage {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.voyage-constellation {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 70px;
+  border: 3px solid #ddd;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: white;
+}
+
+.voyage-constellation:hover:not(.constellation-locked) {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.constellation-active {
+  transform: scale(1.15);
+  box-shadow: 0 0 20px currentColor;
+  animation: pulseGlow 2s infinite;
+}
+
+.constellation-locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.8);
+}
+
+.constellation-locked:hover {
+  transform: none;
+}
+
+.constellation-glyph {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.constellation-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+  color: #333;
+}
+
+.constellation-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  font-size: 0.6rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 10px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 30px currentColor, 0 0 40px currentColor;
+  }
+}
+
+/* Voyage Emblem in Question List */
+.voyage-emblem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  border: 2px solid;
+  animation: shimmer 3s infinite;
+}
+
+.emblem-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.emblem-text {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.2);
+  }
+}
