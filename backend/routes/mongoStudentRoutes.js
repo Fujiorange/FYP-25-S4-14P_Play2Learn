@@ -330,7 +330,6 @@ async function updateSkillsFromQuiz(studentId, questions, percentage, currentPro
     const profileDifficulty = Math.min(5, Math.ceil(currentProfile / 2));
 
     // Fetch reward configuration once for all questions
-    const { fetchRewardConfiguration } = require('../utils/experienceCalculator');
     const rewardConfig = await fetchRewardConfiguration();
     const difficultyRewards = rewardConfig[profileDifficulty] || rewardConfig[3];
 
