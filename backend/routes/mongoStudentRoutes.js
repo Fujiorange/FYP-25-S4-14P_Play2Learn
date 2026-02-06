@@ -1664,6 +1664,11 @@ router.get("/badges/progress", async (req, res) => {
 
     console.log(`📊 Math Profile for ${userEmail}:`, mathProfile);
 
+    // Get user's school for filtering badges
+    const db = mongoose.connection.db;
+    const user = await db.collection('users').findOne({ _id: new mongoose.Types.ObjectId(studentId) });
+    const schoolId = user?.school;
+
     // ✅ FIX: Use Quiz model with SAME logic as Dashboard/Progress
     const allQuizzes = await StudentQuiz.find({ 
       student_id: studentId,
@@ -1695,9 +1700,14 @@ router.get("/badges/progress", async (req, res) => {
 
     console.log(`📊 Badge progress for ${userEmail}:`, progress);
 
-    // Check and auto-award badges
-    const db = mongoose.connection.db;
-    const badges = await db.collection('badges').find({ isActive: true }).toArray();
+    // Check and auto-award badges - filter by school
+    const badges = await db.collection('badges').find({ 
+      isActive: true,
+      $or: [
+        { school_id: schoolId },
+        { school_id: { $exists: false } }
+      ]
+    }).toArray();
     const earnedBadges = await db.collection('student_badges')
       .find({ student_email: userEmail })
       .toArray();
