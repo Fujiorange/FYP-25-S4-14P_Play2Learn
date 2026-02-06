@@ -91,7 +91,8 @@ export default function CreateSupportTicket() {
       let result;
       try {
         result = await response.json();
-      } catch {
+      } catch (parseError) {
+        console.warn('Could not parse response JSON:', parseError);
         result = null;
       }
 

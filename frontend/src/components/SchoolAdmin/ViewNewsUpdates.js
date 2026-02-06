@@ -33,13 +33,12 @@ function ViewNewsUpdates() {
       const data = await response.json();
       
       if (data.success) {
-        // Filter broadcasts relevant to school admins
-        const adminBroadcasts = (data.broadcasts || []).filter(broadcast => 
-          broadcast.target_roles && 
-          (broadcast.target_roles.includes('school_admin') || 
-           broadcast.target_roles.includes('School Admin') || 
-           broadcast.target_roles.includes('all'))
-        );
+        // Filter broadcasts relevant to school admins (normalize role comparison to lowercase)
+        const adminBroadcasts = (data.broadcasts || []).filter(broadcast => {
+          if (!broadcast.target_roles) return false;
+          const normalizedRoles = broadcast.target_roles.map(r => r.toLowerCase().replace(/[\s_-]/g, ''));
+          return normalizedRoles.includes('schooladmin') || normalizedRoles.includes('all');
+        });
         setBroadcasts(adminBroadcasts);
       } else {
         console.error('Broadcast fetch unsuccessful:', data.error);
