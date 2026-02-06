@@ -17,12 +17,10 @@ export default function ParentDashboard() {
   const [hoveredItem, setHoveredItem] = useState(null);
   
   // Parent and children data
-  const [parentData, setParentData] = useState(null);
   const [linkedStudents, setLinkedStudents] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
   
   // Selected child's data
-  const [childStats, setChildStats] = useState(null);
   const [childActivities, setChildActivities] = useState([]);
   const [statsLoading, setStatsLoading] = useState(false);
 
@@ -47,7 +45,6 @@ export default function ParentDashboard() {
         const dashboardResult = await parentService.getDashboard();
         
         if (dashboardResult.success) {
-          setParentData(dashboardResult.parent);
           setLinkedStudents(dashboardResult.parent.linkedStudents || []);
           
           // Check if there's a previously selected child in sessionStorage
@@ -89,11 +86,8 @@ export default function ParentDashboard() {
     setStatsLoading(true);
     
     try {
-      // Fetch child stats
-      const statsResult = await parentService.getChildStats(studentId);
-      if (statsResult.success) {
-        setChildStats(statsResult.stats);
-      }
+      // Fetch child stats (result used for logging/debugging only)
+      await parentService.getChildStats(studentId);
 
       // Fetch child activities
       const activitiesResult = await parentService.getChildActivities(studentId, 5);

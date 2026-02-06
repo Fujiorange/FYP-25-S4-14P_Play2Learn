@@ -107,6 +107,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     // Load dashboard data on mount
     loadDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   useEffect(() => {
@@ -120,6 +121,7 @@ export default function StudentDashboard() {
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   if (loading) {

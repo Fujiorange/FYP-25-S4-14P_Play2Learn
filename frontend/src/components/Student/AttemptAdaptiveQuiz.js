@@ -11,7 +11,6 @@ function AttemptAdaptiveQuiz() {
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
-  const [quiz, setQuiz] = useState(null);
   const [attemptId, setAttemptId] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [answer, setAnswer] = useState('');
@@ -26,6 +25,7 @@ function AttemptAdaptiveQuiz() {
     if (quizId) {
       startQuiz();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId]);
 
   const getToken = () => localStorage.getItem('token');

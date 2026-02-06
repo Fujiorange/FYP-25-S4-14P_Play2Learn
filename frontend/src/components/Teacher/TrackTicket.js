@@ -23,6 +23,7 @@ export default function TrackTicket() {
       return;
     }
     loadTickets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   const loadTickets = async () => {

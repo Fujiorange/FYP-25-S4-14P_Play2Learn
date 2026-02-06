@@ -10,9 +10,9 @@ const Footer = () => {
             <h3>Play2Learn</h3>
             <p>Transforming education through adaptive learning and incentive-driven engagement.</p>
             <div className="social-links">
-              <a href="#">LinkedIn</a>
-              <a href="#">Twitter</a>
-              <a href="#">Facebook</a>
+              <span className="social-link">LinkedIn</span>
+              <span className="social-link">Twitter</span>
+              <span className="social-link">Facebook</span>
             </div>
           </div>
           
@@ -30,19 +30,19 @@ const Footer = () => {
             <h4>Support</h4>
             <ul>
               <li><a href="#contact">Contact Us</a></li>
-              <li><a href="#">Documentation</a></li>
-              <li><a href="#">Help Center</a></li>
-              <li><a href="#">Teacher Resources</a></li>
+              <li><span className="footer-link">Documentation</span></li>
+              <li><span className="footer-link">Help Center</span></li>
+              <li><span className="footer-link">Teacher Resources</span></li>
             </ul>
           </div>
           
           <div className="footer-section">
             <h4>Legal</h4>
             <ul>
-              <li><a href="#">Privacy Policy</a></li>
-              <li><a href="#">Terms of Service</a></li>
-              <li><a href="#">Data Protection</a></li>
-              <li><a href="#">Compliance</a></li>
+              <li><span className="footer-link">Privacy Policy</span></li>
+              <li><span className="footer-link">Terms of Service</span></li>
+              <li><span className="footer-link">Data Protection</span></li>
+              <li><span className="footer-link">Compliance</span></li>
             </ul>
           </div>
         </div>

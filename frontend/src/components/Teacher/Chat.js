@@ -24,12 +24,14 @@ export default function Chat() {
       return;
     }
     loadConversations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   useEffect(() => {
     if (selectedChat) {
       loadMessages(selectedChat.userId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat]);
 
   useEffect(() => {

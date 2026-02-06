@@ -26,6 +26,7 @@ export default function QuizAssignment() {
       return;
     }
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   const fetchData = async () => {

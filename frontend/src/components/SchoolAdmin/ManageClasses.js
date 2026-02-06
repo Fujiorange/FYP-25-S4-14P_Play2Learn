@@ -11,11 +11,6 @@ const GRADES = [
   { value: 'Primary 5', enabled: false },
   { value: 'Primary 6', enabled: false }
 ];
-const SUBJECTS = [
-  { value: 'Mathematics', enabled: true },
-  { value: 'Science', enabled: false },
-  { value: 'English', enabled: false }
-];
 
 export default function ManageClasses() {
   const navigate = useNavigate();
