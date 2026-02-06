@@ -349,20 +349,44 @@ export default function ViewChildProgress() {
           )}
         </div>
 
-        {/* Recent Activities */}
+        {/* Recent Activities - Show as Quiz Items */}
         <div style={styles.activitiesCard}>
           <h2 style={styles.sectionTitle}>📝 Recent Activities</h2>
           {progressData?.recentActivities && progressData.recentActivities.length > 0 ? (
-            <>
-              {progressData.recentActivities.map((activity, index) => (
-                <div key={index} style={styles.activityItem}>
-                  <span style={styles.activityText}>{activity.description}</span>
-                  <span style={styles.activityTime}>
-                    {activity.timestamp ? new Date(activity.timestamp).toLocaleDateString('en-SG') : activity.date || 'Recent'}
-                  </span>
-                </div>
-              ))}
-            </>
+            <div>
+              {progressData.recentActivities.map((activity, index) => {
+                // Handle both old text format and new quiz format
+                let displayText = activity.description || '';
+                let percentage = 0;
+                let date = 'Recent';
+                
+                // Try to parse structured quiz data
+                if (activity.date && activity.quizTitle && activity.score !== undefined) {
+                  date = activity.date;
+                  displayText = `${activity.quizTitle}`;
+                  percentage = activity.percentage || 0;
+                } else if (activity.description) {
+                  // Fallback to text format
+                  date = activity.timestamp ? new Date(activity.timestamp).toLocaleDateString('en-SG') : 'Recent';
+                }
+                
+                const scoreColor = percentage >= 70 ? '#10b981' : percentage >= 50 ? '#f59e0b' : '#ef4444';
+
+                return (
+                  <div key={index} style={styles.quizItem}>
+                    <div style={styles.quizInfo}>
+                      <div style={styles.quizDate}>{date}</div>
+                      <div style={styles.quizProfile}>{displayText}</div>
+                    </div>
+                    {activity.score !== undefined && activity.total !== undefined && (
+                      <div style={{ ...styles.quizScore, color: scoreColor }}>
+                        {activity.score}/{activity.total} ({percentage}%)
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           ) : (
             <div style={styles.emptyState}>
               <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>

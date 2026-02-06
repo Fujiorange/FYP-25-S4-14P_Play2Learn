@@ -187,6 +187,7 @@ if (!mongoose.models.MathSkill) {
     skill_name: { type: String, required: true },
     current_level: { type: Number, default: 0 },
     xp: { type: Number, default: 0 },
+    points: { type: Number, default: 0 },
     unlocked: { type: Boolean, default: true },
     updatedAt: { type: Date, default: Date.now },
   });

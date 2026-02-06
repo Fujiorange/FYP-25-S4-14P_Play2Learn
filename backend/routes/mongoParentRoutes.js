@@ -48,6 +48,7 @@ if (!mongoose.models.MathSkill) {
     skill_name: { type: String, required: true },
     current_level: { type: Number, default: 0, min: 0, max: 5 },
     xp: { type: Number, default: 0 },
+    points: { type: Number, default: 0 },
     unlocked: { type: Boolean, default: true },
     updatedAt: { type: Date, default: Date.now }
   });
@@ -900,21 +901,39 @@ router.get('/child/:studentId/performance', authenticateParent, async (req, res)
     console.log('📊 MathProfile data:', { currentProfile, streak, totalPoints });
 
     // 2. Get Quiz Results (for totalQuizzes, highestScore, recentQuizzes)
-    // ✅ FIX: Query StudentQuiz collection (quiz attempts), not Quiz collection
-    const allQuizzes = await StudentQuiz.find({ 
+    // ✅ FIX: Query both regular AND adaptive quizzes to match student view
+    const allRegularQuizzes = await StudentQuiz.find({ 
       student_id: studentId,
       quiz_type: 'regular'
     }).sort({ completed_at: -1 });
 
-    // ✅ FIX: Filter out unsubmitted quizzes (only count completed ones with scores > 0)
-    const quizzes = allQuizzes.filter(quiz => quiz.score > 0 && quiz.percentage > 0);
+    // ✅ Filter out unsubmitted quizzes (only count completed ones with scores > 0)
+    const regularQuizzes = allRegularQuizzes.filter(quiz => quiz.score > 0 && quiz.percentage > 0);
 
-    const totalQuizzes = quizzes.length;
+    // ✅ Get adaptive quizzes completed by this student
+    const adaptiveAttempts = await QuizAttempt.find({
+      userId: studentId,
+      is_completed: true
+    }).sort({ completedAt: -1 }).lean();
 
+    // ✅ Combine all quizzes from both types
+    const totalQuizzes = regularQuizzes.length + adaptiveAttempts.length;
+
+    // ✅ Calculate highest score across BOTH quiz types
     let highestScore = 0;
-    if (quizzes.length > 0) {
-      highestScore = Math.max(...quizzes.map(q => q.percentage || 0));
+    if (regularQuizzes.length > 0) {
+      const regularMax = Math.max(...regularQuizzes.map(q => q.percentage || 0));
+      highestScore = Math.max(highestScore, regularMax);
     }
+    if (adaptiveAttempts.length > 0) {
+      const adaptiveMax = Math.max(...adaptiveAttempts.map(a => {
+        return a.total_answered > 0 ? Math.round((a.correct_count / a.total_answered) * 100) : 0;
+      }));
+      highestScore = Math.max(highestScore, adaptiveMax);
+    }
+
+    // ✅ Use regular quizzes for recent display (showing regular quizzes in parent view)
+    const quizzes = regularQuizzes;
 
     console.log('📊 Quiz data:', { totalQuizzes, highestScore });
 
@@ -1027,7 +1046,7 @@ router.get('/child/:studentId/progress', authenticateParent, async (req, res) =>
     // Format quiz data as "activities"
     const recentActivities = recentQuizzes.map(quiz => {
       const percentage = quiz.percentage || 0;
-      const scoreEmoji = percentage >= 70 ? '🎉' : percentage >= 50 ? '📝' : '📚';
+      const scoreEmoji = percentage >= 70 ? '🎉' : percentage >= 50 ? '�' : '�';
       
       return {
         description: `${scoreEmoji} Completed Profile ${quiz.profile_level} Quiz - Score: ${quiz.score}/${quiz.total_questions} (${percentage}%)`,
@@ -1169,6 +1188,7 @@ router.get('/child/:studentId/skills', authenticateParent, async (req, res) => {
         skill_name: skill.skill_name,
         current_level: skill.current_level || 0,
         xp: skill.xp || 0,
+        points: skill.points || 0,
         max_level: 5, // Fixed max level
         percentage: skill.xp || 0, // XP is the percentage (0-100)
         unlocked: skill.unlocked !== undefined ? skill.unlocked : true
@@ -1180,10 +1200,10 @@ router.get('/child/:studentId/skills', authenticateParent, async (req, res) => {
       // No skills yet - return defaults
       console.log('⚠️ No skills found, returning defaults');
       skills = [
-        { skill_name: 'Addition', current_level: 0, xp: 0, max_level: 5, percentage: 0, unlocked: true },
-        { skill_name: 'Subtraction', current_level: 0, xp: 0, max_level: 5, percentage: 0, unlocked: true },
-        { skill_name: 'Multiplication', current_level: 0, xp: 0, max_level: 5, percentage: 0, unlocked: false },
-        { skill_name: 'Division', current_level: 0, xp: 0, max_level: 5, percentage: 0, unlocked: false }
+        { skill_name: 'Addition', current_level: 0, xp: 0, points: 0, max_level: 5, percentage: 0, unlocked: true },
+        { skill_name: 'Subtraction', current_level: 0, xp: 0, points: 0, max_level: 5, percentage: 0, unlocked: true },
+        { skill_name: 'Multiplication', current_level: 0, xp: 0, points: 0, max_level: 5, percentage: 0, unlocked: false },
+        { skill_name: 'Division', current_level: 0, xp: 0, points: 0, max_level: 5, percentage: 0, unlocked: false }
       ];
     }
 
