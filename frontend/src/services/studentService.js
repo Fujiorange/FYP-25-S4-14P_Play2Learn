@@ -419,6 +419,23 @@ const studentService = {
     }
   },
 
+  async getSupportTicket(ticketId) {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { success: false, error: 'Not authenticated' };
+
+      const response = await fetch(`${API_URL}/mongo/student/support-tickets/${ticketId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch support ticket');
+      return await response.json();
+    } catch (error) {
+      console.error('getSupportTicket error:', error);
+      return { success: false, error: 'Failed to load support ticket' };
+    }
+  },
+
   // ==================== TESTIMONIALS ====================
   
   /**

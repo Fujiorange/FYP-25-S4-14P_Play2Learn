@@ -1315,11 +1315,55 @@ router.get("/support-tickets", async (req, res) => {
         created_at: t.created_at,
         updated_at: t.updated_at,
         admin_response: t.admin_response,
+        responded_at: t.responded_at,
+        hasReply: !!t.admin_response,
       }))
     });
   } catch (error) {
     console.error("❌ Get support tickets error:", error);
     res.status(500).json({ success: false, error: "Failed to load support tickets" });
+  }
+});
+
+// Get single support ticket with details
+router.get("/support-tickets/:ticketId", async (req, res) => {
+  try {
+    const studentId = req.user.userId;
+    const { ticketId } = req.params;
+
+    const ticket = await SupportTicket.findOne({
+      _id: ticketId,
+      $or: [{ student_id: studentId }, { user_id: studentId }]
+    }).lean();
+
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ticket not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      ticket: {
+        id: ticket._id,
+        subject: ticket.subject,
+        category: ticket.category,
+        message: ticket.message,
+        status: ticket.status,
+        priority: ticket.priority,
+        createdOn: ticket.created_at.toLocaleDateString(),
+        lastUpdate: ticket.updated_at.toLocaleDateString(),
+        created_at: ticket.created_at,
+        updated_at: ticket.updated_at,
+        admin_response: ticket.admin_response,
+        responded_at: ticket.responded_at,
+        hasReply: !!ticket.admin_response,
+      }
+    });
+  } catch (error) {
+    console.error("❌ Get support ticket error:", error);
+    res.status(500).json({ success: false, error: "Failed to load support ticket" });
   }
 });
 
