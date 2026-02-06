@@ -581,14 +581,35 @@ router.post('/support-tickets', authenticateParent, async (req, res) => {
 
 router.get('/support-tickets', authenticateParent, async (req, res) => {
   try {
-    const tickets = await ParentSupportTicket.find({
-      userId: req.user.userId
-    }).sort({ createdAt: -1 });
+    const parentId = req.user.userId;
+    
+    // Fetch from unified SupportTicket model which has admin responses
+    const unifiedTickets = await SupportTicket.find({
+      $or: [{ user_id: parentId }, { student_id: parentId }]
+    }).sort({ created_at: -1 }).lean();
+
+    // Format tickets with admin response information
+    const formattedTickets = unifiedTickets.map(ticket => ({
+      ticketId: ticket._id,
+      id: `#${ticket._id.toString().slice(-6).toUpperCase()}`,
+      subject: ticket.subject,
+      category: ticket.category === 'website' ? 'Website-Related Problem' : 
+                ticket.category === 'school' ? 'School-Related Problem' : 
+                ticket.category,
+      priority: ticket.priority,
+      status: ticket.status,
+      message: ticket.message,
+      createdAt: ticket.created_at,
+      updatedAt: ticket.updated_at,
+      admin_response: ticket.admin_response,
+      responded_at: ticket.responded_at,
+      hasReply: !!ticket.admin_response,
+    }));
 
     res.json({
       success: true,
-      tickets,
-      totalTickets: tickets.length
+      tickets: formattedTickets,
+      totalTickets: formattedTickets.length
     });
 
   } catch (error) {
@@ -604,22 +625,47 @@ router.get('/support-tickets', authenticateParent, async (req, res) => {
 router.get('/support-tickets/:ticketId', authenticateParent, async (req, res) => {
   try {
     const { ticketId } = req.params;
+    const parentId = req.user.userId;
 
-    const ticket = await ParentSupportTicket.findOne({
-      ticketId,
-      userId: req.user.userId
-    });
+    // Try to find in unified SupportTicket model first (has admin responses)
+    let ticket = await SupportTicket.findOne({
+      _id: ticketId,
+      $or: [{ user_id: parentId }, { student_id: parentId }]
+    }).lean();
 
     if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        error: 'Ticket not found'
-      });
+      // Fallback to legacy ParentSupportTicket model
+      ticket = await ParentSupportTicket.findOne({
+        ticketId,
+        userId: parentId
+      }).lean();
+
+      if (!ticket) {
+        return res.status(404).json({
+          success: false,
+          error: 'Ticket not found'
+        });
+      }
     }
 
     res.json({
       success: true,
-      ticket
+      ticket: {
+        ticketId: ticket._id || ticket.ticketId,
+        id: `#${(ticket._id || ticket.ticketId).toString().slice(-6).toUpperCase()}`,
+        subject: ticket.subject,
+        category: ticket.category === 'website' ? 'Website-Related Problem' : 
+                  ticket.category === 'school' ? 'School-Related Problem' : 
+                  ticket.category,
+        priority: ticket.priority,
+        status: ticket.status,
+        message: ticket.message || ticket.description,
+        createdAt: ticket.created_at || ticket.createdAt,
+        updatedAt: ticket.updated_at || ticket.updatedAt,
+        admin_response: ticket.admin_response,
+        responded_at: ticket.responded_at,
+        hasReply: !!ticket.admin_response,
+      }
     });
 
   } catch (error) {
