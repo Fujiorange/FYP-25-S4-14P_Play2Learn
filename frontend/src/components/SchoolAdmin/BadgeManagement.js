@@ -109,7 +109,9 @@ export default function BadgeManagement() {
   const getConditionDescription = () => {
     const { conditionType, activityType, conditionValue } = formData;
     if (conditionType === 'attempt') {
-      return `Complete ${conditionValue} ${activityType}${conditionValue > 1 ? 'zes' : ''}`;
+      const activityLabel = activityType === 'quiz' ? 'quiz' : 'assignment';
+      const plural = conditionValue > 1 ? (activityType === 'quiz' ? 'zes' : 's') : '';
+      return `Complete ${conditionValue} ${activityLabel}${plural}`;
     } else if (conditionType === 'score') {
       const scoreType = activityType === 'perfect' ? '100%' : '90%+';
       return `Score ${scoreType} on ${conditionValue} quiz${conditionValue > 1 ? 'zes' : ''}`;
@@ -229,7 +231,11 @@ export default function BadgeManagement() {
   const formatConditionDisplay = (badge) => {
     const { conditionType, activityType, criteriaValue } = badge;
     if (conditionType === 'attempt') {
-      return `${criteriaValue} ${activityType === 'quiz' ? 'Quiz' : 'Assignment'}${criteriaValue > 1 ? 'zes' : ''}`;
+      if (activityType === 'quiz') {
+        return `${criteriaValue} Quiz${criteriaValue > 1 ? 'zes' : ''}`;
+      } else {
+        return `${criteriaValue} Assignment${criteriaValue > 1 ? 's' : ''}`;
+      }
     } else if (conditionType === 'score') {
       return `${criteriaValue} ${activityType === 'perfect' ? 'Perfect' : 'High'} Score${criteriaValue > 1 ? 's' : ''}`;
     } else if (conditionType === 'streak') {
