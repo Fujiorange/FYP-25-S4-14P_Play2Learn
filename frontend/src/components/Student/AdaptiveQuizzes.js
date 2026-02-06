@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdaptiveQuizzes.css';
 
@@ -14,13 +14,9 @@ function AdaptiveQuizzes() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('available');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const getToken = () => localStorage.getItem('token');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [quizzesRes, attemptsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/adaptive-quiz/quizzes`, {
@@ -48,7 +44,11 @@ function AdaptiveQuizzes() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const startQuiz = (quizId) => {
     navigate(`/student/adaptive-quiz/${quizId}`);

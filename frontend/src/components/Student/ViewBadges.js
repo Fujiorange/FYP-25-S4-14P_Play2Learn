@@ -6,7 +6,7 @@ import studentService from '../../services/studentService';
 
 export default function ViewBadges() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null); // eslint-disable-line no-unused-vars
   const [badges, setBadges] = useState([]);
   const [earnedBadges, setEarnedBadges] = useState([]);
   const [progress, setProgress] = useState({});

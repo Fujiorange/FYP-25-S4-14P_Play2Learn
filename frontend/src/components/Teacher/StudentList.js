@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 
@@ -17,15 +17,7 @@ export default function StudentList() {
 
   const getToken = () => localStorage.getItem('token');
 
-  useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      navigate('/login');
-      return;
-    }
-    loadData();
-  }, [navigate]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [studentsRes, classesRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/mongo/teacher/students`, {
@@ -56,7 +48,15 @@ export default function StudentList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+    loadData();
+  }, [navigate, loadData]);
 
   const filteredStudents = useMemo(() => students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());

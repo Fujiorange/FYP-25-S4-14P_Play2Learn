@@ -1,6 +1,6 @@
 // Maintenance Broadcast Banner Component
 import React, { useState, useEffect } from 'react';
-import { getUserId, getDismissedBroadcasts, saveDismissedBroadcasts } from '../../utils/userUtils';
+import { getDismissedBroadcasts, saveDismissedBroadcasts } from '../../utils/userUtils';
 import './MaintenanceBanner.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 

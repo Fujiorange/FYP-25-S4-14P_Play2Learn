@@ -8,7 +8,7 @@ export default function ViewLeaderboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null); // eslint-disable-line no-unused-vars
   const [error, setError] = useState('');
 
   useEffect(() => {

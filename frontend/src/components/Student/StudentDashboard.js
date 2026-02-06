@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import studentService from '../../services/studentService';
@@ -12,7 +12,7 @@ export default function StudentDashboard() {
   const [hoveredStat, setHoveredStat] = useState(null);
 
   // Function to load dashboard data
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     if (!authService.isAuthenticated()) {
       navigate('/login');
       return;
@@ -102,12 +102,12 @@ export default function StudentDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
 
   useEffect(() => {
     // Load dashboard data on mount
     loadDashboardData();
-  }, [navigate]);
+  }, [loadDashboardData]);
 
   useEffect(() => {
     // 🔄 FIXED: Refresh dashboard when window regains focus
@@ -120,7 +120,7 @@ export default function StudentDashboard() {
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [navigate]);
+  }, [loadDashboardData]);
 
   if (loading) {
     return (

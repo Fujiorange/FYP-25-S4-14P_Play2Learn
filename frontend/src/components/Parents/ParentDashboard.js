@@ -17,12 +17,12 @@ export default function ParentDashboard() {
   const [hoveredItem, setHoveredItem] = useState(null);
   
   // Parent and children data
-  const [parentData, setParentData] = useState(null);
+  const [parentData, setParentData] = useState(null); // eslint-disable-line no-unused-vars
   const [linkedStudents, setLinkedStudents] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
   
   // Selected child's data
-  const [childStats, setChildStats] = useState(null);
+  const [childStats, setChildStats] = useState(null); // eslint-disable-line no-unused-vars
   const [childActivities, setChildActivities] = useState([]);
   const [statsLoading, setStatsLoading] = useState(false);
 

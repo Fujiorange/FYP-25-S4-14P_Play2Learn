@@ -358,7 +358,7 @@ export const deleteMaintenanceBroadcast = async (id) => {
   });
 };
 
-export default {
+const p2lAdminService = {
   seedP2LAdmin,
   registerP2LAdmin,
   getLandingPage,
@@ -401,3 +401,5 @@ export default {
   getUserSchools,
   bulkDeleteUsers,
 };
+
+export default p2lAdminService;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL =
@@ -21,11 +21,7 @@ export default function TeacherAssignment() {
 
   const getToken = () => localStorage.getItem('token');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [teachersRes, classesRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/mongo/school-admin/teachers/assignments`, {
@@ -54,7 +50,11 @@ export default function TeacherAssignment() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const openAssignmentModal = (teacher) => {
     setSelectedTeacher(teacher);

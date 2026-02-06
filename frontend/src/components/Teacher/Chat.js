@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 
@@ -18,29 +18,7 @@ export default function Chat() {
 
   const getToken = () => localStorage.getItem('token');
 
-  useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      navigate('/login');
-      return;
-    }
-    loadConversations();
-  }, [navigate]);
-
-  useEffect(() => {
-    if (selectedChat) {
-      loadMessages(selectedChat.userId);
-    }
-  }, [selectedChat]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/mongo/teacher/conversations`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
@@ -55,9 +33,9 @@ export default function Chat() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadMessages = async (userId) => {
+  const loadMessages = useCallback(async (userId) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/mongo/teacher/messages/${userId}`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
@@ -70,6 +48,28 @@ export default function Chat() {
     } catch (error) {
       console.error('Error loading messages:', error);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+    loadConversations();
+  }, [navigate, loadConversations]);
+
+  useEffect(() => {
+    if (selectedChat) {
+      loadMessages(selectedChat.userId);
+    }
+  }, [selectedChat, loadMessages]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleSendMessage = async () => {

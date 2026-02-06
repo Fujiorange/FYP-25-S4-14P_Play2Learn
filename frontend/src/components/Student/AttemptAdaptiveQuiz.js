@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './AttemptAdaptiveQuiz.css';
 
@@ -11,7 +11,6 @@ function AttemptAdaptiveQuiz() {
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
-  const [quiz, setQuiz] = useState(null);
   const [attemptId, setAttemptId] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [answer, setAnswer] = useState('');
@@ -22,15 +21,9 @@ function AttemptAdaptiveQuiz() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (quizId) {
-      startQuiz();
-    }
-  }, [quizId]);
-
   const getToken = () => localStorage.getItem('token');
 
-  const startQuiz = async () => {
+  const startQuiz = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/adaptive-quiz/quizzes/${quizId}/start`, {
         method: 'POST',
@@ -59,7 +52,14 @@ function AttemptAdaptiveQuiz() {
       setError('Failed to start quiz. Please try again.');
       setLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizId]);
+
+  useEffect(() => {
+    if (quizId) {
+      startQuiz();
+    }
+  }, [quizId, startQuiz]);
 
   const fetchNextQuestion = async (attId) => {
     try {

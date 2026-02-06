@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 
@@ -20,15 +20,7 @@ export default function QuizAssignment() {
 
   const getToken = () => localStorage.getItem('token');
 
-  useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      navigate('/login');
-      return;
-    }
-    fetchData();
-  }, [navigate]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [quizzesRes, launchedRes, classesRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/mongo/teacher/available-quizzes`, {
@@ -63,7 +55,15 @@ export default function QuizAssignment() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+    fetchData();
+  }, [navigate, fetchData]);
 
   const handleLaunchQuiz = async () => {
     if (!launchModal || selectedClasses.length === 0) {

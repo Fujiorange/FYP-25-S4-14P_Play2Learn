@@ -1,6 +1,6 @@
 // frontend/src/components/Teacher/TrackTicket.js
 // ✅ FIXED VERSION - Uses real API
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 
@@ -17,15 +17,7 @@ export default function TrackTicket() {
 
   const getToken = () => localStorage.getItem('token');
 
-  useEffect(() => {
-    if (!authService.isAuthenticated()) {
-      navigate('/login');
-      return;
-    }
-    loadTickets();
-  }, [navigate]);
-
-  const loadTickets = async () => {
+  const loadTickets = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/mongo/teacher/support-tickets`, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
@@ -42,7 +34,15 @@ export default function TrackTicket() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+      return;
+    }
+    loadTickets();
+  }, [navigate, loadTickets]);
 
   const getStatusColor = (status) => {
     const colors = {
