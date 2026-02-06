@@ -25,8 +25,12 @@ function SkillMatrixConfig() {
     try {
       const apiResponse = await getXPRewards();
       if (apiResponse.success) {
-        // Backend returns 'rewardSettings' not 'data'
-        setRewardMatrix(apiResponse.rewardSettings || apiResponse.data || []);
+        // Backend returns 'rewardSettings' - handle both formats for compatibility
+        const rewardData = apiResponse.rewardSettings || apiResponse.data;
+        if (!rewardData || rewardData.length === 0) {
+          console.warn('XP reward data is empty or undefined:', apiResponse);
+        }
+        setRewardMatrix(rewardData || []);
       } else {
         displayNotification('Unable to fetch reward data', 'alert');
       }

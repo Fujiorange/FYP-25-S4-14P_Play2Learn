@@ -84,10 +84,13 @@ const processAdaptiveCompletion = async (userId, attemptRecord) => {
       // Use topic if available, otherwise skip skill update for this question
       const topic = response.topic || '';
       
-      // Normalize topic name - capitalize first letter for consistency
+      // Normalize topic name - capitalize each word for consistency (e.g., "Word Problems")
       let skillName = topic.trim();
       if (skillName) {
-        skillName = skillName.charAt(0).toUpperCase() + skillName.slice(1).toLowerCase();
+        skillName = skillName
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
       } else {
         // If no topic, skip skill update for this question
         continue;
