@@ -298,7 +298,6 @@ router.get('/users', authenticateSchoolAdmin, async (req, res) => {
     // Note: user.class can be either an ObjectId OR a class name string
     const classValues = [...new Set(users.map(u => u.class).filter(Boolean))];
     const classLookup = {};
-<<<<<<< HEAD
     
     if (classValues.length > 0) {
       // Filter out non-ObjectId values (class names like "1A", "1-Excellence")
@@ -325,25 +324,7 @@ router.get('/users', authenticateSchoolAdmin, async (req, res) => {
         if (!classLookup[cv]) {
           classLookup[cv] = cv; // Use the string value as-is
         }
-=======
-    if (classIds.length > 0) {
-      // Filter to only valid ObjectIds to avoid query errors
-      const validClassIds = classIds.filter(id => {
-        try {
-          return mongoose.Types.ObjectId.isValid(id);
-        } catch (e) {
-          return false;
-        }
->>>>>>> 959d1151c635f6878edae148a5506befea64de5c
       });
-      
-      if (validClassIds.length > 0) {
-        const classDocs = await Class.find({ _id: { $in: validClassIds }, school_id: schoolAdmin.schoolId })
-          .select('class_name');
-        classDocs.forEach(cls => {
-          classLookup[cls._id.toString()] = cls.class_name;
-        });
-      }
     }
 
     // For students, find their linked parent
@@ -2338,19 +2319,14 @@ router.get('/classes/available/students', authenticateSchoolAdmin, async (req, r
     const schoolAdmin = req.schoolAdmin;
     const { unassigned, includeClassId } = req.query;
     
-<<<<<<< HEAD
-    // ✅ FIX: Base filter - get all students from this school
-=======
     // Base filter - only students in this school
     // Note: accountActive filter removed to ensure all students show up when
     // creating/editing classes, regardless of account active status
->>>>>>> 959d1151c635f6878edae148a5506befea64de5c
     const filter = {
       schoolId: schoolAdmin.schoolId,
       role: 'Student'
     };
     
-<<<<<<< HEAD
     console.log('📊 Getting available students for school:', schoolAdmin.schoolId);
     console.log('📊 Query params - unassigned:', unassigned, 'includeClassId:', includeClassId);
     
@@ -2371,42 +2347,17 @@ router.get('/classes/available/students', authenticateSchoolAdmin, async (req, r
           if (cls && cls.students && cls.students.length > 0) {
             filter.$or.push({ _id: { $in: cls.students } });
           }
+          // Also include students whose class field matches this class ID
+          filter.$or.push({ class: includeClassId });
+          filter.$or.push({ class: includeClassId.toString() });
         } catch (err) {
           console.warn('Include class lookup failed:', err.message);
         }
-=======
-    // Build conditions for students without classes assigned
-    const orConditions = [
-      { class: { $in: [null, ''] } },
-      { class: { $exists: false } }
-    ];
-    
-    // If editing a class, include students currently in that class
-    if (includeClassId) {
-      try {
-        const cls = await Class.findOne({ _id: includeClassId, school_id: schoolAdmin.schoolId });
-        if (cls && cls.students && cls.students.length > 0) {
-          orConditions.push({ _id: { $in: cls.students } });
-        }
-        // Also include students whose class field matches this class ID
-        orConditions.push({ class: includeClassId });
-        orConditions.push({ class: includeClassId.toString() });
-      } catch (err) {
-        console.warn('Include class lookup failed:', err.message);
->>>>>>> 959d1151c635f6878edae148a5506befea64de5c
       }
     }
     // If unassigned is not 'true', we return ALL students
     
-<<<<<<< HEAD
     const students = await User.find(filter).select('name email class gradeLevel');
-=======
-    // Apply OR conditions unless explicitly showing all students
-    const limitToUnassigned = unassigned !== 'false';
-    if (limitToUnassigned) {
-      filter.$or = orConditions;
-    }
->>>>>>> 959d1151c635f6878edae148a5506befea64de5c
     
     console.log(`✅ Found ${students.length} students`);
     
