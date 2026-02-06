@@ -212,22 +212,22 @@ export default function TeacherDashboard() {
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
             <div style={styles.statIcon}>👥</div>
-            <p style={styles.statValue}>{dashboardData?.data?.total_students || 0}</p>
+            <p style={styles.statValue}>{dashboardData?.data?.total_students ?? 0}</p>
             <p style={styles.statLabel}>Total Students</p>
           </div>
           <div style={styles.statCard}>
             <div style={styles.statIcon}>📚</div>
-            <p style={styles.statValue}>{dashboardData?.data?.total_courses || dashboardData?.data?.assigned_classes?.length || 0}</p>
+            <p style={styles.statValue}>{dashboardData?.data?.total_courses ?? dashboardData?.data?.assigned_classes?.length ?? 0}</p>
             <p style={styles.statLabel}>My Classes</p>
           </div>
           <div style={styles.statCard}>
             <div style={styles.statIcon}>🎯</div>
-            <p style={styles.statValue}>{dashboardData?.data?.active_assignments || 0}</p>
+            <p style={styles.statValue}>{dashboardData?.data?.active_assignments ?? 0}</p>
             <p style={styles.statLabel}>Active Quizzes</p>
           </div>
           <div style={styles.statCard}>
             <div style={styles.statIcon}>📊</div>
-            <p style={styles.statValue}>{dashboardData?.data?.avg_performance || 0}%</p>
+            <p style={styles.statValue}>{dashboardData?.data?.avg_performance ?? 0}%</p>
             <p style={styles.statLabel}>Avg. Performance</p>
           </div>
         </div>

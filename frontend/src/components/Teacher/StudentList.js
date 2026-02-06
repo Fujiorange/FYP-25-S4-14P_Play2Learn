@@ -72,31 +72,31 @@ export default function StudentList() {
     const studentsCopy = [...filteredStudents];
     const { column, ascending } = columnOrder;
     
-    studentsCopy.sort((first, second) => {
-      let firstVal, secondVal;
+    studentsCopy.sort((a, b) => {
+      let aVal, bVal;
       
       if (column === 'name') {
-        firstVal = first.name?.toLowerCase() || '';
-        secondVal = second.name?.toLowerCase() || '';
+        aVal = a.name?.toLowerCase() || '';
+        bVal = b.name?.toLowerCase() || '';
       } else if (column === 'class') {
-        firstVal = first.class?.toLowerCase() || '';
-        secondVal = second.class?.toLowerCase() || '';
+        aVal = a.class?.toLowerCase() || '';
+        bVal = b.class?.toLowerCase() || '';
       } else if (column === 'grade') {
-        firstVal = first.gradeLevel?.toLowerCase() || '';
-        secondVal = second.gradeLevel?.toLowerCase() || '';
+        aVal = a.gradeLevel?.toLowerCase() || '';
+        bVal = b.gradeLevel?.toLowerCase() || '';
       } else if (column === 'points') {
-        firstVal = first.points || 0;
-        secondVal = second.points || 0;
+        aVal = a.points || 0;
+        bVal = b.points || 0;
       } else if (column === 'level') {
-        firstVal = first.level || 1;
-        secondVal = second.level || 1;
+        aVal = a.level || 1;
+        bVal = b.level || 1;
       } else if (column === 'status') {
-        firstVal = first.accountActive !== false ? 1 : 0;
-        secondVal = second.accountActive !== false ? 1 : 0;
+        aVal = a.accountActive !== false ? 1 : 0;
+        bVal = b.accountActive !== false ? 1 : 0;
       }
       
-      if (firstVal < secondVal) return ascending ? -1 : 1;
-      if (firstVal > secondVal) return ascending ? 1 : -1;
+      if (aVal < bVal) return ascending ? -1 : 1;
+      if (aVal > bVal) return ascending ? 1 : -1;
       return 0;
     });
     
@@ -113,11 +113,23 @@ export default function StudentList() {
     }));
   };
 
+  // Get aria-label for screen readers
+  const getAriaLabel = (columnName) => {
+    if (columnOrder.column !== columnName) {
+      return `Sort by ${columnName}`;
+    }
+    return `Sorted by ${columnName} ${columnOrder.ascending ? 'ascending' : 'descending'}. Click to reverse.`;
+  };
+
   // Display indicator for current ordering
   const getOrderIndicator = (columnName) => {
     if (columnOrder.column !== columnName) return ' ⇅';
     return columnOrder.ascending ? ' ▲' : ' ▼';
   };
+
+  // Shared hover handlers to reduce duplication
+  const handleHeaderHover = (e) => { e.target.style.color = '#10b981'; };
+  const handleHeaderLeave = (e) => { e.target.style.color = '#6b7280'; };
 
   const averagePoints = useMemo(() => {
     if (students.length === 0) return 0;
@@ -382,48 +394,54 @@ export default function StudentList() {
                   <th 
                     style={styles.thClickable} 
                     onClick={() => toggleColumnOrder('name')}
-                    onMouseEnter={(e) => e.target.style.color = '#10b981'}
-                    onMouseLeave={(e) => e.target.style.color = '#6b7280'}
+                    onMouseEnter={handleHeaderHover}
+                    onMouseLeave={handleHeaderLeave}
+                    aria-label={getAriaLabel('name')}
                   >
                     Student Name{getOrderIndicator('name')}
                   </th>
                   <th 
                     style={styles.thClickable}
                     onClick={() => toggleColumnOrder('class')}
-                    onMouseEnter={(e) => e.target.style.color = '#10b981'}
-                    onMouseLeave={(e) => e.target.style.color = '#6b7280'}
+                    onMouseEnter={handleHeaderHover}
+                    onMouseLeave={handleHeaderLeave}
+                    aria-label={getAriaLabel('class')}
                   >
                     Class{getOrderIndicator('class')}
                   </th>
                   <th 
                     style={styles.thClickable}
                     onClick={() => toggleColumnOrder('grade')}
-                    onMouseEnter={(e) => e.target.style.color = '#10b981'}
-                    onMouseLeave={(e) => e.target.style.color = '#6b7280'}
+                    onMouseEnter={handleHeaderHover}
+                    onMouseLeave={handleHeaderLeave}
+                    aria-label={getAriaLabel('grade')}
                   >
                     Grade{getOrderIndicator('grade')}
                   </th>
                   <th 
                     style={styles.thClickable}
                     onClick={() => toggleColumnOrder('points')}
-                    onMouseEnter={(e) => e.target.style.color = '#10b981'}
-                    onMouseLeave={(e) => e.target.style.color = '#6b7280'}
+                    onMouseEnter={handleHeaderHover}
+                    onMouseLeave={handleHeaderLeave}
+                    aria-label={getAriaLabel('points')}
                   >
                     Points{getOrderIndicator('points')}
                   </th>
                   <th 
                     style={styles.thClickable}
                     onClick={() => toggleColumnOrder('level')}
-                    onMouseEnter={(e) => e.target.style.color = '#10b981'}
-                    onMouseLeave={(e) => e.target.style.color = '#6b7280'}
+                    onMouseEnter={handleHeaderHover}
+                    onMouseLeave={handleHeaderLeave}
+                    aria-label={getAriaLabel('level')}
                   >
                     Level{getOrderIndicator('level')}
                   </th>
                   <th 
                     style={styles.thClickable}
                     onClick={() => toggleColumnOrder('status')}
-                    onMouseEnter={(e) => e.target.style.color = '#10b981'}
-                    onMouseLeave={(e) => e.target.style.color = '#6b7280'}
+                    onMouseEnter={handleHeaderHover}
+                    onMouseLeave={handleHeaderLeave}
+                    aria-label={getAriaLabel('status')}
                   >
                     Status{getOrderIndicator('status')}
                   </th>
