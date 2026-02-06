@@ -58,6 +58,7 @@ const supportTicketSchema = new mongoose.Schema({
 // Pre-save hook to sync legacy fields for backward compatibility
 // This ensures data consistency while both field sets are in use
 // TODO: Remove this hook when legacy fields are deprecated
+// Note: Using async function means we don't need to call next() - Mongoose handles it automatically
 supportTicketSchema.pre('save', async function() {
   // Sync user fields to legacy student fields for backward compatibility
   if (this.user_id && !this.student_id) {
@@ -79,7 +80,8 @@ supportTicketSchema.pre('save', async function() {
   if (this.student_email && !this.user_email) {
     this.user_email = this.student_email;
   }
-  next();
+  // Async pre-save hooks in Mongoose 5+ don't need to call next()
+  // The hook completes when the async function returns/resolves
 });
 
 // Add indexes for performance on frequently queried fields
