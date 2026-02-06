@@ -39,8 +39,6 @@ export default function StudentDashboard() {
         // - Compat layer: dashData.data (points, quizzesTaken, level)
         const dashboardInfo = dashData.dashboard || dashData.data || {};
 
-        const points = dashboardInfo.totalPoints ?? dashboardInfo.points ?? 0;
-
         const completedQuizzes =
           dashboardInfo.completedQuizzes ?? dashboardInfo.quizzesTaken ?? 0;
 
@@ -54,22 +52,6 @@ export default function StudentDashboard() {
         const streak = dashboardInfo.streak ?? 0;
 
         const gradeLevel = dashboardInfo.gradeLevel ?? 'Primary 1';
-
-        // Fetch leaderboard to get user's rank
-        let userRank = '#-';
-        try {
-          const leaderboardData = await studentService.getLeaderboard();
-          if (leaderboardData.success && leaderboardData.leaderboard) {
-            const currentUserRank = leaderboardData.leaderboard.find(
-              (entry) => entry.isCurrentUser
-            );
-            if (currentUserRank) {
-              userRank = `#${currentUserRank.rank}`;
-            }
-          }
-        } catch (leaderboardError) {
-          console.warn('⚠️ Could not fetch leaderboard:', leaderboardError);
-        }
 
         setDashboardData({
           experience: accumulatedXp,
