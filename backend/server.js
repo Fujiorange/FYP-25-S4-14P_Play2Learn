@@ -16,6 +16,7 @@ const studentRoutes = require('./routes/mongoStudentRoutes');
 const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
 const p2lAdminRoutes = require('./routes/p2lAdminRoutes');
 const adaptiveQuizRoutes = require('./routes/adaptiveQuizRoutes');
+const schoolRegistrationRoutes = require('./routes/schoolRegistrationRoutes');
 
 // ==================== CORS CONFIGURATION ====================
 const corsOptions = {
@@ -277,6 +278,7 @@ try {
   app.use('/api/mongo/school-admin', authenticateToken, schoolAdminRoutes); // School admin routes
   app.use('/api/p2ladmin', p2lAdminRoutes); // P2lAdmin routes
   app.use('/api/adaptive-quiz', adaptiveQuizRoutes); // Adaptive quiz routes
+  app.use('/api/school-registration', schoolRegistrationRoutes); // School registration (public)
   console.log('✅ Registered all routes successfully.');
 } catch (error) {
   console.error('❌ Error registering routes:', error.message);

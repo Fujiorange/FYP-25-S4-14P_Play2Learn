@@ -2418,6 +2418,22 @@ router.post('/classes', authenticateSchoolAdmin, async (req, res) => {
       });
     }
     
+    // ✅ Check class limit before creating
+    const school = await School.findById(schoolObjectId);
+    if (!school) {
+      return res.status(404).json({ success: false, error: 'School not found' });
+    }
+    
+    const currentClasses = await Class.countDocuments({ school_id: schoolObjectId });
+    const classLimit = school.plan_info.class_limit || 999;
+    
+    if (currentClasses >= classLimit) {
+      return res.status(403).json({ 
+        success: false, 
+        error: `Class limit reached (${currentClasses}/${classLimit}). Please upgrade your plan to add more classes.` 
+      });
+    }
+    
     // Check if class name already exists for this school
     const existingClass = await Class.findOne({
       class_name: name,
@@ -2439,6 +2455,10 @@ router.post('/classes', authenticateSchoolAdmin, async (req, res) => {
     });
     
     await newClass.save();
+    
+    // Update school's current_classes count
+    school.current_classes = currentClasses + 1;
+    await school.save();
     
     // Update users with class assignment
     if (teachers && teachers.length > 0) {

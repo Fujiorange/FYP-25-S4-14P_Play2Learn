@@ -286,4 +286,208 @@ module.exports = {
   sendParentWelcomeEmail,
   sendStudentCredentialsToParent,
   sendSchoolAdminWelcomeEmail,
+  sendSchoolRegistrationConfirmation,
+  sendSchoolWelcomeEmail,
+  sendLicenseLimitWarning,
+  sendLicenseUpgradeConfirmation
 };
+
+// Send school registration confirmation email
+async function sendSchoolRegistrationConfirmation(school, adminUser) {
+  const mailOptions = {
+    from: process.env.EMAIL_FROM,
+    to: school.contact,
+    subject: '🎓 Welcome to Play2Learn - School Registration Confirmed',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #10B981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .plan-info { background: white; padding: 20px; border: 2px solid #10B981; margin: 20px 0; border-radius: 8px; }
+          .button { display: inline-block; background: #10B981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Welcome to Play2Learn! 🎉</h1>
+          </div>
+          <div class="content">
+            <p>Dear ${school.contact_person},</p>
+            
+            <p>Thank you for registering <strong>${school.organization_name}</strong> with Play2Learn!</p>
+            
+            <div class="plan-info">
+              <h3>🎁 Your Free Plan Includes:</h3>
+              <ul>
+                <li>✅ 1 Teacher account</li>
+                <li>✅ 5 Student accounts</li>
+                <li>✅ 1 Class</li>
+                <li>✅ Full access to adaptive quiz system</li>
+                <li>✅ Student progress tracking</li>
+              </ul>
+            </div>
+            
+            <p><strong>Your account is ready!</strong> You can now log in and start:</p>
+            <ol>
+              <li>Creating your teacher account</li>
+              <li>Adding up to 5 students</li>
+              <li>Setting up your class</li>
+              <li>Accessing the adaptive quiz features</li>
+            </ol>
+            
+            <center>
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login" class="button">Login to Dashboard</a>
+            </center>
+            
+            <p style="margin-top: 20px; padding: 15px; background: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 4px;">
+              <strong>💡 Need more capacity?</strong><br>
+              Upgrade to our paid plans for more teachers, students, and classes.<br>
+              Visit your dashboard to explore upgrade options.
+            </p>
+          </div>
+          <div class="footer">
+            <p>Questions? Contact us at ${process.env.EMAIL_FROM}<br>
+            This is an automated message from Play2Learn.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Registration confirmation sent to ${school.contact}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Failed to send email to ${school.contact}:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Send welcome email after school verification
+async function sendSchoolWelcomeEmail(school, adminUser) {
+  // Similar to confirmation, can be customized for post-verification
+  return sendSchoolRegistrationConfirmation(school, adminUser);
+}
+
+// Send license limit warning email
+async function sendLicenseLimitWarning(school, limitType, currentCount, maxCount) {
+  const mailOptions = {
+    from: process.env.EMAIL_FROM,
+    to: school.contact,
+    subject: `⚠️ License Limit Alert - ${limitType} Limit Approaching`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #F59E0B; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .warning { background: #FEF3C7; padding: 20px; border-left: 4px solid #F59E0B; margin: 20px 0; }
+          .button { display: inline-block; background: #F59E0B; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>License Limit Warning</h1>
+          </div>
+          <div class="content">
+            <p>Dear ${school.contact_person || 'School Admin'},</p>
+            
+            <div class="warning">
+              <h3>⚠️ You're approaching your ${limitType} limit!</h3>
+              <p><strong>Current Usage:</strong> ${currentCount} / ${maxCount} ${limitType}</p>
+            </div>
+            
+            <p>To continue adding more ${limitType.toLowerCase()}, please upgrade your license plan.</p>
+            
+            <center>
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/school-admin/upgrade" class="button">View Upgrade Options</a>
+            </center>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ License warning sent to ${school.contact}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Failed to send warning email:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Send license upgrade confirmation email
+async function sendLicenseUpgradeConfirmation(school, oldPlan, newPlan) {
+  const mailOptions = {
+    from: process.env.EMAIL_FROM,
+    to: school.contact,
+    subject: '🎉 License Upgraded Successfully - Play2Learn',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #10B981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+          .plan-comparison { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; }
+          .button { display: inline-block; background: #10B981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>License Upgraded! 🎉</h1>
+          </div>
+          <div class="content">
+            <p>Dear ${school.contact_person || 'School Admin'},</p>
+            
+            <p>Your license has been successfully upgraded!</p>
+            
+            <div class="plan-comparison">
+              <h3>Your New Plan: ${newPlan.name}</h3>
+              <ul>
+                <li>Teachers: ${newPlan.teacher_limit}</li>
+                <li>Students: ${newPlan.student_limit}</li>
+                <li>Classes: ${newPlan.class_limit === 999 ? 'Unlimited' : newPlan.class_limit}</li>
+                <li>Price: $${newPlan.price}/month</li>
+              </ul>
+            </div>
+            
+            <p>You can now add more users and classes according to your new plan limits.</p>
+            
+            <center>
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/school-admin/dashboard" class="button">Go to Dashboard</a>
+            </center>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Upgrade confirmation sent to ${school.contact}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Failed to send upgrade email:`, error);
+    return { success: false, error: error.message };
+  }
+}
