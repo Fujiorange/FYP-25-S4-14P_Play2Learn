@@ -269,8 +269,6 @@ try {
 }
 
 // ==================== PUBLIC TESTIMONIALS ENDPOINT ====================
-const Testimonial = require('./models/Testimonial');
-
 // Public endpoint to get published testimonials for landing page
 app.get('/api/testimonials/published', async (req, res) => {
   try {
