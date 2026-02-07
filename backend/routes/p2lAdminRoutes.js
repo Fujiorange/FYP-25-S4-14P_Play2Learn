@@ -1846,16 +1846,23 @@ router.put('/testimonials/:id', authenticateP2LAdmin, async (req, res) => {
     }
 
     // Allow manual override of published_to_landing
+    // Note: Setting auto_published to false prevents the testimonial from being 
+    // automatically unpublished during rebalancing operations
     if (published_to_landing !== undefined) {
       testimonial.published_to_landing = published_to_landing;
+      testimonial.display_on_landing = published_to_landing; // Keep both fields in sync for backward compatibility
       testimonial.auto_published = false; // Manual override disables auto-publish flag
       testimonial.published_date = published_to_landing ? new Date() : null;
       testimonial.approved = published_to_landing ? true : testimonial.approved;
     }
 
-    // Legacy support for display_on_landing
-    if (display_on_landing !== undefined) {
+    // Legacy support for display_on_landing (maintains backward compatibility)
+    if (display_on_landing !== undefined && published_to_landing === undefined) {
       testimonial.display_on_landing = display_on_landing;
+      testimonial.published_to_landing = display_on_landing; // Keep both fields in sync
+      testimonial.auto_published = false;
+      testimonial.published_date = display_on_landing ? new Date() : null;
+      testimonial.approved = display_on_landing ? true : testimonial.approved;
     }
 
     // Allow editing message and rating

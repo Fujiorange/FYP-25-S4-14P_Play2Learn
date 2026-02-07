@@ -41,6 +41,7 @@ async function processAutoPublish(testimonial) {
 
     // Mark testimonial as published
     testimonial.published_to_landing = true;
+    testimonial.display_on_landing = true; // Keep both fields in sync for backward compatibility
     testimonial.auto_published = true;
     testimonial.published_date = new Date();
     testimonial.approved = true; // Auto-approve 5-star positive testimonials
@@ -66,6 +67,7 @@ async function processAutoPublish(testimonial) {
       // Unpublish them
       for (const oldTestimonial of toUnpublish) {
         oldTestimonial.published_to_landing = false;
+        oldTestimonial.display_on_landing = false; // Keep both fields in sync
         oldTestimonial.auto_published = false;
         await oldTestimonial.save();
       }
@@ -126,6 +128,7 @@ async function rebalancePublishedTestimonials() {
     let publishedCount = 0;
     for (const testimonial of eligibleTestimonials) {
       testimonial.published_to_landing = true;
+      testimonial.display_on_landing = true; // Keep both fields in sync
       testimonial.auto_published = true;
       testimonial.published_date = new Date();
       testimonial.approved = true;
@@ -167,7 +170,9 @@ async function getTestimonialStats() {
     const avgRatingResult = await Testimonial.aggregate([
       { $group: { _id: null, avgRating: { $avg: '$rating' } } }
     ]);
-    const avgRating = avgRatingResult.length > 0 ? avgRatingResult[0].avgRating : 0;
+    const avgRating = avgRatingResult.length > 0 
+      ? parseFloat(avgRatingResult[0].avgRating.toFixed(1)) 
+      : 0;
 
     // Get sentiment distribution
     const sentimentDist = await Testimonial.aggregate([
@@ -188,7 +193,7 @@ async function getTestimonialStats() {
       published_count: published,
       auto_published_count: autoPublished,
       manual_published_count: manualPublished,
-      average_rating: Math.round(avgRating * 10) / 10,
+      average_rating: avgRating,
       sentiment_distribution: sentimentDistribution,
       slots_available: Math.max(0, MAX_PUBLISHED_TESTIMONIALS - published),
       max_published_limit: MAX_PUBLISHED_TESTIMONIALS

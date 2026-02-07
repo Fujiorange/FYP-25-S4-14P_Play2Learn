@@ -75,15 +75,14 @@
   line-height: 1.7;
   margin: 0;
   flex-grow: 1;
-  quotes: """ """ "'" "'";
 }
 
 .testimonial-text::before {
-  content: open-quote;
+  content: '"';
 }
 
 .testimonial-text::after {
-  content: close-quote;
+  content: '"';
 }
 
 /* User Info Section */

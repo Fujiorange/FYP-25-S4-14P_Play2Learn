@@ -23,28 +23,7 @@ function TestimonialManager() {
     publishedStatus: ''
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'all') {
-      fetchAllTestimonials();
-    } else {
-      fetchPublishedTestimonials();
-    }
-  }, [activeTab, filters]);
-
-  const fetchData = async () => {
-    await Promise.all([
-      fetchStats(),
-      fetchPublishedTestimonials(),
-      fetchAllTestimonials()
-    ]);
-    setLoading(false);
-  };
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await getTestimonialStats();
       if (response.success) {
@@ -53,9 +32,9 @@ function TestimonialManager() {
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     }
-  };
+  }, []);
 
-  const fetchPublishedTestimonials = async () => {
+  const fetchPublishedTestimonials = useCallback(async () => {
     try {
       const response = await getTestimonials({ publishedStatus: 'published' });
       if (response.success) {
@@ -64,9 +43,9 @@ function TestimonialManager() {
     } catch (error) {
       console.error('Failed to fetch published testimonials:', error);
     }
-  };
+  }, []);
 
-  const fetchAllTestimonials = async () => {
+  const fetchAllTestimonials = useCallback(async () => {
     try {
       const response = await getTestimonials(filters);
       if (response.success) {
@@ -75,7 +54,28 @@ function TestimonialManager() {
     } catch (error) {
       console.error('Failed to fetch testimonials:', error);
     }
-  };
+  }, [filters]);
+
+  const fetchData = useCallback(async () => {
+    await Promise.all([
+      fetchStats(),
+      fetchPublishedTestimonials(),
+      fetchAllTestimonials()
+    ]);
+    setLoading(false);
+  }, [fetchStats, fetchPublishedTestimonials, fetchAllTestimonials]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (activeTab === 'all') {
+      fetchAllTestimonials();
+    } else {
+      fetchPublishedTestimonials();
+    }
+  }, [activeTab, filters, fetchAllTestimonials, fetchPublishedTestimonials]);
 
   const handlePublishToggle = async (id, currentStatus) => {
     try {
