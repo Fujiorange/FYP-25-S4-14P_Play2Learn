@@ -413,11 +413,21 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
     });
 
     if (existingAttempt) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'You have an incomplete attempt. Please complete or cancel it first.',
-        attemptId: existingAttempt._id
-      });
+      // If the incomplete attempt was started more than 24 hours ago, automatically delete it
+      const timeElapsed = new Date() - new Date(existingAttempt.startedAt);
+      const hoursElapsed = timeElapsed / (1000 * 60 * 60);
+      
+      if (hoursElapsed > 24) {
+        console.log(`Deleting stale incomplete attempt for user ${userId}, quiz ${quizId}`);
+        await QuizAttempt.deleteOne({ _id: existingAttempt._id });
+      } else {
+        // Incomplete attempt is still recent - return error
+        return res.status(400).json({ 
+          success: false, 
+          error: 'You have an incomplete attempt. Please complete or cancel it first.',
+          attemptId: existingAttempt._id
+        });
+      }
     }
 
     // Create new quiz attempt
@@ -831,6 +841,47 @@ router.get('/my-attempts', authenticateToken, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to get quiz attempts' 
+    });
+  }
+});
+
+// Cancel/Reset incomplete quiz attempt
+router.post('/attempts/:attemptId/cancel', authenticateToken, async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    const userId = req.user.userId;
+
+    const attempt = await QuizAttempt.findOne({
+      _id: attemptId,
+      userId
+    });
+
+    if (!attempt) {
+      return res.status(404).json({
+        success: false,
+        error: 'Quiz attempt not found'
+      });
+    }
+
+    if (attempt.is_completed) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot cancel a completed quiz attempt'
+      });
+    }
+
+    // Delete the incomplete attempt
+    await QuizAttempt.deleteOne({ _id: attemptId });
+
+    res.json({
+      success: true,
+      message: 'Quiz attempt cancelled successfully. You can now start a new attempt.'
+    });
+  } catch (error) {
+    console.error('Cancel quiz attempt error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cancel quiz attempt'
     });
   }
 });
