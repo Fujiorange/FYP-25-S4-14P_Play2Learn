@@ -20,6 +20,10 @@ import StudentList from './components/Teacher/StudentList';
 import StudentPerformance from './components/Teacher/StudentPerformance';
 import StudentLeaderboard from './components/Teacher/StudentLeaderboard';
 import StudentMatrix from './components/Teacher/StudentMatrix';
+import CreateAssignment from './components/Teacher/CreateAssignment';
+import ModifyAssignment from './components/Teacher/ModifyAssignment';
+import ViewSubmissions from './components/Teacher/ViewSubmissions';
+import TrackCompletion from './components/Teacher/TrackCompletion';
 import CreateFeedback from './components/Teacher/CreateFeedback';
 import ViewFeedback from './components/Teacher/ViewFeedback';
 import Chat from './components/Teacher/Chat';
@@ -45,6 +49,7 @@ import DisplaySkillMatrix from './components/Student/DisplaySkillMatrix';
 import ViewDetailedSubjectInfo from './components/Student/ViewDetailedSubjectInfo';
 import AttemptQuiz from './components/Student/AttemptQuiz';
 import PlacementQuiz from './components/Student/PlacementQuiz';
+import TakeQuiz from './components/Student/TakeQuiz';
 import QuizResult from './components/Student/QuizResult';
 import AttemptAssignment from './components/Student/AttemptAssignment';
 import ViewResultHistory from './components/Student/ViewResultHistory';
@@ -99,10 +104,22 @@ import PendingCredentials from './components/SchoolAdmin/PendingCredentials';
 // ⭐ NEW IMPORT - School Admin Teacher Assignment
 import TeacherAssignment from './components/SchoolAdmin/TeacherAssignment';
 
+// ⭐ NEW IMPORT - School Admin Announcements
+import ManageAnnouncements from './components/SchoolAdmin/ManageAnnouncements';
+
+// ⭐ NEW IMPORTS - School Admin Support Tickets
+import SchoolAdminCreateSupportTicket from './components/SchoolAdmin/CreateSupportTicket';
+import SchoolAdminTrackSupportTicket from './components/SchoolAdmin/TrackSupportTicket';
+import SchoolAdminSupportTicketManagement from './components/SchoolAdmin/SupportTicketManagement';
+
+// ⭐ NEW IMPORT - Teacher Announcements
+import TeacherViewAnnouncements from './components/Teacher/ViewAnnouncements';
+
 // P2LAdmin Components
 import P2LAdminDashboard from './components/P2LAdmin/P2LAdminDashboard';
 import SchoolManagement from './components/P2LAdmin/SchoolManagement';
 import SchoolAdminManagement from './components/P2LAdmin/SchoolAdminManagement';
+import ManualAddSchoolAdmin from './components/P2LAdmin/ManualAddSchoolAdmin';
 import QuestionBank from './components/P2LAdmin/QuestionBank';
 import QuizManager from './components/P2LAdmin/QuizManager';
 import AdaptiveQuizCreator from './components/P2LAdmin/AdaptiveQuizCreator';
@@ -110,6 +127,8 @@ import LandingPageManager from './components/P2LAdmin/LandingPageManager';
 import HealthCheck from './components/P2LAdmin/HealthCheck';
 import MaintenanceBroadcastManager from './components/P2LAdmin/MaintenanceBroadcastManager';
 import UserManagement from './components/P2LAdmin/UserManagement';
+import SupportTicketManagement from './components/P2LAdmin/SupportTicketManagement';
+import SkillPointsConfig from './components/P2LAdmin/SkillPointsConfig';
 
 // Maintenance Banner
 import MaintenanceBanner from './components/MaintenanceBanner/MaintenanceBanner';
@@ -118,6 +137,9 @@ import MaintenanceBanner from './components/MaintenanceBanner/MaintenanceBanner'
 import AdaptiveQuizzes from './components/Student/AdaptiveQuizzes';
 import AttemptAdaptiveQuiz from './components/Student/AttemptAdaptiveQuiz';
 
+
+// Trial / Demo
+import TrialDashboard from './components/Trial/TrialDashboard';
 function App() {
   // Get user role from localStorage for maintenance banner
   const getUserRole = () => {
@@ -147,7 +169,10 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/register_admin" element={<RegisterAdminPage />} />
 
-          {/* ========== TEACHER ROUTES ========== */}
+          
+          {/* ========== TRIAL ROUTES ========== */}
+          <Route path="/trial" element={<TrialDashboard />} />
+{/* ========== TEACHER ROUTES ========== */}
           <Route path="/teacher" element={<TeacherDashboard />} />
           <Route path="/teacher/profile" element={<TeacherViewProfile />} />
           <Route path="/teacher/profile/edit" element={<TeacherEditProfile />} />
@@ -156,6 +181,10 @@ function App() {
           <Route path="/teacher/students/performance" element={<StudentPerformance />} />
           <Route path="/teacher/students/leaderboard" element={<StudentLeaderboard />} />
           <Route path="/teacher/students/matrix" element={<StudentMatrix />} />
+          <Route path="/teacher/assignment/create" element={<CreateAssignment />} />
+          <Route path="/teacher/assignment/modify" element={<ModifyAssignment />} />
+          <Route path="/teacher/submissions" element={<ViewSubmissions />} />
+          <Route path="/teacher/completion" element={<TrackCompletion />} />
           <Route path="/teacher/feedback/create" element={<CreateFeedback />} />
           <Route path="/teacher/feedback/view" element={<ViewFeedback />} />
           <Route path="/teacher/chat" element={<Chat />} />
@@ -165,6 +194,9 @@ function App() {
           
           {/* ⭐ NEW ROUTE - Teacher News & Updates */}
           <Route path="/teacher/news" element={<TeacherViewNewsUpdates />} />
+          
+          {/* ⭐ NEW ROUTE - Teacher Announcements */}
+          <Route path="/teacher/announcements" element={<TeacherViewAnnouncements />} />
           
           {/* ⭐ NEW ROUTE - Teacher Quiz Assignment */}
           <Route path="/teacher/quiz-assignment" element={<TeacherQuizAssignment />} />
@@ -193,7 +225,8 @@ function App() {
           {/* ========== QUIZ ROUTES ========== */}
           <Route path="/student/quiz/attempt" element={<AttemptQuiz />} />
           <Route path="/student/quiz/placement" element={<PlacementQuiz />} />
-                    <Route path="/student/quiz/result" element={<QuizResult />} />
+          <Route path="/student/quiz/take" element={<TakeQuiz />} />
+          <Route path="/student/quiz/result" element={<QuizResult />} />
 
           {/* ========== ADAPTIVE QUIZ ROUTES ========== */}
           <Route path="/student/adaptive-quizzes" element={<AdaptiveQuizzes />} />
@@ -246,6 +279,14 @@ function App() {
           
           {/* ⭐ NEW ROUTE - School Admin Teacher Assignment */}
           <Route path="/school-admin/teachers/assignments" element={<TeacherAssignment />} />
+          
+          {/* ⭐ NEW ROUTE - School Admin Announcements */}
+          <Route path="/school-admin/announcements" element={<ManageAnnouncements />} />
+          
+          {/* ⭐ NEW ROUTES - School Admin Support Tickets */}
+          <Route path="/school-admin/support/create" element={<SchoolAdminCreateSupportTicket />} />
+          <Route path="/school-admin/support/track" element={<SchoolAdminTrackSupportTicket />} />
+          <Route path="/school-admin/support-tickets" element={<SchoolAdminSupportTicketManagement />} />
 
           {/* ========== P2LADMIN ROUTES ========== */}
           {/* Redirect /platform-admin to /p2ladmin/dashboard */}
@@ -253,6 +294,7 @@ function App() {
           <Route path="/p2ladmin/dashboard" element={<P2LAdminDashboard />} />
           <Route path="/p2ladmin/schools" element={<SchoolManagement />} />
           <Route path="/p2ladmin/school-admins" element={<SchoolAdminManagement />} />
+          <Route path="/p2ladmin/school-admins/manual-add" element={<ManualAddSchoolAdmin />} />
           <Route path="/p2ladmin/questions" element={<QuestionBank />} />
           <Route path="/p2ladmin/quizzes" element={<QuizManager />} />
           <Route path="/p2ladmin/quizzes/create-adaptive" element={<AdaptiveQuizCreator />} />
@@ -260,6 +302,8 @@ function App() {
           <Route path="/p2ladmin/maintenance" element={<MaintenanceBroadcastManager />} />
           <Route path="/p2ladmin/health" element={<HealthCheck />} />
           <Route path="/p2ladmin/users" element={<UserManagement />} />
+          <Route path="/p2ladmin/support-tickets" element={<SupportTicketManagement />} />
+          <Route path="/p2ladmin/skill-points" element={<SkillPointsConfig />} />
 
         </Routes>
       </div>
@@ -268,4 +312,3 @@ function App() {
 }
 
 export default App;
-

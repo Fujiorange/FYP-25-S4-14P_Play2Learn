@@ -16,6 +16,7 @@ const studentRoutes = require('./routes/mongoStudentRoutes');
 const schoolAdminRoutes = require('./routes/schoolAdminRoutes');
 const p2lAdminRoutes = require('./routes/p2lAdminRoutes');
 const adaptiveQuizRoutes = require('./routes/adaptiveQuizRoutes');
+const trialRoutes = require('./routes/trialRoutes');
 
 // ==================== CORS CONFIGURATION ====================
 const corsOptions = {
@@ -40,7 +41,8 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'authorization', 'Accept', 'Origin'],
+
 };
 
 app.use(cors(corsOptions));
@@ -64,10 +66,20 @@ if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process
 
 // ==================== AUTHENTICATION MIDDLEWARE ====================
 function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const authHeader =
+    req.headers['authorization'] ||
+    req.get('authorization') ||
+    req.get('Authorization') ||
+    req.headers['Authorization'] ||
+    '';
+
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7).trim()
+    : authHeader.trim();
 
   if (!token) {
+    // optional debug (remove after fixed)
+    console.log('❌ No token found. Headers:', req.headers);
     return res.status(401).json({ error: 'Access token required' });
   }
 
@@ -79,6 +91,7 @@ function authenticateToken(req, res, next) {
     next();
   });
 }
+
 
 // ==================== PUBLIC LANDING PAGE ENDPOINT ====================
 // Public endpoint to fetch landing page blocks (no authentication required)
@@ -259,7 +272,8 @@ app.use((req, res, next) => {
 // ==================== ROUTE IMPORTS & REGISTRATION ====================
 try {
   app.use('/api/mongo/auth', authRoutes); // User authentication
-  app.use('/api/student', authenticateToken, studentRoutes); // Student-specific routes
+  app.use('/api/trial', authenticateToken, trialRoutes); // Trial user demo routes
+  app.use('/api/mongo/student', authenticateToken, studentRoutes); // Student-specific routes
   app.use('/api/mongo/school-admin', authenticateToken, schoolAdminRoutes); // School admin routes
   app.use('/api/p2ladmin', p2lAdminRoutes); // P2lAdmin routes
   app.use('/api/adaptive-quiz', adaptiveQuizRoutes); // Adaptive quiz routes

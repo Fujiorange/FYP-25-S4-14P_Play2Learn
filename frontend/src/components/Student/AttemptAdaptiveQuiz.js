@@ -21,45 +21,14 @@ function AttemptAdaptiveQuiz() {
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
-  const [placementVerified, setPlacementVerified] = useState(false);
 
   useEffect(() => {
     if (quizId) {
-      checkPlacementThenStartQuiz();
+      startQuiz();
     }
   }, [quizId]);
 
   const getToken = () => localStorage.getItem('token');
-
-  const checkPlacementThenStartQuiz = async () => {
-    try {
-      // Verify placement quiz completion status
-      const response = await fetch(`${API_BASE_URL}/api/student/placement-status`, {
-        headers: {
-          'Authorization': `Bearer ${getToken()}`
-        }
-      });
-
-      const data = await response.json();
-
-      if (!data.success || !data.placementCompleted) {
-        setError('You must complete the placement quiz first!');
-        // Redirect to placement quiz after 2 seconds
-        setTimeout(() => {
-          navigate('/student/placement-quiz');
-        }, 2000);
-        return;
-      }
-
-      // Placement verified, proceed with starting quiz
-      setPlacementVerified(true);
-      await startQuiz();
-    } catch (error) {
-      console.error('Failed to verify placement:', error);
-      setError('Failed to verify placement status. Please try again.');
-      setLoading(false);
-    }
-  };
 
   const startQuiz = async () => {
     try {
@@ -72,6 +41,42 @@ function AttemptAdaptiveQuiz() {
       });
 
       const data = await response.json();
+
+      // If there's an incomplete attempt, offer to cancel it
+      if (!data.success && data.error.includes('incomplete attempt') && data.attemptId) {
+        console.log('Found incomplete attempt, offering to cancel...');
+        const shouldCancel = window.confirm(
+          'You have an incomplete quiz attempt. Would you like to cancel it and start fresh?'
+        );
+        
+        if (shouldCancel) {
+          // Cancel the incomplete attempt
+          const cancelResponse = await fetch(
+            `${API_BASE_URL}/api/adaptive-quiz/attempts/${data.attemptId}/cancel`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${getToken()}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          const cancelData = await cancelResponse.json();
+          if (cancelData.success) {
+            // Retry starting the quiz
+            return startQuiz();
+          } else {
+            setError('Failed to cancel incomplete attempt');
+            setLoading(false);
+            return;
+          }
+        } else {
+          setError(data.error);
+          setLoading(false);
+          return;
+        }
+      }
 
       if (data.success) {
         setAttemptId(data.data.attemptId);

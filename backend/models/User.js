@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
 
   role: {
     type: String,
-    enum: ['Platform Admin', 'p2ladmin', 'School Admin', 'Teacher', 'Student', 'Parent', 'Trial Student', 'Trial Teacher'],
+    enum: ['Platform Admin', 'p2ladmin', 'School Admin', 'Teacher', 'Student', 'Parent', 'Trial User', 'Trial Student', 'Trial Teacher'],
     required: true,
   },
 
@@ -42,12 +42,6 @@ const userSchema = new mongoose.Schema({
       relationship: String,
     },
   ],
-
-  // ✅ Placement Quiz Tracking (NEW)
-  placementQuizCompleted: { type: Boolean, default: false },
-  placementQuizScore: { type: Number, default: null },
-  placementQuizDate: { type: Date, default: null },
-  placementQuizAttemptId: { type: mongoose.Schema.Types.ObjectId, default: null },
 
   emailVerified: { type: Boolean, default: false },
   verificationToken: { type: String, default: null },

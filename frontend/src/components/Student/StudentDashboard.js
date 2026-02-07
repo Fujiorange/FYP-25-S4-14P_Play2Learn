@@ -10,25 +10,6 @@ export default function StudentDashboard() {
   const [dashboardData, setDashboardData] = useState(null);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [hoveredStat, setHoveredStat] = useState(null);
-  const [placementCompleted, setPlacementCompleted] = useState(false);
-
-  // Function to fetch placement status
-  const fetchPlacementStatus = async () => {
-    try {
-      const result = await studentService.getPlacementStatus();
-      
-      if (result.success && result.placementCompleted) {
-        console.log('✅ Placement quiz completed, hiding placement card');
-        setPlacementCompleted(true);
-      } else {
-        console.log('⏳ Placement quiz not completed yet');
-        setPlacementCompleted(false);
-      }
-    } catch (error) {
-      console.error('Error fetching placement status:', error);
-      setPlacementCompleted(false);
-    }
-  };
 
   // Function to load dashboard data
   const loadDashboardData = async () => {
@@ -51,9 +32,6 @@ export default function StudentDashboard() {
       // ✅ FIXED: Load dashboard data from MongoDB
       const dashData = await studentService.getDashboard();
       console.log('📊 Dashboard data loaded:', dashData);
-
-      // 🔍 Fetch placement status
-      await fetchPlacementStatus();
 
       if (dashData.success) {
         // Accept both shapes:
@@ -95,6 +73,7 @@ export default function StudentDashboard() {
           rank: userRank,
           completedQuizzes,
           grade_level: gradeLevel,
+          placementCompleted: dashboardInfo.placementCompleted || false,
         });
         console.log('✅ Dashboard data set successfully');
       } else {
@@ -220,7 +199,7 @@ export default function StudentDashboard() {
     {
       id: 'quiz',
       title: 'Placement Quiz',
-      description: 'Complete placement quiz to unlock adaptive quizzes',
+      description: 'Take a placement quiz to assess your skill level',
       icon: '🎯',
       action: () => navigate('/student/quiz/attempt'),
     },
@@ -380,7 +359,10 @@ export default function StudentDashboard() {
         </div>
 
         <div style={styles.menuGrid}>
-          {menuItems.filter(item => !(item.id === 'quiz' && placementCompleted)).map((item) => (
+          {menuItems
+            // ✅ Hide Placement Quiz if already completed
+            .filter(item => item.id !== 'quiz' || !dashboardData.placementCompleted)
+            .map((item) => (
             <div
               key={item.id}
               style={{
@@ -553,7 +535,3 @@ const styles = {
     fontWeight: 'bold',
   },
 };
-
-
-
-

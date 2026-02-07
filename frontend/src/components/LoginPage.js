@@ -22,7 +22,10 @@ export default function LoginPage() {
       'schooladmin': '/school-admin',
       'teacher': '/teacher',
       'student': '/student',
-      'parent': '/parent'
+      'parent': '/parent',
+      'trialuser': '/trial',
+      'trialstudent': '/trial',
+      'trialteacher': '/trial'
     };
     
     const route = roleRoutes[normalizedRole];
