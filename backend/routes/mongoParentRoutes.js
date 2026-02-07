@@ -372,18 +372,98 @@ router.get('/child/:studentId/activities', authenticateParent, async (req, res) 
       });
     }
 
+    // ✅ FIX: Query BOTH collections just like student routes do
+    console.log(`📊 Fetching quiz activities for student: ${studentId}`);
+
+    // Get regular quizzes from StudentQuiz collection
+    const regularQuizzes = await StudentQuiz.find({ 
+      student_id: studentId, 
+      quiz_type: "regular" 
+    })
+      .sort({ completed_at: -1 })
+      .limit(limit)
+      .lean();
+
+    // Filter completed quizzes
+    const completedRegularQuizzes = regularQuizzes.filter(q => 
+      q.is_submitted && q.completed_at
+    );
+
+    // Get adaptive quizzes from QuizAttempt collection  
+    const adaptiveAttempts = await QuizAttempt.find({ 
+      userId: studentId, 
+      is_completed: true 
+    })
+      .sort({ completedAt: -1 })
+      .limit(limit)
+      .lean();
+
+    console.log(`✅ Found ${completedRegularQuizzes.length} regular + ${adaptiveAttempts.length} adaptive quizzes`);
+
+    // Format regular quizzes
+    const regularActivities = completedRegularQuizzes.map(q => {
+      const percentage = q.percentage || (q.total_questions > 0 ? Math.round((q.score / q.total_questions) * 100) : 0);
+      
+      return {
+        type: 'quiz_attempt',
+        date: q.completed_at ? new Date(q.completed_at).toLocaleDateString('en-SG') : 'Recent',
+        quiz_title: `Profile ${q.profile_level} Quiz`,
+        quiz_id: q._id,
+        score: q.score || 0,
+        total_questions: q.total_questions || 0,
+        total: q.total_questions || 0,
+        percentage: percentage,
+        timestamp: q.completed_at,
+        profile: q.profile_level,
+        created_at: q.completed_at
+      };
+    });
+
+    // Format adaptive quizzes
+    const adaptiveActivities = adaptiveAttempts.map(attempt => {
+      const total = attempt.total_answered || 0;
+      const score = attempt.score || attempt.correct_count || 0;
+      const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+
+      return {
+        type: 'quiz_attempt',
+        date: attempt.completedAt ? new Date(attempt.completedAt).toLocaleDateString('en-SG') : 'Recent',
+        quiz_title: `Adaptive Quiz #${attempt.current_difficulty || '?'}`,
+        quiz_id: attempt.quizId,
+        score: score,
+        total_questions: total,
+        total: total,
+        percentage: percentage,
+        timestamp: attempt.completedAt,
+        profile: attempt.current_difficulty,
+        created_at: attempt.completedAt
+      };
+    });
+
+    // Combine and sort by date (most recent first)
+    const allActivities = [...regularActivities, ...adaptiveActivities]
+      .sort((a, b) => {
+        const dateA = a.timestamp ? new Date(a.timestamp) : new Date(0);
+        const dateB = b.timestamp ? new Date(b.timestamp) : new Date(0);
+        return dateB - dateA;
+      })
+      .slice(0, limit); // Apply limit after combining
+
+    console.log(`✅ Formatted ${allActivities.length} total activities`);
+
     res.json({
       success: true,
-      activities: [],
-      message: 'Activity tracking will be available soon'
+      activities: allActivities,
+      count: allActivities.length
     });
 
   } catch (error) {
-    console.error('Error fetching activities:', error);
+    console.error('❌ Error fetching activities:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to load activities',
-      details: error.message
+      details: error.message,
+      activities: []
     });
   }
 });

@@ -3,6 +3,7 @@
 // ✅ UPDATED: Added createTestimonial(formData) method for WriteTestimonial.js
 // ✅ Includes everything from Phase 2 + new skills method
 // ✅ FIXED: Dynamic API_BASE_URL based on environment (localhost vs deployed)
+// ✅ FIXED: getChildActivities now properly fetches quiz attempts from backend
 
 import authService from './authService';
 
@@ -77,6 +78,8 @@ class ParentService {
     try {
       const token = authService.getToken();
       
+      console.log(`📊 Fetching activities for student: ${studentId}`);
+      
       const response = await fetch(`${API_BASE_URL}/child/${studentId}/activities?limit=${limit}`, {
         method: 'GET',
         headers: {
@@ -88,9 +91,12 @@ class ParentService {
       const data = await response.json();
 
       if (!response.ok) {
+        console.error('❌ Failed to fetch activities:', data.error);
         throw new Error(data.error || 'Failed to load activities');
       }
 
+      console.log(`✅ Activities fetched successfully: ${data.activities?.length || 0} items`);
+      
       return data;
     } catch (error) {
       console.error('Error loading activities:', error);
