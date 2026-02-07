@@ -34,3 +34,8 @@ pnpm-debug.log*
 # Build files
 dist/
 build/
+
+# Test files (for validation only)
+test-testimonial-autolaunch.js
+test-automated-statistics.js
+

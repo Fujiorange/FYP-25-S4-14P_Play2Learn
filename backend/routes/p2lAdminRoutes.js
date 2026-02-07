@@ -1528,14 +1528,12 @@ router.get('/landing', authenticateP2LAdmin, async (req, res) => {
       image: t.image_url || null
     }));
 
-    // Calculate automated statistics
-    const schoolCount = await School.countDocuments({ is_active: true });
-    const studentCount = await User.countDocuments({ 
-      role: { $in: ['Student', 'Trial Student'] }
-    });
-    const teacherCount = await User.countDocuments({ 
-      role: { $in: ['Teacher', 'Trial Teacher'] }
-    });
+    // Calculate automated statistics in parallel for better performance
+    const [schoolCount, studentCount, teacherCount] = await Promise.all([
+      School.countDocuments({ is_active: true }),
+      User.countDocuments({ role: { $in: ['Student', 'Trial Student'] } }),
+      User.countDocuments({ role: { $in: ['Teacher', 'Trial Teacher'] } })
+    ]);
 
     // Create automated statistics array
     const automatedStats = [

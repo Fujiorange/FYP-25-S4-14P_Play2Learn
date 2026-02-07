@@ -84,6 +84,8 @@ function authenticateToken(req, res, next) {
 // Public endpoint to fetch landing page blocks (no authentication required)
 const LandingPage = require('./models/LandingPage');
 const Testimonial = require('./models/Testimonial');
+const User = require('./models/User');
+const School = require('./models/School');
 
 app.get('/api/public/landing-page', async (req, res) => {
   try {
@@ -120,17 +122,12 @@ app.get('/api/public/landing-page', async (req, res) => {
       image: t.image_url || null
     }));
 
-    // Calculate automated statistics
-    const User = require('./models/User');
-    const School = require('./models/School');
-    
-    const schoolCount = await School.countDocuments({ is_active: true });
-    const studentCount = await User.countDocuments({ 
-      role: { $in: ['Student', 'Trial Student'] }
-    });
-    const teacherCount = await User.countDocuments({ 
-      role: { $in: ['Teacher', 'Trial Teacher'] }
-    });
+    // Calculate automated statistics in parallel for better performance
+    const [schoolCount, studentCount, teacherCount] = await Promise.all([
+      School.countDocuments({ is_active: true }),
+      User.countDocuments({ role: { $in: ['Student', 'Trial Student'] } }),
+      User.countDocuments({ role: { $in: ['Teacher', 'Trial Teacher'] } })
+    ]);
 
     // Create automated statistics array
     const automatedStats = [
