@@ -1,0 +1,448 @@
+# Automated Adaptive Quiz System Documentation
+
+## Overview
+
+This system provides a fully automated quiz management solution with adaptive difficulty adjustment and intelligent student progression. The system automatically generates 21 quiz levels (0-20) with 40 questions each from a question bank.
+
+## Key Features
+
+### 1. Automated Quiz Generation
+- **21 Quiz Levels**: Automatically generates quizzes for levels 0-20
+- **40 Questions Per Quiz**: Each quiz contains 40 questions from the question bank
+- **Balanced Difficulty**: Questions are distributed across difficulty levels 1-10
+- **Subject Focus**: Currently supports Mathematics (expandable to other subjects)
+- **Auto-Regeneration**: Quizzes regenerate automatically when questions are uploaded
+
+### 2. Adaptive Quiz Sessions
+- **20-Question Sessions**: Students answer 20 questions selected from the 40-question pool
+- **Starting Difficulty**: All quizzes start at difficulty level 1
+- **Real-Time Adjustment**: 
+  - Correct answer: Difficulty increases by 1 (max 10)
+  - Incorrect answer: Difficulty decreases by 1 (min 1)
+- **Weighted Scoring**: Each question is worth points equal to its difficulty level
+  - Difficulty 1 question = 1 point
+  - Difficulty 10 question = 10 points
+
+### 3. Intelligent Promotion System
+The system automatically promotes or demotes students based on their performance:
+
+#### Promotion Rules:
+- **100% Score + High Difficulty (avg 8+)**: Jump 3 levels
+- **100% Score + Medium Difficulty (avg 6-7)**: Jump 2 levels
+- **100% Score + Low Difficulty**: Promote 1 level
+- **80-99% Score + High Difficulty (avg 7+)**: Promote 2 levels
+- **80-99% Score**: Promote 1 level
+- **60-79% Score + Medium Difficulty (avg 6+)**: Promote 1 level
+- **60-79% Score**: Stay at current level
+- **Below 60%**: Demote 1 level
+
+## Database Schema Changes
+
+### Question Model
+```javascript
+{
+  text: String,                    // Question text
+  choices: [String],               // Answer choices
+  answer: String,                  // Correct answer
+  difficulty: Number,              // 1-10 (expanded from 1-5)
+  quiz_level: Number,              // 0-20 (new field)
+  subject: String,                 // Default: 'Mathematics'
+  topic: String,                   // Optional topic categorization
+  grade: String,                   // Primary 1-6
+  is_active: Boolean,
+  created_by: ObjectId,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Quiz Model
+```javascript
+{
+  title: String,
+  description: String,
+  quiz_type: String,               // 'placement' or 'adaptive'
+  quiz_level: Number,              // 0-20 (new field)
+  auto_generated: Boolean,         // true for auto-generated quizzes
+  generation_date: Date,           // When quiz was generated
+  questions: [{
+    question_id: ObjectId,
+    text: String,
+    choices: [String],
+    answer: String,
+    difficulty: Number,            // 1-10
+    topic: String
+  }],
+  adaptive_config: {
+    target_correct_answers: 20,    // Updated from 10
+    difficulty_progression: 'immediate',
+    starting_difficulty: 1,
+    max_difficulty: 10
+  },
+  is_launched: Boolean,
+  // ... other launch-related fields
+}
+```
+
+### MathProfile Model
+```javascript
+{
+  student_id: ObjectId,
+  current_profile: Number,
+  quiz_level: Number,              // 0-20 (new field)
+  placement_completed: Boolean,
+  total_points: Number,
+  streak: Number,
+  last_quiz_date: Date,
+  // ... other fields
+}
+```
+
+## API Endpoints
+
+### Admin Endpoints
+
+#### 1. Upload Questions via CSV
+```
+POST /api/p2ladmin/questions/upload-csv
+Content-Type: multipart/form-data
+Authorization: Bearer <admin-token>
+
+CSV Format:
+text, choices, answer, difficulty, quiz_level, subject, topic, grade
+"What is 2+2?", "3,4,5,6", "4", 1, 0, "Mathematics", "Addition", "Primary 1"
+```
+
+**Features**:
+- Supports quiz_level (0-20) and difficulty (1-10)
+- Automatically triggers quiz generation after upload
+- Returns quiz generation results in response
+
+#### 2. Regenerate All Quizzes
+```
+POST /api/p2ladmin/quizzes/regenerate-all
+Authorization: Bearer <admin-token>
+
+Response:
+{
+  "success": true,
+  "message": "Quiz regeneration completed",
+  "data": {
+    "generated": 21,
+    "warnings": 0,
+    "errors": 0,
+    "details": { ... }
+  }
+}
+```
+
+#### 3. Regenerate Single Quiz Level
+```
+POST /api/p2ladmin/quizzes/regenerate-level/:level
+Authorization: Bearer <admin-token>
+
+Example: POST /api/p2ladmin/quizzes/regenerate-level/5
+```
+
+#### 4. Get Quiz Generation Statistics
+```
+GET /api/p2ladmin/quizzes/generation-stats
+Authorization: Bearer <admin-token>
+
+Response:
+{
+  "success": true,
+  "data": {
+    "levels": [
+      {
+        "level": 0,
+        "questionCount": 50,
+        "ready": true,
+        "canGenerate": true,
+        "difficultyDistribution": { "1": 5, "2": 5, ... }
+      },
+      ...
+    ],
+    "totalQuestions": 1050,
+    "readyLevels": 21,
+    "insufficientLevels": 0,
+    "autoGeneratedQuizzes": 21
+  }
+}
+```
+
+#### 5. List Auto-Generated Quizzes
+```
+GET /api/p2ladmin/quizzes/auto-generated
+Authorization: Bearer <admin-token>
+
+Response:
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "title": "Mathematics Level 0",
+      "quiz_level": 0,
+      "questionCount": 40,
+      "generation_date": "2024-01-01T00:00:00.000Z",
+      "is_launched": false,
+      "difficultyDistribution": { "1": 4, "2": 4, ... }
+    },
+    ...
+  ]
+}
+```
+
+### Student Endpoints
+
+#### 1. Get Available Quizzes
+```
+GET /api/adaptive-quiz/quizzes
+Authorization: Bearer <student-token>
+
+Response:
+{
+  "success": true,
+  "data": [ ... ],
+  "studentQuizLevel": 0  // Current student quiz level
+}
+```
+
+**Note**: Students only see quizzes for their current quiz_level.
+
+#### 2. Start Quiz Attempt
+```
+POST /api/adaptive-quiz/quizzes/:quizId/start
+Authorization: Bearer <student-token>
+
+Response:
+{
+  "success": true,
+  "data": {
+    "attemptId": "...",
+    "quizTitle": "Mathematics Level 0",
+    "target_correct_answers": 20,
+    "current_difficulty": 1
+  }
+}
+```
+
+#### 3. Get Next Question
+```
+GET /api/adaptive-quiz/attempts/:attemptId/next-question
+Authorization: Bearer <student-token>
+
+Response (in progress):
+{
+  "success": true,
+  "completed": false,
+  "data": {
+    "question": {
+      "id": "...",
+      "text": "What is 2+2?",
+      "choices": ["3", "4", "5", "6"],
+      "difficulty": 1
+    },
+    "progress": {
+      "correct_count": 5,
+      "total_answered": 8,
+      "target_correct_answers": 20,
+      "current_difficulty": 3
+    }
+  }
+}
+
+Response (completed):
+{
+  "success": true,
+  "completed": true,
+  "message": "Quiz completed!",
+  "data": {
+    "correct_count": 18,
+    "total_answered": 20,
+    "target_correct_answers": 20,
+    "promotion": {
+      "previousLevel": 0,
+      "newLevel": 2,
+      "change": 2,
+      "message": "Great job! Perfect score. Promoted 2 levels!",
+      "scorePercentage": 95,
+      "earnedPoints": 105,
+      "possiblePoints": 110
+    }
+  }
+}
+```
+
+#### 4. Submit Answer
+```
+POST /api/adaptive-quiz/attempts/:attemptId/submit-answer
+Authorization: Bearer <student-token>
+
+Body:
+{
+  "questionId": "...",
+  "answer": "4"
+}
+
+Response:
+{
+  "success": true,
+  "data": {
+    "isCorrect": true,
+    "correct_answer": "4",
+    "new_difficulty": 2,
+    "correct_count": 1,
+    "total_answered": 1
+  }
+}
+```
+
+## CSV Upload Format
+
+### Required Fields
+- `text` or `question`: Question text
+- `answer` or `correct answer`: Correct answer
+
+### Optional Fields
+- `difficulty`: 1-10 (default: 3)
+- `quiz_level` or `quiz level`: 0-20 (default: 0)
+- `subject`: Default: 'Mathematics'
+- `topic`: Question topic/category
+- `grade`: Primary 1-6
+- `choices`: Comma-separated or separate columns (choice1, choice2, etc.)
+
+### Example CSV
+```csv
+text,choices,answer,difficulty,quiz_level,subject,topic,grade
+"What is 2+2?","2,3,4,5",4,1,0,Mathematics,Addition,Primary 1
+"What is 5+7?","10,11,12,13",12,2,0,Mathematics,Addition,Primary 1
+"What is 15-8?","5,6,7,8",7,3,1,Mathematics,Subtraction,Primary 2
+```
+
+## System Workflow
+
+### 1. Initial Setup
+1. Admin uploads questions via CSV
+2. System automatically generates all 21 quiz levels
+3. Admin reviews generation statistics
+4. Admin launches quizzes for specific classes
+
+### 2. Student Quiz Flow
+1. Student logs in and starts at quiz level 0
+2. Student selects an available quiz
+3. System presents 20 questions from the 40-question pool
+4. Difficulty adjusts in real-time based on answers
+5. After 20 questions, system calculates weighted score
+6. Student is promoted/demoted based on performance
+7. Next quiz will be at the new level
+
+### 3. Admin Monitoring
+1. View quiz generation statistics
+2. Check question distribution by level and difficulty
+3. Manually regenerate quizzes if needed
+4. Monitor student progression across levels
+
+## Question Distribution Strategy
+
+The quiz generator ensures balanced difficulty distribution:
+
+1. **Target**: 4 questions per difficulty level (40 ÷ 10 = 4)
+2. **First Pass**: Select 4 questions from each difficulty (1-10)
+3. **Second Pass**: Fill remaining slots from any difficulty
+4. **Final Step**: Shuffle for randomness
+
+This ensures students encounter a variety of difficulty levels during their quiz session.
+
+## Error Handling
+
+### Insufficient Questions Warning
+If a quiz level has fewer than 40 questions:
+- **20-39 questions**: Quiz generates with available questions + warning logged
+- **< 20 questions**: Quiz generation skipped, error logged
+
+### Monitoring
+- Check generation statistics before launching quizzes
+- Review warnings in admin dashboard
+- Add more questions to levels with insufficient coverage
+
+## Best Practices
+
+### For Administrators
+1. Upload questions in batches by quiz level
+2. Ensure at least 40 questions per level for best experience
+3. Review generation statistics after uploads
+4. Manually regenerate specific levels if questions are updated
+5. Launch quizzes only after verifying sufficient questions
+
+### For Question Bank Management
+1. Distribute questions evenly across difficulty levels 1-10
+2. Ensure variety in topics within each quiz level
+3. Use consistent answer formats
+4. Include clear, unambiguous question text
+5. Validate CSV format before upload
+
+## Performance Considerations
+
+### Database Indexes
+The following indexes are created for optimal performance:
+- Question: `{ quiz_level: 1, subject: 1, difficulty: 1 }`
+- Quiz: `{ quiz_level: 1, auto_generated: 1 }`
+- QuizAttempt: `{ userId: 1, is_completed: 1 }`
+
+### Query Optimization
+- Uses `.lean()` for read-only queries
+- Efficient aggregation for difficulty distribution
+- Bulk operations for quiz generation
+
+## Migration Notes
+
+### Existing Questions
+- Existing questions default to `quiz_level: 0` and `difficulty: 3`
+- Run regeneration after updating existing questions
+- No data loss - backward compatible
+
+### Existing Quizzes
+- Auto-generated quizzes are marked with `auto_generated: true`
+- Manually created quizzes remain unchanged
+- Students can access both types based on quiz_level
+
+## Future Enhancements
+
+### Potential Improvements
+1. Support for multiple subjects (Science, English)
+2. Machine learning-based difficulty adjustment
+3. Question pool rotation to prevent memorization
+4. Time-based difficulty adjustment
+5. Personalized question selection based on weak topics
+6. Analytics dashboard for teacher insights
+
+## Troubleshooting
+
+### Quiz Not Generating
+- Check question count for that level
+- Verify questions are marked as `is_active: true`
+- Ensure subject is set to 'Mathematics'
+- Check server logs for detailed error messages
+
+### Students Not Seeing Quizzes
+- Verify quiz is launched (`is_launched: true`)
+- Check student's current quiz_level
+- Verify launch dates are within range
+- Confirm student's class matches launched classes
+
+### Promotion Not Working
+- Ensure MathProfile exists for student
+- Check quiz completion status
+- Verify weighted scoring calculation
+- Review promotion logic thresholds
+
+## Support
+
+For issues or questions, refer to:
+- API Documentation: See endpoint details above
+- Test Scripts: `backend/test-quiz-logic.js`
+- Generation Utility: `backend/utils/quizGenerator.js`
+- Admin Routes: `backend/routes/p2lAdminRoutes.js`
+- Student Routes: `backend/routes/adaptiveQuizRoutes.js`
