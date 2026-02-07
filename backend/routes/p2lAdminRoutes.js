@@ -532,7 +532,7 @@ router.get('/schools/:id/usage', authenticateP2LAdmin, async (req, res) => {
         classes: {
           current: classCount,
           limit: school.plan_info.class_limit,
-          percentage: school.plan_info.class_limit === 999 ? 0 : (classCount / school.plan_info.class_limit * 100).toFixed(1)
+          percentage: school.plan_info.class_limit === 999 ? 'N/A' : (classCount / school.plan_info.class_limit * 100).toFixed(1)
         }
       },
       school: {

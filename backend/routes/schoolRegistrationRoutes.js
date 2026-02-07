@@ -125,7 +125,7 @@ router.post('/register', async (req, res) => {
           price: freePlan.price
         },
         contact_person: contact_person,
-        contact: email,
+        contact: email, // Email address for school contact
         phone: phone || '',
         country: country || '',
         registration_source: hear_about_us || '',
@@ -162,7 +162,7 @@ router.post('/register', async (req, res) => {
         password: hashedPassword,
         role: 'School Admin',
         schoolId: newSchool._id.toString(),
-        contact: phone || null,
+        contact: phone || null, // Phone number for contact
         emailVerified: true, // Auto-verified for now
         requirePasswordChange: false
       });

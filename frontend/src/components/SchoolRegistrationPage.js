@@ -192,6 +192,8 @@ function SchoolRegistrationPage() {
               >
                 <option value="school">School</option>
                 <option value="tutoring_center">Tutoring Center</option>
+                <option value="university">University</option>
+                <option value="training_center">Training Center</option>
                 <option value="other">Other</option>
               </select>
             </div>

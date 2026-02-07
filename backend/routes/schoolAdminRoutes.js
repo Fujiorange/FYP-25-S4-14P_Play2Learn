@@ -2435,11 +2435,12 @@ router.post('/classes', authenticateSchoolAdmin, async (req, res) => {
     if (!school) {
       return res.status(404).json({ success: false, error: 'School not found' });
     }
-    
+
     const currentClasses = await Class.countDocuments({ school_id: schoolObjectId });
     const classLimit = school.plan_info.class_limit || 999;
     
-    if (currentClasses >= classLimit) {
+    // Only enforce limit if not unlimited (999)
+    if (classLimit !== 999 && currentClasses >= classLimit) {
       return res.status(403).json({ 
         success: false, 
         error: `Class limit reached (${currentClasses}/${classLimit}). Please upgrade your plan to add more classes.` 
