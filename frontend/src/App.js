@@ -124,6 +124,7 @@ import QuestionBank from './components/P2LAdmin/QuestionBank';
 import QuizManager from './components/P2LAdmin/QuizManager';
 import AdaptiveQuizCreator from './components/P2LAdmin/AdaptiveQuizCreator';
 import LandingPageManager from './components/P2LAdmin/LandingPageManager';
+import TestimonialManager from './components/P2LAdmin/TestimonialManager';
 import HealthCheck from './components/P2LAdmin/HealthCheck';
 import MaintenanceBroadcastManager from './components/P2LAdmin/MaintenanceBroadcastManager';
 import UserManagement from './components/P2LAdmin/UserManagement';
@@ -293,6 +294,7 @@ function App() {
           <Route path="/p2ladmin/quizzes" element={<QuizManager />} />
           <Route path="/p2ladmin/quizzes/create-adaptive" element={<AdaptiveQuizCreator />} />
           <Route path="/p2ladmin/landing-page" element={<LandingPageManager />} />
+          <Route path="/p2ladmin/testimonials" element={<TestimonialManager />} />
           <Route path="/p2ladmin/maintenance" element={<MaintenanceBroadcastManager />} />
           <Route path="/p2ladmin/health" element={<HealthCheck />} />
           <Route path="/p2ladmin/users" element={<UserManagement />} />
