@@ -989,29 +989,51 @@ router.get("/math-progress", async (req, res) => {
     const studentId = req.user.userId;
 
     const mathProfile = await MathProfile.findOne({ student_id: studentId });
-    const { effective: effectiveStreak, shouldPersistReset } = computeEffectiveStreak(mathProfile);
 
-    if (mathProfile && shouldPersistReset) {
-      mathProfile.streak = 0;
-      await mathProfile.save();
-    }
-
-    // Use lean() for read-only query to improve performance
-    const allQuizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" })
+    // Get all quizzes (regular)
+    const allRegularQuizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" })
       .sort({ completed_at: -1 })
       .lean();
+    
+    const regularQuizzes = allRegularQuizzes.filter(isQuizCompleted);
 
-    // Filter out unsubmitted quizzes using the shared isQuizCompleted function
-    const quizzes = allQuizzes.filter(isQuizCompleted);
+    // Get all adaptive quizzes
+    const adaptiveAttempts = await QuizAttempt.find({ 
+      userId: studentId, 
+      is_completed: true 
+    }).sort({ completedAt: -1 }).lean();
 
-    const totalQuizzes = quizzes.length;
+    // Combine all quizzes for streak/stats calculation
+    const allQuizzes = [
+      ...regularQuizzes.map(q => ({ date: q.completed_at, type: 'regular' })),
+      ...adaptiveAttempts.map(a => ({ date: a.completedAt, type: 'adaptive' }))
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Calculate streak based on all quiz types
+    let streak = 0;
+    if (allQuizzes.length > 0) {
+      const lastQuizDate = new Date(allQuizzes[0].date);
+      const today = new Date();
+      const diffDays = Math.floor((today - lastQuizDate) / (1000 * 60 * 60 * 24));
+      
+      // If last quiz was today or yesterday, maintain streak
+      if (diffDays <= 1) {
+        streak = mathProfile ? (mathProfile.streak || 0) : 0;
+      } else {
+        streak = 0;
+      }
+    }
+
+    const totalQuizzes = regularQuizzes.length + adaptiveAttempts.length;
     const averageScore =
       totalQuizzes > 0
-        ? Math.round(quizzes.reduce((sum, q) => sum + q.percentage, 0) / totalQuizzes)
+        ? Math.round(
+            (regularQuizzes.reduce((sum, q) => sum + q.percentage, 0) +
+              adaptiveAttempts.reduce((sum, a) => sum + ((a.correct_count / a.total_answered) * 100 || 0), 0)) /
+              totalQuizzes
+          )
         : 0;
 
-    // Use total_points from MathProfile (source of truth) instead of recalculating
-    // This ensures consistency with Dashboard and Shop, accounting for both earned and spent points
     const totalPoints = mathProfile ? (mathProfile.total_points || 0) : 0;
 
     res.json({
@@ -1021,8 +1043,8 @@ router.get("/math-progress", async (req, res) => {
         totalQuizzes,
         averageScore,
         totalPoints,
-        streak: effectiveStreak,
-        recentQuizzes: quizzes.slice(0, 10).map((q) => ({
+        streak,
+        recentQuizzes: regularQuizzes.slice(0, 10).map((q) => ({
           date: q.completed_at.toLocaleDateString(),
           time: q.completed_at.toLocaleTimeString(),
           profile: q.profile_level,

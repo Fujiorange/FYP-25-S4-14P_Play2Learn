@@ -5,6 +5,7 @@ const Quiz = require('../models/Quiz');
 const QuizAttempt = require('../models/QuizAttempt');
 const User = require('../models/User');
 const MathSkill = require('../models/MathSkill');
+const MathProfile = require('../models/MathProfile');
 const SkillPointsConfig = require('../models/SkillPointsConfig');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
@@ -206,6 +207,57 @@ async function updateSkillsFromAdaptiveQuiz(userId, answers) {
     }
   } catch (error) {
     console.error("Error updating skills from adaptive quiz:", error);
+  }
+}
+
+// Helper function to update streak and points when adaptive quiz is completed
+async function updateStreakAndPointsOnQuizCompletion(userId, correctCount, totalAnswered) {
+  try {
+    const mathProfile = await MathProfile.findOne({ student_id: userId });
+    
+    // Calculate points: 10 points per correct answer
+    const pointsEarned = Math.max(0, correctCount * 10);
+    
+    if (!mathProfile) {
+      // Create profile if doesn't exist
+      const newProfile = new MathProfile({
+        student_id: userId,
+        streak: 1,
+        last_mid: new Date(),
+        total_points: pointsEarned
+      });
+      await newProfile.save();
+      return;
+    }
+
+    // Check if last quiz was yesterday or today
+    const now = new Date();
+    const lastQuizDate = mathProfile.last_mid ? new Date(mathProfile.last_mid) : null;
+    
+    if (!lastQuizDate) {
+      // First quiz
+      mathProfile.streak = 1;
+    } else {
+      const diffDays = Math.floor((now - lastQuizDate) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        // Same day, keep streak as is
+        // Do nothing
+      } else if (diffDays === 1) {
+        // Consecutive day, increment streak
+        mathProfile.streak = (mathProfile.streak || 0) + 1;
+      } else {
+        // Gap in days, reset streak
+        mathProfile.streak = 1;
+      }
+    }
+
+    // Update last quiz date and add points
+    mathProfile.last_mid = now;
+    mathProfile.total_points = (mathProfile.total_points || 0) + pointsEarned;
+    await mathProfile.save();
+  } catch (error) {
+    console.error("Error updating streak and points:", error);
   }
 }
 
@@ -443,6 +495,9 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       
       // Update skill matrix based on answers
       await updateSkillsFromAdaptiveQuiz(userId, attempt.answers);
+      
+      // Update streak and award points when quiz is completed
+      await updateStreakAndPointsOnQuizCompletion(userId, attempt.correct_count, attempt.total_answered);
 
       return res.json({
         success: true,
@@ -498,6 +553,9 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       
       // Update skill matrix based on answers
       await updateSkillsFromAdaptiveQuiz(userId, attempt.answers);
+      
+      // Update streak and award points when quiz is completed
+      await updateStreakAndPointsOnQuizCompletion(userId, attempt.correct_count, attempt.total_answered);
 
       return res.json({
         success: true,
