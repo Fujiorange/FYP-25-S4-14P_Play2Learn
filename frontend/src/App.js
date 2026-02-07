@@ -10,6 +10,7 @@ import DynamicLandingPage from './components/DynamicLandingPage/DynamicLandingPa
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import RegisterAdminPage from './components/RegisterAdminPage';
+import SchoolRegistrationPage from './components/SchoolRegistrationPage';
 
 // Teacher Components
 import TeacherDashboard from './components/Teacher/TeacherDashboard';
@@ -165,6 +166,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/register_admin" element={<RegisterAdminPage />} />
+          <Route path="/register-school" element={<SchoolRegistrationPage />} />
 
           {/* ========== TEACHER ROUTES ========== */}
           <Route path="/teacher" element={<TeacherDashboard />} />

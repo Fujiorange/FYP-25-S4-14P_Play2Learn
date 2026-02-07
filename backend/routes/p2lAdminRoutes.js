@@ -8,6 +8,8 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const User = require('../models/User');
 const School = require('../models/School');
+const License = require('../models/License');
+const Class = require('../models/Class');
 const Question = require('../models/Question');
 const Quiz = require('../models/Quiz');
 const LandingPage = require('../models/LandingPage');
@@ -340,6 +342,212 @@ router.delete('/schools/:id', authenticateP2LAdmin, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to delete school' 
+    });
+  }
+});
+
+// ==================== LICENSE MANAGEMENT ====================
+
+// License plans configuration
+const LICENSE_PLANS = {
+  free: {
+    teacher_limit: 1,
+    student_limit: 5,
+    class_limit: 1,
+    price: 0,
+    name: 'Free'
+  },
+  starter: {
+    teacher_limit: 50,
+    student_limit: 500,
+    class_limit: 999,
+    price: 250,
+    name: 'Starter'
+  },
+  professional: {
+    teacher_limit: 100,
+    student_limit: 1000,
+    class_limit: 999,
+    price: 500,
+    name: 'Professional'
+  },
+  enterprise: {
+    teacher_limit: 250,
+    student_limit: 2500,
+    class_limit: 999,
+    price: 1000,
+    name: 'Enterprise'
+  }
+};
+
+// Upgrade/Downgrade school license
+router.put('/schools/:id/license', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const { newPlan } = req.body;
+    
+    if (!newPlan || !LICENSE_PLANS[newPlan]) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid plan. Must be one of: free, starter, professional, enterprise'
+      });
+    }
+
+    const school = await School.findById(req.params.id);
+    if (!school) {
+      return res.status(404).json({
+        success: false,
+        error: 'School not found'
+      });
+    }
+
+    const oldPlan = school.plan;
+    const planConfig = LICENSE_PLANS[newPlan];
+
+    // Update school plan
+    school.plan = newPlan;
+    school.plan_info = {
+      teacher_limit: planConfig.teacher_limit,
+      student_limit: planConfig.student_limit,
+      class_limit: planConfig.class_limit,
+      price: planConfig.price
+    };
+    await school.save();
+
+    // Update or create license record
+    let license = await License.findOne({ school_id: school._id, is_active: true });
+    
+    if (license) {
+      // Deactivate old license
+      license.is_active = false;
+      await license.save();
+    }
+
+    // Create new license
+    const newLicense = new License({
+      school_id: school._id,
+      plan_type: newPlan,
+      max_classes: planConfig.class_limit,
+      max_teachers: planConfig.teacher_limit,
+      max_students: planConfig.student_limit,
+      price: planConfig.price,
+      start_date: new Date(),
+      end_date: newPlan === 'free' ? null : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year for paid plans
+      is_active: true,
+      auto_renew: newPlan !== 'free',
+      payment_status: newPlan === 'free' ? 'n/a' : 'completed',
+      created_by: req.user.userId,
+      upgraded_from: oldPlan
+    });
+
+    await newLicense.save();
+
+    // TODO: Send upgrade confirmation email
+
+    res.json({
+      success: true,
+      message: `License upgraded from ${oldPlan} to ${newPlan}`,
+      school: school,
+      license: newLicense
+    });
+
+  } catch (error) {
+    console.error('License upgrade error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to upgrade license'
+    });
+  }
+});
+
+// Suspend/Activate school
+router.put('/schools/:id/status', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const { verification_status, is_active } = req.body;
+
+    const school = await School.findById(req.params.id);
+    if (!school) {
+      return res.status(404).json({
+        success: false,
+        error: 'School not found'
+      });
+    }
+
+    if (verification_status !== undefined) {
+      school.verification_status = verification_status;
+    }
+    if (is_active !== undefined) {
+      school.is_active = is_active;
+    }
+
+    await school.save();
+
+    res.json({
+      success: true,
+      message: 'School status updated successfully',
+      school: school
+    });
+
+  } catch (error) {
+    console.error('Update school status error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update school status'
+    });
+  }
+});
+
+// Get school usage statistics
+router.get('/schools/:id/usage', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const schoolId = req.params.id;
+
+    const school = await School.findById(schoolId);
+    if (!school) {
+      return res.status(404).json({
+        success: false,
+        error: 'School not found'
+      });
+    }
+
+    // Get actual counts from database
+    const [teacherCount, studentCount, classCount] = await Promise.all([
+      User.countDocuments({ schoolId: schoolId, role: 'Teacher' }),
+      User.countDocuments({ schoolId: schoolId, role: 'Student' }),
+      Class.countDocuments({ school_id: schoolId })
+    ]);
+
+    res.json({
+      success: true,
+      usage: {
+        teachers: {
+          current: teacherCount,
+          limit: school.plan_info.teacher_limit,
+          percentage: (teacherCount / school.plan_info.teacher_limit * 100).toFixed(1)
+        },
+        students: {
+          current: studentCount,
+          limit: school.plan_info.student_limit,
+          percentage: (studentCount / school.plan_info.student_limit * 100).toFixed(1)
+        },
+        classes: {
+          current: classCount,
+          limit: school.plan_info.class_limit,
+          percentage: school.plan_info.class_limit === 999 ? 0 : (classCount / school.plan_info.class_limit * 100).toFixed(1)
+        }
+      },
+      school: {
+        name: school.organization_name,
+        plan: school.plan,
+        status: school.verification_status,
+        is_active: school.is_active
+      }
+    });
+
+  } catch (error) {
+    console.error('Get school usage error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch school usage'
     });
   }
 });

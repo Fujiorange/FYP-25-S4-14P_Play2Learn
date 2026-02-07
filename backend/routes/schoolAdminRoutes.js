@@ -190,15 +190,19 @@ router.get('/school-info', authenticateSchoolAdmin, async (req, res) => {
     }
     
     // Get actual current counts from Users collection
-    const [currentTeachers, currentStudents] = await Promise.all([
+    const [currentTeachers, currentStudents, currentClasses] = await Promise.all([
       User.countDocuments({ schoolId: schoolAdmin.schoolId, role: 'Teacher' }),
-      User.countDocuments({ schoolId: schoolAdmin.schoolId, role: 'Student' })
+      User.countDocuments({ schoolId: schoolAdmin.schoolId, role: 'Student' }),
+      Class.countDocuments({ school_id: schoolAdmin.schoolId })
     ]);
     
     // Update school counts if they differ (sync)
-    if (school.current_teachers !== currentTeachers || school.current_students !== currentStudents) {
+    if (school.current_teachers !== currentTeachers || 
+        school.current_students !== currentStudents ||
+        school.current_classes !== currentClasses) {
       school.current_teachers = currentTeachers;
       school.current_students = currentStudents;
+      school.current_classes = currentClasses;
       await school.save();
     }
     
@@ -212,10 +216,12 @@ router.get('/school-info', authenticateSchoolAdmin, async (req, res) => {
         plan_info: {
           teacher_limit: school.plan_info.teacher_limit,
           student_limit: school.plan_info.student_limit,
+          class_limit: school.plan_info.class_limit || 999,
           price: school.plan_info.price
         },
         current_teachers: currentTeachers,
         current_students: currentStudents,
+        current_classes: currentClasses,
         is_active: school.is_active
       },
       license: {
@@ -231,6 +237,12 @@ router.get('/school-info', authenticateSchoolAdmin, async (req, res) => {
           limit: school.plan_info.student_limit,
           available: Math.max(0, school.plan_info.student_limit - currentStudents),
           limitReached: currentStudents >= school.plan_info.student_limit
+        },
+        classes: {
+          current: currentClasses,
+          limit: school.plan_info.class_limit || 999,
+          available: school.plan_info.class_limit === 999 ? 999 : Math.max(0, (school.plan_info.class_limit || 1) - currentClasses),
+          limitReached: currentClasses >= (school.plan_info.class_limit || 999)
         }
       }
     });
