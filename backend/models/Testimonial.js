@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 
+// Constants for auto-launching testimonials
+const MIN_AUTO_LAUNCH_RATING = 5; // Rating must be > 4 (i.e., 5 stars)
+const AUTO_LAUNCH_SENTIMENT = 'positive'; // Sentiment must be positive
+
 const testimonialSchema = new mongoose.Schema({
   student_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   student_name: { type: String, required: true },
@@ -17,7 +21,7 @@ const testimonialSchema = new mongoose.Schema({
 
 // Add pre-save hook to automatically set display_on_landing based on criteria
 testimonialSchema.pre('save', function(next) {
-  // Auto-launch testimonials with >4 stars (rating of 5) and positive sentiment
+  // Auto-launch testimonials with rating >= MIN_AUTO_LAUNCH_RATING and positive sentiment
   // This only applies to:
   // 1. New testimonials
   // 2. Existing testimonials where rating or sentiment changes TO meet criteria
@@ -25,7 +29,7 @@ testimonialSchema.pre('save', function(next) {
   
   if (this.isNew) {
     // For new testimonials, set display_on_landing based on criteria
-    if (this.rating > 4 && this.sentiment_label === 'positive') {
+    if (this.rating >= MIN_AUTO_LAUNCH_RATING && this.sentiment_label === AUTO_LAUNCH_SENTIMENT) {
       this.display_on_landing = true;
     } else {
       this.display_on_landing = false;
@@ -33,7 +37,7 @@ testimonialSchema.pre('save', function(next) {
   } else if (this.isModified('rating') || this.isModified('sentiment_label')) {
     // For existing testimonials, only auto-launch if criteria NOW met
     // Don't auto-remove if criteria no longer met (manual removal only)
-    if (this.rating > 4 && this.sentiment_label === 'positive') {
+    if (this.rating >= MIN_AUTO_LAUNCH_RATING && this.sentiment_label === AUTO_LAUNCH_SENTIMENT) {
       this.display_on_landing = true;
     }
   }
