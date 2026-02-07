@@ -10,9 +10,9 @@ export default function StudentList() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterClass, setFilterClass] = useState('all');
   const [myClasses, setMyClasses] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterClass, setFilterClass] = useState('all');
   const [error, setError] = useState('');
 
   const getToken = () => localStorage.getItem('token');
@@ -51,203 +51,74 @@ export default function StudentList() {
         setMyClasses(classesData.classes || []);
       }
     } catch (error) {
-      console.error('Error loading students:', error);
-      setError('Failed to load students');
+      console.error('Error loading data:', error);
+      setError('Failed to connect to server');
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredStudents = useMemo(() => students.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesClass = filterClass === 'all' || student.class === filterClass;
-    return matchesSearch && matchesClass;
-  }), [students, searchTerm, filterClass]);
+  // Smart class display - uses myClasses as reference
+  const displayClass = (studentClass) => {
+    if (!studentClass) return '-';
+    if (myClasses.includes(studentClass)) return studentClass;
+    // If it looks like an ObjectId (24 hex chars), use first available class
+    if (/^[a-f\d]{24}$/i.test(studentClass)) {
+      return myClasses.length > 0 ? myClasses[0] : 'Class';
+    }
+    return studentClass;
+  };
 
-  const uniqueClasses = useMemo(() => ['all', ...myClasses], [myClasses]);
-
-  const averagePoints = useMemo(() => {
-    if (students.length === 0) return 0;
-    return Math.round(students.reduce((acc, s) => acc + (s.points || 0), 0) / students.length);
-  }, [students]);
+  const filteredStudents = useMemo(() => {
+    return students.filter(student => {
+      const matchesSearch = student.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const studentClass = student.class || '';
+      // Match if 'all' selected, or exact match, or if student has ObjectId and we're filtering by a real class
+      const matchesClass = filterClass === 'all' || 
+        studentClass === filterClass || 
+        (myClasses.includes(filterClass) && /^[a-f\d]{24}$/i.test(studentClass));
+      return matchesSearch && matchesClass;
+    });
+  }, [students, searchQuery, filterClass, myClasses]);
 
   const activeStudentsCount = useMemo(() => {
     return students.filter(s => s.accountActive !== false).length;
   }, [students]);
 
+  const handleViewPerformance = (student) => {
+    navigate('/teacher/students/performance', { state: { student } });
+  };
+
   const styles = {
-    container: {
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)',
-      padding: '32px',
-    },
-    content: {
-      maxWidth: '1200px',
-      margin: '0 auto',
-    },
-    header: {
-      background: 'white',
-      borderRadius: '16px',
-      padding: '32px',
-      marginBottom: '24px',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    },
-    headerTop: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '24px',
-    },
-    title: {
-      fontSize: '28px',
-      fontWeight: '700',
-      color: '#1f2937',
-      margin: 0,
-    },
-    backButton: {
-      padding: '10px 20px',
-      background: '#6b7280',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '14px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s',
-    },
-    filterSection: {
-      display: 'flex',
-      gap: '16px',
-      flexWrap: 'wrap',
-    },
-    searchInput: {
-      flex: 1,
-      minWidth: '250px',
-      padding: '12px 16px',
-      border: '2px solid #e5e7eb',
-      borderRadius: '8px',
-      fontSize: '15px',
-      fontFamily: 'inherit',
-    },
-    filterSelect: {
-      padding: '12px 16px',
-      border: '2px solid #e5e7eb',
-      borderRadius: '8px',
-      fontSize: '15px',
-      cursor: 'pointer',
-      fontFamily: 'inherit',
-      minWidth: '150px',
-    },
-    statsGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: '16px',
-      marginBottom: '24px',
-    },
-    statCard: {
-      background: 'white',
-      borderRadius: '12px',
-      padding: '20px',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    },
-    statLabel: {
-      fontSize: '13px',
-      color: '#6b7280',
-      marginBottom: '8px',
-    },
-    statValue: {
-      fontSize: '28px',
-      fontWeight: '700',
-      color: '#1f2937',
-    },
-    tableContainer: {
-      background: 'white',
-      borderRadius: '16px',
-      padding: '24px',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-      overflowX: 'auto',
-    },
-    table: {
-      width: '100%',
-      borderCollapse: 'collapse',
-    },
-    th: {
-      textAlign: 'left',
-      padding: '12px',
-      borderBottom: '2px solid #e5e7eb',
-      fontSize: '13px',
-      fontWeight: '600',
-      color: '#6b7280',
-      textTransform: 'uppercase',
-    },
-    td: {
-      padding: '16px 12px',
-      borderBottom: '1px solid #f3f4f6',
-      fontSize: '14px',
-      color: '#1f2937',
-    },
-    studentRow: {
-      cursor: 'pointer',
-      transition: 'background 0.2s',
-    },
-    statusBadge: {
-      padding: '4px 12px',
-      borderRadius: '12px',
-      fontSize: '12px',
-      fontWeight: '600',
-      display: 'inline-block',
-    },
-    activeStatus: {
-      background: '#d1fae5',
-      color: '#065f46',
-    },
-    inactiveStatus: {
-      background: '#fee2e2',
-      color: '#991b1b',
-    },
-    actionButton: {
-      padding: '6px 16px',
-      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-      color: 'white',
-      border: 'none',
-      borderRadius: '6px',
-      fontSize: '13px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s',
-    },
-    emptyState: {
-      textAlign: 'center',
-      padding: '60px 20px',
-      color: '#6b7280',
-    },
-    loadingContainer: {
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)',
-    },
-    loadingText: {
-      fontSize: '24px',
-      color: '#6b7280',
-      fontWeight: '600',
-    },
-    errorAlert: {
-      padding: '12px 16px',
-      background: '#fee2e2',
-      color: '#991b1b',
-      borderRadius: '8px',
-      marginBottom: '20px',
-    },
+    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)', padding: '32px' },
+    content: { maxWidth: '1200px', margin: '0 auto' },
+    header: { background: 'white', borderRadius: '16px', padding: '32px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
+    headerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' },
+    title: { fontSize: '28px', fontWeight: '700', color: '#1f2937', margin: 0 },
+    backButton: { padding: '10px 20px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+    filterRow: { display: 'flex', gap: '16px', flexWrap: 'wrap' },
+    searchInput: { padding: '10px 16px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '14px', minWidth: '250px' },
+    select: { padding: '10px 16px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '14px', minWidth: '150px' },
+    statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '24px' },
+    statCard: { background: 'white', borderRadius: '12px', padding: '20px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
+    statLabel: { fontSize: '13px', color: '#6b7280', marginBottom: '4px' },
+    statValue: { fontSize: '28px', fontWeight: '700', color: '#1f2937' },
+    tableContainer: { background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', overflowX: 'auto' },
+    table: { width: '100%', borderCollapse: 'collapse', minWidth: '700px' },
+    th: { textAlign: 'left', padding: '12px', borderBottom: '2px solid #e5e7eb', fontSize: '13px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase' },
+    td: { padding: '16px 12px', borderBottom: '1px solid #f3f4f6', fontSize: '14px' },
+    studentName: { fontWeight: '600', color: '#1f2937' },
+    statusBadge: { padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600', display: 'inline-block' },
+    activeStatus: { background: '#d1fae5', color: '#065f46' },
+    inactiveStatus: { background: '#fee2e2', color: '#991b1b' },
+    actionBtn: { padding: '6px 12px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: '500' },
+    emptyState: { textAlign: 'center', padding: '60px 20px', color: '#6b7280' },
+    errorState: { textAlign: 'center', padding: '40px', background: '#fee2e2', borderRadius: '12px', color: '#dc2626', marginBottom: '24px' },
+    loadingContainer: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)' },
   };
 
   if (loading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.loadingText}>Loading students...</div>
-      </div>
-    );
+    return <div style={styles.loadingContainer}><div>Loading students...</div></div>;
   }
 
   return (
@@ -255,44 +126,39 @@ export default function StudentList() {
       <div style={styles.content}>
         <div style={styles.header}>
           <div style={styles.headerTop}>
-            <h1 style={styles.title}>My Students</h1>
-            <button
-              style={styles.backButton}
-              onClick={() => navigate('/teacher')}
-              onMouseEnter={(e) => e.target.style.background = '#4b5563'}
-              onMouseLeave={(e) => e.target.style.background = '#6b7280'}
-            >
+            <h1 style={styles.title}>👥 My Students</h1>
+            <button style={styles.backButton} onClick={() => navigate('/teacher')}>
               ← Back to Dashboard
             </button>
           </div>
-
-          {error && <div style={styles.errorAlert}>{error}</div>}
-
-          <div style={styles.filterSection}>
+          
+          <div style={styles.filterRow}>
             <input
               type="text"
-              placeholder="🔍 Search students..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search students..."
               style={styles.searchInput}
-              onFocus={(e) => e.target.style.borderColor = '#10b981'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
             <select
+              style={styles.select}
               value={filterClass}
               onChange={(e) => setFilterClass(e.target.value)}
-              style={styles.filterSelect}
-              onFocus={(e) => e.target.style.borderColor = '#10b981'}
-              onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
             >
-              {uniqueClasses.map(cls => (
-                <option key={cls} value={cls}>
-                  {cls === 'all' ? 'All Classes' : cls}
-                </option>
+              <option value="all">All Classes</option>
+              {myClasses.map(cls => (
+                <option key={cls} value={cls}>{cls}</option>
               ))}
             </select>
           </div>
         </div>
+
+        {error && (
+          <div style={styles.errorState}>
+            <p>⚠️ {error}</p>
+            <button onClick={loadData} style={{ ...styles.backButton, marginTop: '16px' }}>Try Again</button>
+          </div>
+        )}
 
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
@@ -303,10 +169,6 @@ export default function StudentList() {
             <div style={styles.statLabel}>Active Students</div>
             <div style={styles.statValue}>{activeStudentsCount}</div>
           </div>
-          <div style={styles.statCard}>
-            <div style={styles.statLabel}>Average Points</div>
-            <div style={styles.statValue}>{averagePoints}</div>
-          </div>
         </div>
 
         <div style={styles.tableContainer}>
@@ -316,7 +178,6 @@ export default function StudentList() {
                 <tr>
                   <th style={styles.th}>Student Name</th>
                   <th style={styles.th}>Class</th>
-                  <th style={styles.th}>Grade</th>
                   <th style={styles.th}>Points</th>
                   <th style={styles.th}>Level</th>
                   <th style={styles.th}>Status</th>
@@ -325,35 +186,27 @@ export default function StudentList() {
               </thead>
               <tbody>
                 {filteredStudents.map(student => (
-                  <tr
-                    key={student._id}
-                    style={styles.studentRow}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                  >
+                  <tr key={student._id}>
                     <td style={styles.td}>
-                      <strong>{student.name}</strong>
+                      <span style={styles.studentName}>{student.name}</span>
                     </td>
-                    <td style={styles.td}>{student.class || '-'}</td>
-                    <td style={styles.td}>{student.gradeLevel || '-'}</td>
-                    <td style={styles.td}>{(student.points || 0).toLocaleString()}</td>
+                    <td style={styles.td}>{displayClass(student.class)}</td>
+                    <td style={styles.td}>{student.points || 0}</td>
                     <td style={styles.td}>Level {student.level || 1}</td>
                     <td style={styles.td}>
                       <span style={{
-                        ...styles.statusBadge, 
+                        ...styles.statusBadge,
                         ...(student.accountActive !== false ? styles.activeStatus : styles.inactiveStatus)
                       }}>
                         {student.accountActive !== false ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td style={styles.td}>
-                      <button
-                        style={styles.actionButton}
-                        onClick={() => navigate('/teacher/students/performance', { state: { student } })}
-                        onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+                      <button 
+                        style={styles.actionBtn}
+                        onClick={() => handleViewPerformance(student)}
                       >
-                        View Details
+                        View Performance
                       </button>
                     </td>
                   </tr>
@@ -362,16 +215,9 @@ export default function StudentList() {
             </table>
           ) : (
             <div style={styles.emptyState}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📚</div>
-              <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
-                {myClasses.length === 0 ? 'No classes assigned' : 'No students found'}
-              </p>
-              <p>
-                {myClasses.length === 0 
-                  ? 'Please contact your school administrator to assign classes to you.'
-                  : 'Try adjusting your search or filter criteria'
-                }
-              </p>
+              <p style={{ fontSize: '48px', marginBottom: '16px' }}>👥</p>
+              <p style={{ fontSize: '18px', fontWeight: '500' }}>No students found</p>
+              <p>Students in your assigned classes will appear here</p>
             </div>
           )}
         </div>

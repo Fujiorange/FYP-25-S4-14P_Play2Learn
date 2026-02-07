@@ -606,64 +606,6 @@ export default function TeacherDashboard() {
             </ul>
           </div>
 
-          {/* Assignment Management */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <span style={styles.sectionIcon}>📋</span>
-              <h2 style={styles.sectionTitle}>Assignment Management</h2>
-            </div>
-            <ul style={styles.menuList}>
-              <li
-                style={{
-                  ...styles.menuItem,
-                  ...(hoveredItem === 'create-assignment' ? styles.menuItemHover : {}),
-                }}
-                onMouseEnter={() => setHoveredItem('create-assignment')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('assignment', 'create')}
-              >
-                <span>Create Assignment</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-              <li
-                style={{
-                  ...styles.menuItem,
-                  ...(hoveredItem === 'modify-deadline' ? styles.menuItemHover : {}),
-                }}
-                onMouseEnter={() => setHoveredItem('modify-deadline')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('assignment', 'modify')}
-              >
-                <span>Modify Assignment Deadline</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-              <li
-                style={{
-                  ...styles.menuItem,
-                  ...(hoveredItem === 'view-submitted' ? styles.menuItemHover : {}),
-                }}
-                onMouseEnter={() => setHoveredItem('view-submitted')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('assignment', 'view-submitted')}
-              >
-                <span>View Submitted Assignments</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-              <li
-                style={{
-                  ...styles.menuItem,
-                  ...(hoveredItem === 'track-completion' ? styles.menuItemHover : {}),
-                }}
-                onMouseEnter={() => setHoveredItem('track-completion')}
-                onMouseLeave={() => setHoveredItem(null)}
-                onClick={() => handleMenuClick('assignment', 'track')}
-              >
-                <span>Track Student Completion</span>
-                <span style={styles.arrow}>→</span>
-              </li>
-            </ul>
-          </div>
-
           {/* Support */}
           <div style={styles.section}>
             <div style={styles.sectionHeader}>
