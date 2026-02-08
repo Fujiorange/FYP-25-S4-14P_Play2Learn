@@ -141,9 +141,17 @@ router.post('/register-school-admin', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create institute admin user (use email as name since name is not provided)
+    // Generate user-friendly name from email
+    // e.g., "john.doe@example.com" -> "John Doe"
+    const emailPrefix = email.split('@')[0];
+    const nameParts = emailPrefix.split(/[._-]/).filter(part => part.length > 0);
+    const displayName = nameParts
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ') || emailPrefix;
+
+    // Create institute admin user
     const newUser = new User({
-      name: email.split('@')[0], // Use email prefix as name
+      name: displayName,
       email: email.toLowerCase(),
       password: hashedPassword,
       role: 'School Admin',
