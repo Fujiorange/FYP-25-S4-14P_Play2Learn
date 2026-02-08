@@ -203,8 +203,9 @@ async function processCSVUpload(csvData, schoolId, schoolAdminId) {
 
         if (teacher) {
           // Update existing teacher - add new classes
-          const currentClasses = teacher.assignedClasses || [];
-          const updatedClasses = [...new Set([...currentClasses, ...classIds.map(id => id.toString())])];
+          const currentClasses = (teacher.assignedClasses || []).map(id => id.toString());
+          const newClassIds = classIds.map(id => id.toString());
+          const updatedClasses = [...new Set([...currentClasses, ...newClassIds])];
           
           teacher.assignedClasses = updatedClasses;
           if (teacherData.subjects && teacherData.subjects.length > 0) {
