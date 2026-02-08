@@ -354,7 +354,6 @@ function LandingPageManager() {
         );
 
       case 'about':
-        const stats = customData.stats || [];
         const goals = customData.goals || [];
         return (
           <>
