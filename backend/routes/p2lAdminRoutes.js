@@ -1661,6 +1661,8 @@ let statisticsCache = {
 };
 
 // Get landing page statistics (schools, students, teachers)
+// NOTE: This endpoint is intentionally public (no auth required) because
+// statistics are displayed on the public landing page About section
 router.get('/landing/statistics', async (req, res) => {
   try {
     // Check if cache is valid
