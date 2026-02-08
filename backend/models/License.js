@@ -8,8 +8,7 @@ const licenseSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['trial', 'starter', 'professional', 'enterprise'],
-    unique: true
+    enum: ['trial', 'starter', 'professional', 'enterprise']
   },
   priceMonthly: {
     type: Number,

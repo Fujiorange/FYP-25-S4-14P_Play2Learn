@@ -77,10 +77,13 @@ router.post('/licenses', authenticateToken, requireP2LAdmin, async (req, res) =>
       return res.status(400).json({ success: false, error: 'Name and type are required' });
     }
 
-    // Check if license type already exists
-    const existing = await License.findOne({ type });
-    if (existing) {
-      return res.status(400).json({ success: false, error: 'License type already exists' });
+    // Validate type is in allowed enum values
+    const allowedTypes = ['trial', 'starter', 'professional', 'enterprise'];
+    if (!allowedTypes.includes(type)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Invalid license type. Must be one of: ${allowedTypes.join(', ')}` 
+      });
     }
 
     const newLicense = new License({
@@ -99,7 +102,20 @@ router.post('/licenses', authenticateToken, requireP2LAdmin, async (req, res) =>
     return res.json({ success: true, license: newLicense });
   } catch (error) {
     console.error('Error creating license:', error);
-    return res.status(500).json({ success: false, error: 'Failed to create license' });
+    
+    // Provide specific error messages
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({ 
+        success: false, 
+        error: `Validation error: ${messages.join(', ')}` 
+      });
+    }
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to create license' 
+    });
   }
 });
 
@@ -136,7 +152,20 @@ router.put('/licenses/:id', authenticateToken, requireP2LAdmin, async (req, res)
     return res.json({ success: true, license });
   } catch (error) {
     console.error('Error updating license:', error);
-    return res.status(500).json({ success: false, error: 'Failed to update license' });
+    
+    // Provide specific error messages
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({ 
+        success: false, 
+        error: `Validation error: ${messages.join(', ')}` 
+      });
+    }
+    
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to update license' 
+    });
   }
 });
 
