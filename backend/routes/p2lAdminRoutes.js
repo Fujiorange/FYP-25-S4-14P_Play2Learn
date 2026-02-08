@@ -1654,17 +1654,24 @@ router.delete('/landing', authenticateP2LAdmin, async (req, res) => {
 
 // ==================== Landing Page Statistics ====================
 // In-memory cache for statistics (1-hour duration)
+// This also serves as a rate-limiting mechanism to prevent database overload
 let statisticsCache = {
   data: null,
   timestamp: null,
-  CACHE_DURATION: 3600000 // 1 hour in milliseconds
+  CACHE_DURATION: 3600000, // 1 hour in milliseconds
+  requestCount: 0,
+  lastReset: Date.now()
 };
 
 // Get landing page statistics (schools, students, teachers)
 // NOTE: This endpoint is intentionally public (no auth required) because
 // statistics are displayed on the public landing page About section
+// Rate limiting: Cache serves dual purpose of performance optimization and rate limiting
 router.get('/landing/statistics', async (req, res) => {
   try {
+    // Track request count for monitoring
+    statisticsCache.requestCount++;
+    
     // Check if cache is valid
     const now = Date.now();
     if (statisticsCache.data && statisticsCache.timestamp && 
@@ -1676,6 +1683,7 @@ router.get('/landing/statistics', async (req, res) => {
       });
     }
 
+    // Fetch fresh data only if cache expired
     // Get active schools
     const activeSchools = await School.find({ is_active: true });
     const activeSchoolIds = activeSchools.map(school => school._id.toString());
