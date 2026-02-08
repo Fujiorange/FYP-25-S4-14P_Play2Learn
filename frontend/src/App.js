@@ -91,6 +91,7 @@ import ParentViewNewsUpdates from './components/Parents/ViewNewsUpdates';
 // SchoolAdmin Components
 import SchoolAdminDashboard from './components/SchoolAdmin/SchoolAdminDashboard';
 import ManualAddUser from './components/SchoolAdmin/ManualAddUser';
+import SchoolLicenseView from './components/SchoolAdmin/SchoolLicenseView';
 // RemoveUser removed - delete functionality moved to role management pages
 import BulkUploadCSV from './components/SchoolAdmin/BulkUploadCSV';
 import ManageClasses from './components/SchoolAdmin/ManageClasses';
@@ -261,6 +262,7 @@ function App() {
 
           {/* ========== SCHOOL ADMIN ROUTES ========== */}
           <Route path="/school-admin" element={<SchoolAdminDashboard />} />
+          <Route path="/school-admin/license" element={<SchoolLicenseView />} />
           <Route path="/school-admin/users/manual-add" element={<ManualAddUser />} />
           {/* RemoveUser route removed - delete functionality moved to role management pages */}
           <Route path="/school-admin/users/bulk-upload" element={<BulkUploadCSV />} />
