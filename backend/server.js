@@ -84,6 +84,8 @@ function authenticateToken(req, res, next) {
 // Public endpoint to fetch landing page blocks (no authentication required)
 const LandingPage = require('./models/LandingPage');
 const Testimonial = require('./models/Testimonial');
+const User = require('./models/User');
+const School = require('./models/School');
 
 app.get('/api/public/landing-page', async (req, res) => {
   try {
@@ -120,7 +122,30 @@ app.get('/api/public/landing-page', async (req, res) => {
       image: t.image_url || null
     }));
 
-    // Clone blocks and inject testimonials into testimonial blocks
+    // Fetch real-time statistics for About section
+    // Get active schools
+    const activeSchools = await School.find({ is_active: true });
+    const activeSchoolIds = activeSchools.map(school => school._id.toString());
+    
+    // Count statistics
+    const schoolCount = activeSchools.length;
+    const studentCount = await User.countDocuments({
+      role: 'Student',
+      schoolId: { $in: activeSchoolIds }
+    });
+    const teacherCount = await User.countDocuments({
+      role: 'Teacher',
+      schoolId: { $in: activeSchoolIds }
+    });
+
+    // Prepare statistics data
+    const statisticsData = [
+      { value: schoolCount, label: 'Schools Partnered' },
+      { value: studentCount, label: 'Students' },
+      { value: teacherCount, label: 'Teachers' }
+    ];
+
+    // Clone blocks and inject testimonials and statistics into blocks
     // Use toObject() to properly serialize Mongoose subdocuments
     const blocks = (landingPage.blocks || []).map(block => {
       // Convert Mongoose subdocument to plain object for proper serialization
@@ -136,6 +161,18 @@ app.get('/api/public/landing-page', async (req, res) => {
           }
         };
       }
+      
+      if (plainBlock.type === 'about') {
+        // Inject real-time statistics into the about block
+        return {
+          ...plainBlock,
+          custom_data: {
+            ...(plainBlock.custom_data || {}),
+            stats: statisticsData
+          }
+        };
+      }
+      
       return plainBlock;
     });
 
