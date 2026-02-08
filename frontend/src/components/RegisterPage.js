@@ -4,17 +4,12 @@ import authService from '../services/authService';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const [registrationType, setRegistrationType] = useState('student'); // 'student' or 'school-admin'
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
-    gender: '',
-    dateOfBirth: '',
     password: '',
     confirmPassword: '',
     institutionName: '',
-    referralSource: '',
-    contact: ''
+    referralSource: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -33,46 +28,22 @@ export default function RegisterPage() {
     if (error) setError('');
   };
 
-  const calculateAge = (dob) => {
-    const today = new Date();
-    const birthDate = new Date(dob);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
+
 
   const handleSubmit = async () => {
     setError('');
     setSuccess(false);
 
     // Validation
-    if (!formData.name || !formData.email || !formData.password) {
+    if (!formData.email || !formData.password) {
       setError('Please fill in all required fields');
       return;
     }
 
-    // For school admin registration, institution name is required
-    if (registrationType === 'school-admin' && !formData.institutionName) {
+    // Institution name is required
+    if (!formData.institutionName) {
       setError('Institution/Organization name is required');
       return;
-    }
-
-    // For student registration, gender and DOB are required
-    if (registrationType === 'student' && (!formData.gender || !formData.dateOfBirth)) {
-      setError('Gender and date of birth are required');
-      return;
-    }
-
-    // Age validation for students
-    if (registrationType === 'student') {
-      const age = calculateAge(formData.dateOfBirth);
-      if (age < 6 || age > 100) {
-        setError('Please enter a valid date of birth');
-        return;
-      }
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -88,37 +59,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      let result;
-      
-      if (registrationType === 'school-admin') {
-        // Register as school admin with trial license
-        result = await authService.registerSchoolAdmin({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          institutionName: formData.institutionName,
-          referralSource: formData.referralSource || null,
-          contact: formData.contact || '',
-          gender: formData.gender || null,
-          dateOfBirth: formData.dateOfBirth || null
-        });
-      } else {
-        // Register as trial student (existing flow)
-        const registrationData = {
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          gender: formData.gender,
-          dateOfBirth: formData.dateOfBirth,
-          role: 'student', // Default trial role
-          gradeLevel: 'Not Set', // Will be determined later
-          organizationName: 'Trial User',
-          organizationType: 'individual',
-          contact: '',
-          businessRegistrationNumber: ''
-        };
-        result = await authService.register(registrationData);
-      }
+      // Register as institute admin with trial license
+      const result = await authService.registerSchoolAdmin({
+        email: formData.email,
+        password: formData.password,
+        institutionName: formData.institutionName,
+        referralSource: formData.referralSource || null
+      });
 
       if (result.success) {
         setSuccess(true);
@@ -403,53 +350,28 @@ export default function RegisterPage() {
 
           <h1 style={styles.title}>Start Your Journey!</h1>
           <p style={styles.subtitle}>
-            Create your free account in seconds. No credit card required.
+            Register your institute and get started with a free trial account.
           </p>
 
-          {/* Registration Type Selector */}
-          <div style={styles.tabContainer}>
-            <button
-              type="button"
-              onClick={() => setRegistrationType('student')}
-              style={{
-                ...styles.tab,
-                ...(registrationType === 'student' ? styles.tabActive : {})
-              }}
-              disabled={loading}
-            >
-              👨‍🎓 Trial Student
-            </button>
-            <button
-              type="button"
-              onClick={() => setRegistrationType('school-admin')}
-              style={{
-                ...styles.tab,
-                ...(registrationType === 'school-admin' ? styles.tabActive : {})
-              }}
-              disabled={loading}
-            >
-              🏫 School Admin
-            </button>
-          </div>
-
           <div>
+            {/* Institution Name */}
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                Full Name<span style={styles.required}>*</span>
+                Institution/Organization Name<span style={styles.required}>*</span>
               </label>
               <input
                 type="text"
-                name="name"
-                value={formData.name}
+                name="institutionName"
+                value={formData.institutionName}
                 onChange={handleChange}
                 onKeyPress={handleKeyPress}
-                onFocus={() => setFocusedField('name')}
+                onFocus={() => setFocusedField('institutionName')}
                 onBlur={() => setFocusedField('')}
-                placeholder="Enter your full name"
+                placeholder="Your school or organization name"
                 disabled={loading}
                 style={{
                   ...styles.input,
-                  ...(focusedField === 'name' ? styles.inputFocus : {}),
+                  ...(focusedField === 'institutionName' ? styles.inputFocus : {}),
                 }}
               />
             </div>
@@ -475,128 +397,33 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Institution Name - Only for School Admin */}
-            {registrationType === 'school-admin' && (
-              <div style={styles.formGroup}>
-                <label style={styles.label}>
-                  Institution/Organization Name<span style={styles.required}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="institutionName"
-                  value={formData.institutionName}
-                  onChange={handleChange}
-                  onKeyPress={handleKeyPress}
-                  onFocus={() => setFocusedField('institutionName')}
-                  onBlur={() => setFocusedField('')}
-                  placeholder="Your school or organization name"
-                  disabled={loading}
-                  style={{
-                    ...styles.input,
-                    ...(focusedField === 'institutionName' ? styles.inputFocus : {}),
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Contact Number - Optional for School Admin */}
-            {registrationType === 'school-admin' && (
-              <div style={styles.formGroup}>
-                <label style={styles.label}>
-                  Contact Number
-                </label>
-                <input
-                  type="tel"
-                  name="contact"
-                  value={formData.contact}
-                  onChange={handleChange}
-                  onKeyPress={handleKeyPress}
-                  onFocus={() => setFocusedField('contact')}
-                  onBlur={() => setFocusedField('')}
-                  placeholder="Your phone number (optional)"
-                  disabled={loading}
-                  style={{
-                    ...styles.input,
-                    ...(focusedField === 'contact' ? styles.inputFocus : {}),
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Gender - Required for Students, Optional for School Admin */}
+            {/* Referral Source */}
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                Gender{registrationType === 'student' && <span style={styles.required}>*</span>}
+                How did you hear about us?
               </label>
               <select
-                name="gender"
-                value={formData.gender}
+                name="referralSource"
+                value={formData.referralSource}
                 onChange={handleChange}
-                onFocus={() => setFocusedField('gender')}
+                onFocus={() => setFocusedField('referralSource')}
                 onBlur={() => setFocusedField('')}
                 disabled={loading}
                 style={{
                   ...styles.select,
-                  ...(focusedField === 'gender' ? styles.inputFocus : {}),
+                  ...(focusedField === 'referralSource' ? styles.inputFocus : {}),
                 }}
               >
-                <option value="">Select your gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
+                <option value="">Select an option (optional)</option>
+                <option value="search-engine">Search Engine (Google, Bing, etc.)</option>
+                <option value="social-media">Social Media</option>
+                <option value="friend-referral">Friend or Colleague</option>
+                <option value="advertisement">Advertisement</option>
+                <option value="conference-event">Conference or Event</option>
+                <option value="blog-article">Blog or Article</option>
                 <option value="other">Other</option>
-                <option value="prefer-not-to-say">Prefer not to say</option>
               </select>
             </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                Date of Birth{registrationType === 'student' && <span style={styles.required}>*</span>}
-              </label>
-              <input
-                type="date"
-                name="dateOfBirth"
-                value={formData.dateOfBirth}
-                onChange={handleChange}
-                onFocus={() => setFocusedField('dateOfBirth')}
-                onBlur={() => setFocusedField('')}
-                max={new Date().toISOString().split('T')[0]}
-                disabled={loading}
-                style={{
-                  ...styles.input,
-                  ...(focusedField === 'dateOfBirth' ? styles.inputFocus : {}),
-                }}
-              />
-            </div>
-
-            {/* Referral Source - Only for School Admin */}
-            {registrationType === 'school-admin' && (
-              <div style={styles.formGroup}>
-                <label style={styles.label}>
-                  How did you hear about us?
-                </label>
-                <select
-                  name="referralSource"
-                  value={formData.referralSource}
-                  onChange={handleChange}
-                  onFocus={() => setFocusedField('referralSource')}
-                  onBlur={() => setFocusedField('')}
-                  disabled={loading}
-                  style={{
-                    ...styles.select,
-                    ...(focusedField === 'referralSource' ? styles.inputFocus : {}),
-                  }}
-                >
-                  <option value="">Select an option (optional)</option>
-                  <option value="search-engine">Search Engine (Google, Bing, etc.)</option>
-                  <option value="social-media">Social Media</option>
-                  <option value="friend-referral">Friend or Colleague</option>
-                  <option value="advertisement">Advertisement</option>
-                  <option value="conference-event">Conference or Event</option>
-                  <option value="blog-article">Blog or Article</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            )}
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
@@ -694,15 +521,12 @@ export default function RegisterPage() {
                 cursor: loading ? 'not-allowed' : 'pointer',
               }}
             >
-              {loading ? 'Creating Account...' : 
-               registrationType === 'school-admin' ? 'Start 30-Day Trial' : 'Sign Up'}
+              {loading ? 'Creating Account...' : 'Start Free Trial'}
             </button>
 
             {success && (
               <div style={styles.successMessage}>
-                ✅ {registrationType === 'school-admin' 
-                  ? 'School admin account created with 30-day trial! Redirecting to login...' 
-                  : 'Account created successfully! Redirecting to login...'}
+                ✅ Institute registered successfully with free trial! Redirecting to login...
               </div>
             )}
 

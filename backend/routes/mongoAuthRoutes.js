@@ -74,25 +74,21 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// POST /register-school-admin - Register a school admin with trial license
+// POST /register-school-admin - Register an institute with free trial
 router.post('/register-school-admin', async (req, res) => {
   try {
     const {
-      name,
       email,
       password,
       institutionName,
       referralSource,
-      contact,
-      gender,
-      dateOfBirth,
     } = req.body;
 
-    // Validation
-    if (!name || !email || !password || !institutionName) {
+    // Validation - only email, password, and institutionName required
+    if (!email || !password || !institutionName) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Name, email, password, and institution name are required' 
+        error: 'Email, password, and institution name are required' 
       });
     }
 
@@ -119,30 +115,21 @@ router.post('/register-school-admin', async (req, res) => {
       });
     }
 
-    // Get trial license
-    const License = require('../models/License');
-    const trialLicense = await License.findOne({ type: 'trial' });
-    if (!trialLicense) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Trial license not configured. Please contact support.' 
-      });
-    }
-
-    // Create school with trial license
+    // Create school with free trial plan
+    // Plan limits: teachers 1, students 5, classes 1, price Free
     const newSchool = new School({
       organization_name: institutionName,
       organization_type: 'school',
       plan: 'trial',
       plan_info: {
-        teacher_limit: trialLicense.maxTeachers,
-        student_limit: trialLicense.maxStudents,
-        class_limit: trialLicense.maxClasses,
+        teacher_limit: 1,
+        student_limit: 5,
+        class_limit: 1,
         price: 0
       },
-      licenseId: trialLicense._id,
-      licenseExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-      contact: contact || '',
+      licenseId: null, // No license for free trial
+      licenseExpiresAt: null, // Free trial doesn't expire
+      contact: email, // Use email as contact
       is_active: true,
       current_teachers: 0,
       current_students: 0,
@@ -154,16 +141,16 @@ router.post('/register-school-admin', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create school admin user
+    // Create institute admin user (use email as name since name is not provided)
     const newUser = new User({
-      name,
+      name: email.split('@')[0], // Use email prefix as name
       email: email.toLowerCase(),
       password: hashedPassword,
       role: 'School Admin',
       schoolId: newSchool._id.toString(),
-      contact: contact || null,
-      gender: gender || null,
-      date_of_birth: dateOfBirth ? new Date(dateOfBirth) : null,
+      contact: null,
+      gender: null,
+      date_of_birth: null,
       emailVerified: true,
       isTrialUser: true
     });
@@ -172,17 +159,16 @@ router.post('/register-school-admin', async (req, res) => {
 
     // Log referral source if provided (for analytics)
     if (referralSource) {
-      console.log(`📊 New school admin registration - Referral source: ${referralSource}`);
+      console.log(`📊 New institute registration - Referral source: ${referralSource}`);
     }
 
-    console.log(`✅ New school admin registered: ${email} for ${institutionName}`);
-    console.log(`   Trial expires: ${newSchool.licenseExpiresAt.toISOString()}`);
+    console.log(`✅ New institute registered: ${email} for ${institutionName}`);
+    console.log(`   Plan: Free trial (Teachers: 0/1, Students: 0/5, Classes: 0/1)`);
 
     return res.json({ 
       success: true, 
-      message: 'School admin account created successfully with 30-day trial license',
-      schoolId: newSchool._id,
-      trialExpiresAt: newSchool.licenseExpiresAt
+      message: 'Institute registered successfully with free trial',
+      schoolId: newSchool._id
     });
   } catch (error) {
     console.error('School admin registration error:', error);

@@ -170,9 +170,6 @@ function SchoolManagement() {
           <h1>School Management</h1>
           <Link to="/p2ladmin/dashboard" className="back-link">← Back to Dashboard</Link>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
-          + Create School
-        </button>
       </header>
 
       {showForm && (
