@@ -123,12 +123,10 @@ app.get('/api/public/landing-page', async (req, res) => {
     }));
 
     // Fetch real-time statistics for About section
-    // Get active school IDs only (optimized query)
+    // Get active school IDs and count users in parallel for better performance
     const activeSchoolIds = await School.distinct('_id', { is_active: true });
     
-    // Count statistics in parallel for better performance
-    const [schoolCount, studentCount, teacherCount] = await Promise.all([
-      School.countDocuments({ is_active: true }),
+    const [studentCount, teacherCount] = await Promise.all([
       User.countDocuments({
         role: 'Student',
         schoolId: { $in: activeSchoolIds }
@@ -141,7 +139,7 @@ app.get('/api/public/landing-page', async (req, res) => {
 
     // Prepare statistics data
     const statisticsData = [
-      { value: schoolCount, label: 'Schools Partnered' },
+      { value: activeSchoolIds.length, label: 'Schools Partnered' },
       { value: studentCount, label: 'Students' },
       { value: teacherCount, label: 'Teachers' }
     ];
