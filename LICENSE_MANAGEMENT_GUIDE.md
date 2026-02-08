@@ -106,9 +106,9 @@ Expected output:
 
 License Summary:
    - Trial: $0/month, 1 teachers, 5 students, 1 classes
-   - Starter: $29.99/month, 5 teachers, 50 students, 10 classes
-   - Professional: $99.99/month, 20 teachers, 200 students, 50 classes
-   - Enterprise: $299.99/month, Unlimited teachers, Unlimited students, Unlimited classes
+   - Starter: $250/month, 50 teachers, 500 students, 10 classes
+   - Professional: $500/month, 100 teachers, 1000 students, 25 classes
+   - Enterprise: $1000/month, 250 teachers, 2500 students, 50 classes
 ```
 
 ---

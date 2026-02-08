@@ -28,7 +28,7 @@ const Pricing = () => {
       description: 'Ideal for medium-sized schools and districts',
       price: {
         yearly: 5000,
-        monthly: 520
+        monthly: 500
       },
       teachers: 100,
       students: 1000,
@@ -48,7 +48,7 @@ const Pricing = () => {
       description: 'For large institutions and school networks',
       price: {
         yearly: 10000,
-        monthly: 1050
+        monthly: 1000
       },
       teachers: 250,
       students: 2500,
