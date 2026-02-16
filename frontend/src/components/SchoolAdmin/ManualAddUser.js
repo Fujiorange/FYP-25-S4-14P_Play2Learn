@@ -165,7 +165,7 @@ export default function ManualAddUser() {
       // Parse date from dd/mm/yyyy format
       const parsedDOB = parseDateDDMMYYYY(formData.date_of_birth);
 
-      // Prepare user data (backend will generate password)
+      // Prepare user data (backend will generate password and return it in result.user.tempPassword)
       const userData = {
         name: formData.name,
         email: formData.email,

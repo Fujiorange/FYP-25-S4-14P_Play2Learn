@@ -31,20 +31,22 @@ export default function SchoolAdminDashboard() {
     setLoading(true);
     try {
       // REAL API CALL - Fetches from database!
-      const [statsResult, schoolInfoResult] = await Promise.all([
+      const [statsResult, schoolInfoResult] = await Promise.allSettled([
         schoolAdminService.getDashboardStats(),
         schoolAdminService.getSchoolInfo()
       ]);
 
-      if (statsResult.success) {
+      // Handle dashboard stats
+      if (statsResult.status === 'fulfilled' && statsResult.value.success) {
         setDashboardData({
-          total_students: statsResult.total_students || 0,
-          total_classes: statsResult.total_classes || 0,
-          total_teachers: statsResult.total_teachers || 0,
-          total_parents: statsResult.total_parents || 0,
+          total_students: statsResult.value.total_students || 0,
+          total_classes: statsResult.value.total_classes || 0,
+          total_teachers: statsResult.value.total_teachers || 0,
+          total_parents: statsResult.value.total_parents || 0,
         });
       } else {
-        console.error('Failed to load dashboard stats:', statsResult.error);
+        console.error('Failed to load dashboard stats:', 
+          statsResult.status === 'fulfilled' ? statsResult.value.error : statsResult.reason);
         setDashboardData({
           total_students: 0,
           total_classes: 0,
@@ -52,8 +54,14 @@ export default function SchoolAdminDashboard() {
         });
       }
 
-      if (schoolInfoResult.success && schoolInfoResult.school) {
-        setSchoolName(schoolInfoResult.school.organization_name);
+      // Handle school info
+      if (schoolInfoResult.status === 'fulfilled' && 
+          schoolInfoResult.value.success && 
+          schoolInfoResult.value.school) {
+        setSchoolName(schoolInfoResult.value.school.organization_name);
+      } else {
+        console.error('Failed to load school info:', 
+          schoolInfoResult.status === 'fulfilled' ? schoolInfoResult.value.error : schoolInfoResult.reason);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -136,7 +144,7 @@ export default function SchoolAdminDashboard() {
 
       <main style={styles.main}>
         <div style={styles.welcomeSection}>
-          <h1 style={styles.welcomeTitle}>Welcome back, {schoolName} Admin! 👋</h1>
+          <h1 style={styles.welcomeTitle}>Welcome back, {schoolName || 'School'} Admin! 👋</h1>
           <p style={styles.welcomeSubtitle}>Manage your adaptive learning platform.</p>
         </div>
 
