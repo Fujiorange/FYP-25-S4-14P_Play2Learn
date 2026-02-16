@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import schoolAdminService from '../../services/schoolAdminService';
-import { generateStrongPassword } from '../../utils/passwordValidator';
 
 // Convert dd/mm/yyyy to ISO date string with proper validation
 const parseDateDDMMYYYY = (dateStr) => {
@@ -49,9 +48,6 @@ export default function ManualAddUser() {
   const [loadingLicense, setLoadingLicense] = useState(true);
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
-  const [generatedPassword, setGeneratedPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordViewed, setPasswordViewed] = useState(false);
   const [createdUser, setCreatedUser] = useState(null);
 
   useEffect(() => {
@@ -137,19 +133,6 @@ export default function ManualAddUser() {
     return false;
   };
 
-  const handleGeneratePassword = () => {
-    // Generate a strong password that meets security requirements
-    const newPassword = generateStrongPassword(12);
-    setGeneratedPassword(newPassword);
-    setShowPassword(false);
-    setPasswordViewed(false);
-  };
-
-  const handleViewPassword = () => {
-    setShowPassword(true);
-    setPasswordViewed(true);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -179,20 +162,13 @@ export default function ManualAddUser() {
     setLoading(true);
 
     try {
-      // Auto-generate password if not already generated
-      const password = generatedPassword || generateStrongPassword(12);
-      if (!generatedPassword) {
-        setGeneratedPassword(password);
-      }
-
       // Parse date from dd/mm/yyyy format
       const parsedDOB = parseDateDDMMYYYY(formData.date_of_birth);
 
-      // Prepare user data
+      // Prepare user data (backend will generate password)
       const userData = {
         name: formData.name,
         email: formData.email,
-        password: password,
         role: formData.role,
         gender: formData.gender,
         gradeLevel: formData.role === 'student' ? formData.gradeLevel : null,
@@ -216,9 +192,8 @@ export default function ManualAddUser() {
       const result = await schoolAdminService.createUser(userData);
 
       if (result.success) {
-        // Use the tempPassword from backend response (backend generates and stores the password)
+        // Backend generates and returns the tempPassword
         const backendTempPassword = result.user.tempPassword;
-        setGeneratedPassword(backendTempPassword); // Update displayed password to match backend
         
         setCreatedUser({
           ...result.user,
@@ -645,50 +620,6 @@ export default function ManualAddUser() {
                 </select>
               </div>
             )}
-
-            {/* Password Generation Section */}
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                Password
-              </label>
-              <div style={styles.passwordSection}>
-                <div style={styles.passwordDisplay}>
-                  <span>
-                    {generatedPassword 
-                      ? (showPassword ? generatedPassword : '••••••••') 
-                      : 'Will be auto-generated on create'}
-                  </span>
-                </div>
-                <div>
-                  <button 
-                    type="button" 
-                    style={styles.generateButton}
-                    onClick={handleGeneratePassword}
-                    disabled={loading}
-                  >
-                    🔄 Preview Password
-                  </button>
-                  {generatedPassword && !passwordViewed && (
-                    <button 
-                      type="button" 
-                      style={styles.viewButton}
-                      onClick={handleViewPassword}
-                      disabled={loading}
-                    >
-                      👁️ View Once
-                    </button>
-                  )}
-                  {passwordViewed && (
-                    <span style={{ marginLeft: '12px', color: '#6b7280', fontSize: '13px' }}>
-                      ✓ Password viewed
-                    </span>
-                  )}
-                </div>
-                <p style={{ ...styles.note, marginTop: '12px' }}>
-                  Password will be auto-generated when you click "Create User". You can preview it first if you'd like.
-                </p>
-              </div>
-            </div>
 
             <div style={styles.formGroup}>
               <label style={styles.label}>Gender</label>
