@@ -39,6 +39,25 @@ function getDefaultDifficultyPoints() {
   };
 }
 
+// ✅ NEW: Time multiplier function
+function getTimeMultiplier(timeSeconds) {
+  if (timeSeconds < 5) return 1.5;
+  if (timeSeconds >= 5 && timeSeconds < 10) return 1.4;
+  if (timeSeconds >= 10 && timeSeconds < 15) return 1.3;
+  if (timeSeconds >= 15 && timeSeconds < 20) return 1.2;
+  return 1.0; // >= 20 seconds
+}
+
+// ✅ NEW: Points calculation function
+function calculateQuestionPoints(isCorrect, quizLevel, difficultyLevel, timeSeconds) {
+  if (!isCorrect) return 0; // Wrong answer = 0 points
+  
+  const timeMultiplier = getTimeMultiplier(timeSeconds);
+  const rawPoints = quizLevel * difficultyLevel * timeMultiplier;
+  
+  return Math.round(rawPoints * 10) / 10; // Round to 1 decimal
+}
+
 // Level thresholds for points-based leveling system
 const LEVEL_THRESHOLDS = [
   { level: 0, min: 0, max: 25 },
@@ -306,10 +325,13 @@ async function updateSkillsFromAdaptiveQuiz(userId, answers) {
   }
 }
 
-async function updateStreakAndPointsOnQuizCompletion(userId, correctCount, totalAnswered) {
+// ✅ UPDATED: Use totalPointsEarned from attempt
+async function updateStreakAndPointsOnQuizCompletion(userId, attempt) {
   try {
     const mathProfile = await MathProfile.findOne({ student_id: userId });
-    const pointsEarned = Math.max(0, correctCount * 10);
+    
+    // ✅ CHANGED: Use totalPointsEarned from quiz attempt (formula-based)
+    const pointsToAdd = Math.max(0, Math.round(attempt.totalPointsEarned || 0));
     
     if (!mathProfile) {
       console.log(`⚠️ No math profile found for user ${userId} - creating new profile`);
@@ -317,23 +339,23 @@ async function updateStreakAndPointsOnQuizCompletion(userId, correctCount, total
         student_id: userId,
         streak: 1,
         last_quiz_date: new Date(),
-        total_points: pointsEarned,
+        total_points: pointsToAdd,
         placement_completed: false,
         current_profile: 1,
         adaptive_quiz_level: 1
       });
       await newProfile.save();
-      console.log(`✅ Created new profile with streak=1 for user ${userId}`);
+      console.log(`✅ Created new profile with ${pointsToAdd} points`);
       return;
     }
 
     const newStreak = updateStreakOnCompletion(mathProfile);
-    mathProfile.total_points = (mathProfile.total_points || 0) + pointsEarned;
+    mathProfile.total_points = (mathProfile.total_points || 0) + pointsToAdd;
     await mathProfile.save();
     
-    console.log(`✅ Quiz Journey completed for user ${userId}:`);
+    console.log(`✅ Quiz completed for user ${userId}:`);
     console.log(`   - Streak: ${newStreak}`);
-    console.log(`   - Points earned: ${pointsEarned}`);
+    console.log(`   - Points earned: ${pointsToAdd} (formula: level × difficulty × time)`);
     console.log(`   - Total points: ${mathProfile.total_points}`);
   } catch (error) {
     console.error("❌ Error updating streak and points:", error);
@@ -520,9 +542,10 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
     const attempt = new QuizAttempt({
       userId,
       quizId: quiz._id,
-      current_difficulty: 1, // ✅ PURE ADAPTIVE: Always start at difficulty 1
+      current_difficulty: 1,
       correct_count: 0,
       total_answered: 0,
+      totalPointsEarned: 0, // ✅ NEW
       is_completed: false
     });
 
@@ -538,7 +561,7 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
         target_correct_answers: 20,
         current_difficulty: attempt.current_difficulty,
         correct_count: attempt.correct_count,
-        adaptiveMode: 'pure', // ✅ Indicate this is pure adaptive
+        adaptiveMode: 'pure',
         description: 'Answer correctly to increase difficulty, incorrectly to decrease'
       }
     });
@@ -584,7 +607,6 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       });
     }
 
-    // Check if 20 questions answered
     const targetQuestions = 20;
     if (attempt.total_answered >= targetQuestions) {
       const timeElapsedMs = new Date() - new Date(attempt.startedAt);
@@ -621,7 +643,7 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       
       await attempt.save();
       await updateSkillsFromAdaptiveQuiz(userId, attempt.answers);
-      await updateStreakAndPointsOnQuizCompletion(userId, attempt.correct_count, attempt.total_answered);
+      await updateStreakAndPointsOnQuizCompletion(userId, attempt); // ✅ Pass entire attempt
 
       let confirmedLevel = currentLevel;
       try {
@@ -674,16 +696,14 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       });
     }
 
-    // 🎯 PURE ADAPTIVE: Get question at current difficulty
     const answeredIds = attempt.answers.map(a => a.questionId.toString());
-    const recentlyAnsweredIds = attempt.answers.slice(-2).map(a => a.questionId.toString()); // Only last 2
+    const recentlyAnsweredIds = attempt.answers.slice(-2).map(a => a.questionId.toString());
 
     let nextQuestion = null;
     const targetDifficulty = attempt.current_difficulty;
 
     console.log(`🎯 PURE ADAPTIVE: Question ${attempt.total_answered + 1}/20 - Target difficulty ${targetDifficulty}`);
 
-    // PRIORITY 1: Exact difficulty, not recently answered
     const exactNotRecent = quiz.questions.filter(q => {
       const qId = q._id.toString();
       return q.difficulty === targetDifficulty && !recentlyAnsweredIds.includes(qId);
@@ -694,7 +714,6 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       console.log(`✅ Found difficulty ${targetDifficulty} question`);
     }
 
-    // PRIORITY 2: Exact difficulty, allow reuse
     if (!nextQuestion) {
       const allAtDifficulty = quiz.questions.filter(q => q.difficulty === targetDifficulty);
       if (allAtDifficulty.length > 0) {
@@ -703,7 +722,6 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       }
     }
 
-    // PRIORITY 3: Nearby difficulty (±1)
     if (!nextQuestion) {
       const nearbyDifficulties = [targetDifficulty + 1, targetDifficulty - 1].filter(d => d >= 1 && d <= 5);
       for (const diff of nearbyDifficulties) {
@@ -716,7 +734,6 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       }
     }
 
-    // PRIORITY 4: ANY question
     if (!nextQuestion && quiz.questions.length > 0) {
       nextQuestion = quiz.questions[Math.floor(Math.random() * quiz.questions.length)];
       console.log(`🔄 Using any available question (difficulty ${nextQuestion.difficulty})`);
@@ -729,7 +746,6 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       });
     }
 
-    // Return the selected question
     res.json({
       success: true,
       completed: false,
@@ -759,11 +775,11 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
   }
 });
 
-// ==================== SUBMIT ANSWER - PURE ADAPTIVE LOGIC ====================
+// ==================== SUBMIT ANSWER - WITH POINTS CALCULATION ====================
 router.post('/attempts/:attemptId/submit-answer', authenticateToken, async (req, res) => {
   try {
     const { attemptId } = req.params;
-    const { questionId, answer } = req.body;
+    const { questionId, answer, timeElapsed } = req.body; // ✅ ADD timeElapsed parameter
     const userId = req.user.userId;
 
     if (!questionId || answer === undefined || answer === null) {
@@ -772,6 +788,9 @@ router.post('/attempts/:attemptId/submit-answer', authenticateToken, async (req,
         error: 'questionId and answer are required' 
       });
     }
+
+    // ✅ NEW: Validate timeElapsed (default to 0 if not provided)
+    const timeSeconds = typeof timeElapsed === 'number' && timeElapsed >= 0 ? timeElapsed : 0;
 
     const attempt = await QuizAttempt.findOne({ 
       _id: attemptId, 
@@ -821,7 +840,14 @@ router.post('/attempts/:attemptId/submit-answer', authenticateToken, async (req,
 
     const isCorrect = answer.toString().trim().toLowerCase() === question.answer.toString().trim().toLowerCase();
 
-    // Record the answer
+    // ✅ NEW: Calculate points using the multiplicative formula
+    const quizLevel = quiz.quiz_level || 1;
+    const difficultyLevel = question.difficulty || 3;
+    const pointsEarned = calculateQuestionPoints(isCorrect, quizLevel, difficultyLevel, timeSeconds);
+
+    console.log(`📊 Points: Level=${quizLevel} × Diff=${difficultyLevel} × Time=${timeSeconds}s = ${pointsEarned} pts`);
+
+    // Record the answer with points
     attempt.answers.push({
       questionId: question._id,
       question_text: question.text,
@@ -829,7 +855,9 @@ router.post('/attempts/:attemptId/submit-answer', authenticateToken, async (req,
       topic: question.topic,
       answer: answer,
       correct_answer: question.answer,
-      isCorrect: isCorrect
+      isCorrect: isCorrect,
+      timeElapsed: timeSeconds,    // ✅ NEW: Store time
+      pointsEarned: pointsEarned    // ✅ NEW: Store points
     });
 
     attempt.total_answered += 1;
@@ -837,13 +865,15 @@ router.post('/attempts/:attemptId/submit-answer', authenticateToken, async (req,
       attempt.correct_count += 1;
     }
 
-    // 🎯 PURE ADAPTIVE LOGIC - ADJUST DIFFICULTY IMMEDIATELY AFTER EVERY ANSWER
+    // ✅ NEW: Accumulate total points
+    attempt.totalPointsEarned = (attempt.totalPointsEarned || 0) + pointsEarned;
+
+    // Adaptive difficulty adjustment
     const oldDifficulty = attempt.current_difficulty;
     let difficultyChanged = false;
     let message = '';
 
     if (isCorrect) {
-      // ✅ CORRECT → INCREASE DIFFICULTY (if not at max)
       if (attempt.current_difficulty < 5) {
         attempt.current_difficulty += 1;
         difficultyChanged = true;
@@ -854,7 +884,6 @@ router.post('/attempts/:attemptId/submit-answer', authenticateToken, async (req,
         console.log(`✅ Correct at max difficulty`);
       }
     } else {
-      // ❌ WRONG → DECREASE DIFFICULTY (if not at min)
       if (attempt.current_difficulty > 1) {
         attempt.current_difficulty -= 1;
         difficultyChanged = true;

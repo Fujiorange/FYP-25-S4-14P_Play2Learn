@@ -6,6 +6,37 @@ const API_BASE_URL =
   process.env.REACT_APP_API_URL ||
   (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
 
+// ✅ SIMPLIFIED: Clean Timer Component (No colors, no labels)
+function QuestionTimer({ startTime }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startTime) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - startTime) / 1000);
+      setElapsed(elapsedSeconds);
+    }, 100); // Update every 100ms
+
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  // Format time as MM:SS
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="question-timer-simple">
+      <span className="timer-icon">⏱️</span>
+      <span className="timer-value">{formatTime(elapsed)}</span>
+    </div>
+  );
+}
+
 function AttemptAdaptiveQuiz() {
   const { quizId } = useParams();
   const navigate = useNavigate();
@@ -22,7 +53,8 @@ function AttemptAdaptiveQuiz() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
   const [placementVerified, setPlacementVerified] = useState(false);
-  const [progressionData, setProgressionData] = useState(null); // 🆕 NEW
+  const [progressionData, setProgressionData] = useState(null);
+  const [questionStartTime, setQuestionStartTime] = useState(null);
 
   useEffect(() => {
     if (quizId) {
@@ -30,12 +62,18 @@ function AttemptAdaptiveQuiz() {
     }
   }, [quizId]);
 
+  useEffect(() => {
+    if (currentQuestion && !showFeedback) {
+      setQuestionStartTime(Date.now());
+      console.log('⏱️ Question timer started');
+    }
+  }, [currentQuestion, showFeedback]);
+
   const getToken = () => localStorage.getItem('token');
 
   const checkPlacementThenStartQuiz = async () => {
     try {
       console.log('⚠️ BYPASSING PLACEMENT CHECK FOR TESTING');
-      // Skip placement check and go straight to quiz
       setPlacementVerified(true);
       await startQuiz();
     } catch (error) {
@@ -57,7 +95,6 @@ function AttemptAdaptiveQuiz() {
 
       const data = await response.json();
 
-      // If there's an incomplete attempt, offer to cancel it
       if (!data.success && data.error.includes('incomplete attempt') && data.attemptId) {
         console.log('Found incomplete attempt, offering to cancel...');
         const shouldCancel = window.confirm(
@@ -65,7 +102,6 @@ function AttemptAdaptiveQuiz() {
         );
         
         if (shouldCancel) {
-          // Cancel the incomplete attempt
           const cancelResponse = await fetch(
             `${API_BASE_URL}/api/adaptive-quiz/attempts/${data.attemptId}/cancel`,
             {
@@ -79,7 +115,6 @@ function AttemptAdaptiveQuiz() {
 
           const cancelData = await cancelResponse.json();
           if (cancelData.success) {
-            // Retry starting the quiz
             return startQuiz();
           } else {
             setError('Failed to cancel incomplete attempt');
@@ -127,7 +162,7 @@ function AttemptAdaptiveQuiz() {
 
       if (data.success) {
         if (data.completed) {
-          setProgressionData(data.data); // 🆕 Store progression data
+          setProgressionData(data.data);
           setQuizCompleted(true);
           await fetchResults(attId);
         } else {
@@ -153,6 +188,12 @@ function AttemptAdaptiveQuiz() {
       return;
     }
 
+    const timeElapsed = questionStartTime 
+      ? Math.floor((Date.now() - questionStartTime) / 1000) 
+      : 0;
+
+    console.log(`⏱️ Time taken: ${timeElapsed}s`);
+
     setError('');
 
     try {
@@ -166,7 +207,8 @@ function AttemptAdaptiveQuiz() {
           },
           body: JSON.stringify({
             questionId: currentQuestion.id,
-            answer: answer.trim()
+            answer: answer.trim(),
+            timeElapsed: timeElapsed
           })
         }
       );
@@ -181,10 +223,10 @@ function AttemptAdaptiveQuiz() {
           correct_count: data.data.correct_count,
           total_answered: data.data.total_answered,
           current_difficulty: data.data.new_difficulty,
-          questionsRemaining: data.data.questionsRemaining // 🆕 NEW
+          questionsRemaining: data.data.questionsRemaining
         });
       } else {
-        setError(data.data.error || 'Failed to submit answer');
+        setError(data.error || 'Failed to submit answer');
       }
     } catch (error) {
       console.error('Failed to submit answer:', error);
@@ -219,7 +261,6 @@ function AttemptAdaptiveQuiz() {
     }
   };
 
-  // 🆕 NEW: Handle progression to next level
   const handleProgressToNextLevel = () => {
     if (progressionData && progressionData.hasNextLevel && progressionData.nextQuizId) {
       navigate(`/student/adaptive-quiz/${progressionData.nextQuizId}`);
@@ -232,7 +273,6 @@ function AttemptAdaptiveQuiz() {
     }
   };
 
-  // 🆕 NEW: Get progression message
   const getProgressionMessage = () => {
     if (!progressionData || !progressionData.levelDecision) return '';
     const { progression, levelChange } = progressionData.levelDecision;
@@ -294,7 +334,6 @@ function AttemptAdaptiveQuiz() {
             </div>
           </div>
 
-          {/* Performance Breakdown */}
           {progressionData && progressionData.scoreData && (
             <div className="score-breakdown">
               <h3>📊 Performance Breakdown</h3>
@@ -325,7 +364,6 @@ function AttemptAdaptiveQuiz() {
             </div>
           )}
 
-          {/* Level Progression */}
           {progressionData && progressionData.levelDecision && (
             <div className="level-progression">
               <h3>🎯 Level Progression</h3>
@@ -369,7 +407,6 @@ function AttemptAdaptiveQuiz() {
             </div>
           </div>
 
-          {/* Results Actions */}
           <div className="results-actions">
             {progressionData && progressionData.hasNextLevel ? (
               <button 
@@ -410,7 +447,7 @@ function AttemptAdaptiveQuiz() {
             <div 
               className="progress-bar-fill"
               style={{ 
-                width: `${(progress?.total_answered / 20) * 100}%` // Changed to 20 questions
+                width: `${(progress?.total_answered / 20) * 100}%`
               }}
             />
           </div>
@@ -438,6 +475,9 @@ function AttemptAdaptiveQuiz() {
               Difficulty {currentQuestion.difficulty}
             </span>
           </div>
+
+          {/* ✅ SIMPLE: Clean Timer Display */}
+          <QuestionTimer startTime={questionStartTime} />
 
           <div className="question-text">
             {currentQuestion.text}
