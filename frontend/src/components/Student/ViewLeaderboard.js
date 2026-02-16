@@ -1,4 +1,5 @@
-// ViewLeaderboard.js - UPDATED with real backend connection
+// ViewLeaderboard.js - Level-First Ranking System
+// Ranks by: 1) Level (highest first), 2) Points (if same level), 3) First quiz date
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
@@ -15,7 +16,7 @@ export default function ViewLeaderboard() {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentUserLevel, setCurrentUserLevel] = useState(null);
   const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState('class'); // 'class' or 'school'
+  const [viewMode, setViewMode] = useState('class');
 
   const getToken = () => localStorage.getItem('token');
 
@@ -31,28 +32,61 @@ export default function ViewLeaderboard() {
     try {
       setLoading(true);
       
-      // ✅ Fetch YOUR Quiz Journey level
+      // ✅ STEP 1: Check placement status FIRST
+      let isPlacementCompleted = false;
       try {
-        const levelResponse = await fetch(`${API_BASE_URL}/api/adaptive-quiz/student/current-level`, {
+        const placementResponse = await fetch(`${API_BASE_URL}/api/mongo/student/placement-quiz/status`, {
           headers: { 'Authorization': `Bearer ${getToken()}` }
         });
-        const levelData = await levelResponse.json();
+        const placementData = await placementResponse.json();
         
-        if (levelData.success) {
-          setCurrentUserLevel(levelData.currentLevel || 1);
-          console.log('✅ Your Quiz Journey level:', levelData.currentLevel);
+        if (placementData.success) {
+          isPlacementCompleted = placementData.placementCompleted || false;
+          console.log('✅ Placement completed:', isPlacementCompleted);
         }
-      } catch (levelError) {
-        console.warn('⚠️ Could not fetch your quiz journey level:', levelError);
+      } catch (placementError) {
+        console.warn('⚠️ Could not fetch placement status:', placementError);
       }
       
-      // Get leaderboard - if mode is 'school', pass only schoolId; if 'class', pass both
+      // ✅ STEP 2: Fetch level only if placement completed
+      if (isPlacementCompleted) {
+        try {
+          const levelResponse = await fetch(`${API_BASE_URL}/api/adaptive-quiz/student/current-level`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+          });
+          const levelData = await levelResponse.json();
+          
+          if (levelData.success) {
+            setCurrentUserLevel(levelData.currentLevel || 1);
+            console.log('✅ Your Quiz Journey level:', levelData.currentLevel);
+          }
+        } catch (levelError) {
+          console.warn('⚠️ Could not fetch quiz journey level:', levelError);
+        }
+      } else {
+        setCurrentUserLevel(null);
+        console.log('⚠️ Placement not completed, level will show as "-"');
+      }
+      
+      // ✅ STEP 3: Get leaderboard (class or school-wide)
       const result = mode === 'school' 
         ? await studentService.getLeaderboard(user.schoolId, null)
         : await studentService.getLeaderboard(user.schoolId, user.class);
 
       if (result.success) {
         setLeaderboard(result.leaderboard || []);
+        console.log('✅ Leaderboard loaded:', result.leaderboard.length, 'students (Level-First Ranking)');
+        
+        // ✅ Debug: Check if current user is in the list
+        const currentUserEntry = result.leaderboard.find(p => p.isCurrentUser);
+        console.log('✅ Current user in leaderboard:', currentUserEntry ? 'YES' : 'NO');
+        if (currentUserEntry) {
+          console.log('✅ Current user data:', {
+            rank: currentUserEntry.rank,
+            level: currentUserEntry.level,
+            points: currentUserEntry.points
+          });
+        }
       } else {
         setError('Failed to load leaderboard');
         setLeaderboard([]);
@@ -80,9 +114,11 @@ export default function ViewLeaderboard() {
   const styles = {
     container: { minHeight: '100vh', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)', padding: '32px' },
     content: { maxWidth: '1200px', margin: '0 auto' },
-    header: { background: 'white', borderRadius: '16px', padding: '32px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' },
+    header: { background: 'white', borderRadius: '16px', padding: '32px', marginBottom: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' },
+    headerTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '8px' },
     title: { fontSize: '28px', fontWeight: '700', color: '#1f2937', margin: 0 },
-    backButton: { padding: '10px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+    subtitle: { fontSize: '13px', color: '#6b7280', marginTop: '8px', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '6px' },
+    backButton: { padding: '10px 20px', background: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'background 0.3s' },
     toggleContainer: { display: 'flex', gap: '8px', alignItems: 'center', width: '100%', marginTop: '16px' },
     toggleButton: { padding: '8px 16px', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s' },
     toggleButtonActive: { background: '#10b981', color: 'white' },
@@ -94,6 +130,7 @@ export default function ViewLeaderboard() {
     medal: { fontSize: '32px', marginBottom: '8px' },
     playerName: { fontSize: '14px', fontWeight: '600', color: 'white', marginBottom: '4px', textAlign: 'center' },
     playerPoints: { fontSize: '18px', fontWeight: '700', color: 'white' },
+    playerLevel: { fontSize: '12px', color: 'rgba(255,255,255,0.9)', marginTop: '4px' },
     tableContainer: { background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', overflowX: 'auto' },
     table: { width: '100%', borderCollapse: 'collapse' },
     th: { textAlign: 'left', padding: '12px', borderBottom: '2px solid #e5e7eb', fontSize: '13px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase' },
@@ -113,8 +150,25 @@ export default function ViewLeaderboard() {
     <div style={styles.container}>
       <div style={styles.content}>
         <div style={styles.header}>
-          <h1 style={styles.title}>🏆 Leaderboard</h1>
-          <button style={styles.backButton} onClick={() => navigate('/student')}>← Back to Dashboard</button>
+          <div style={styles.headerTop}>
+            <div>
+              <h1 style={styles.title}>🏆 Leaderboard</h1>
+              {/* ✅ NEW: Ranking explanation */}
+              <p style={styles.subtitle}>
+                <span>📊</span>
+                <span>Ranked by Level (highest first), then Points</span>
+              </p>
+            </div>
+            <button 
+              style={styles.backButton} 
+              onClick={() => navigate('/student')}
+              onMouseEnter={(e) => e.target.style.background = '#4b5563'}
+              onMouseLeave={(e) => e.target.style.background = '#6b7280'}
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
+          
           <div style={styles.toggleContainer}>
             <span style={{ fontSize: '14px', fontWeight: '600', color: '#6b7280' }}>View:</span>
             <button 
@@ -136,6 +190,7 @@ export default function ViewLeaderboard() {
               My School
             </button>
           </div>
+          
           {error && (
             <div style={styles.errorMessage}>
               ⚠️ {error}
@@ -143,6 +198,7 @@ export default function ViewLeaderboard() {
           )}
         </div>
 
+        {/* ✅ Podium - Show top 3 with level info */}
         {leaderboard.length >= 3 && (
           <div style={styles.podium}>
             {topThree[1] && (
@@ -150,6 +206,7 @@ export default function ViewLeaderboard() {
                 <div style={styles.medal}>🥈</div>
                 <div style={{...styles.podiumBase, background: 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)', height: '180px'}}>
                   <div style={styles.playerName}>{topThree[1].name}</div>
+                  <div style={styles.playerLevel}>Level {topThree[1].level}</div>
                   <div style={styles.playerPoints}>{topThree[1].points} pts</div>
                 </div>
               </div>
@@ -159,6 +216,7 @@ export default function ViewLeaderboard() {
                 <div style={styles.medal}>🥇</div>
                 <div style={{...styles.podiumBase, background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)', height: '220px'}}>
                   <div style={styles.playerName}>{topThree[0].name}</div>
+                  <div style={styles.playerLevel}>Level {topThree[0].level}</div>
                   <div style={styles.playerPoints}>{topThree[0].points} pts</div>
                 </div>
               </div>
@@ -168,6 +226,7 @@ export default function ViewLeaderboard() {
                 <div style={styles.medal}>🥉</div>
                 <div style={{...styles.podiumBase, background: 'linear-gradient(135deg, #fb923c 0%, #ea580c 100%)', height: '140px'}}>
                   <div style={styles.playerName}>{topThree[2].name}</div>
+                  <div style={styles.playerLevel}>Level {topThree[2].level}</div>
                   <div style={styles.playerPoints}>{topThree[2].points} pts</div>
                 </div>
               </div>
@@ -175,6 +234,7 @@ export default function ViewLeaderboard() {
           </div>
         )}
 
+        {/* ✅ Leaderboard Table */}
         {leaderboard.length > 0 ? (
           <div style={styles.tableContainer}>
             <table style={styles.table}>
@@ -182,8 +242,8 @@ export default function ViewLeaderboard() {
                 <tr>
                   <th style={styles.th}>Rank</th>
                   <th style={styles.th}>Player</th>
-                  <th style={styles.th}>Points</th>
                   <th style={styles.th}>Level</th>
+                  <th style={styles.th}>Points</th>
                   <th style={styles.th}>Achievements</th>
                 </tr>
               </thead>
@@ -195,10 +255,17 @@ export default function ViewLeaderboard() {
                         {player.rank <= 3 ? (player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉') : player.rank}
                       </span>
                     </td>
-                    <td style={styles.td}><strong>{player.name}</strong>{player.isCurrentUser && ' (You)'}</td>
-                    <td style={styles.td}><strong style={{ color: '#10b981' }}>{player.points?.toLocaleString() || 0}</strong></td>
                     <td style={styles.td}>
-                      Level {player.isCurrentUser && currentUserLevel !== null ? currentUserLevel : (player.level || 1)}
+                      <strong>{player.name}</strong>{player.isCurrentUser && ' (You)'}
+                    </td>
+                    <td style={styles.td}>
+                      {/* ✅ Show level (or "-" if placement not completed for current user) */}
+                      {player.isCurrentUser 
+                        ? (currentUserLevel === null ? '-' : `Level ${currentUserLevel}`)
+                        : `Level ${player.level || 0}`}
+                    </td>
+                    <td style={styles.td}>
+                      <strong style={{ color: '#10b981' }}>{player.points?.toLocaleString() || 0}</strong>
                     </td>
                     <td style={styles.td}>🏆 {player.achievements || 0}</td>
                   </tr>
@@ -210,7 +277,7 @@ export default function ViewLeaderboard() {
           <div style={styles.emptyState}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</div>
             <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No rankings yet</p>
-            <p>The leaderboard will populate as students earn points</p>
+            <p>The leaderboard will populate as students earn points and complete quizzes</p>
           </div>
         )}
       </div>

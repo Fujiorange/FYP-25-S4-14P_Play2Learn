@@ -6,6 +6,10 @@ import { useNavigate } from "react-router-dom";
 import authService from "../../services/authService";
 import studentService from "../../services/studentService";
 
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin);
+
 // Base skills that should appear at the top
 const BASE_SKILL_ORDER = ["Addition", "Subtraction", "Multiplication", "Division"];
 
@@ -26,8 +30,11 @@ export default function DisplaySkillMatrix() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [skills, setSkills] = useState([]);
-  const [currentProfile, setCurrentProfile] = useState(1);
+  const [currentProfile, setCurrentProfile] = useState(null); // ✅ Changed to null
+  const [placementCompleted, setPlacementCompleted] = useState(false); // ✅ NEW
   const [error, setError] = useState("");
+
+  const getToken = () => localStorage.getItem('token');
 
   // Helper function to get next level threshold
   const getNextLevelThreshold = (currentLevel) => {
@@ -52,12 +59,37 @@ export default function DisplaySkillMatrix() {
       }
 
       try {
+        // ✅ Check placement status first
+        const placementStatus = await studentService.getPlacementStatus();
+        const isPlacementDone = placementStatus?.success && 
+          (placementStatus?.placementCompleted || placementStatus?.placement_completed);
+        setPlacementCompleted(isPlacementDone);
+
+        // ✅ Fetch adaptive quiz level (only if placement is done)
+        let adaptiveLevel = null;
+        if (isPlacementDone) {
+          try {
+            const levelResponse = await fetch(
+              `${API_BASE_URL}/api/adaptive-quiz/student/current-level`,
+              { headers: { 'Authorization': `Bearer ${getToken()}` } }
+            );
+            const levelData = await levelResponse.json();
+            
+            if (levelData.success) {
+              adaptiveLevel = levelData.currentLevel || 1;
+              console.log('✅ Quiz Journey level loaded:', adaptiveLevel);
+            }
+          } catch (levelError) {
+            console.warn('⚠️ Could not fetch quiz journey level:', levelError);
+          }
+        }
+
         const result = await studentService.getMathSkills();
 
         if (result?.success) {
           const sorted = sortSkillsBySequence(result.skills || []);
           setSkills(sorted);
-          setCurrentProfile(result.currentProfile || 1);
+          setCurrentProfile(adaptiveLevel); // ✅ Will be null if placement not done
         } else {
           setError("Failed to load skill matrix");
           const fallback = sortSkillsBySequence([
@@ -67,7 +99,7 @@ export default function DisplaySkillMatrix() {
             { skill_name: "Division", current_level: 0, xp: 0, points: 0, max_level: 5, unlocked: true, percentage: 0 },
           ]);
           setSkills(fallback);
-          setCurrentProfile(1);
+          setCurrentProfile(adaptiveLevel);
         }
       } catch (err) {
         console.error("Load skills error:", err);
@@ -232,11 +264,23 @@ export default function DisplaySkillMatrix() {
 
           {error && <div style={styles.errorMessage}>⚠️ {error}</div>}
 
+          {/* ✅ Show "-" if placement not completed */}
           <div style={styles.infoBox}>
             <div style={styles.infoText}>
-              🎯 You are currently at Profile {currentProfile}. Keep practicing to level up your skills!
-              <br />
-              💡 Points-based leveling: Level 0 (0-24pts) → Level 1 (25-49pts) → Level 2 (50-99pts) → Level 3 (100-199pts) → Level 4 (200-399pts) → Level 5 (400+pts)
+              🎯 You are currently at Profile {currentProfile !== null ? currentProfile : "-"}
+              {currentProfile === null && (
+                <>
+                  <br />
+                  ⚠️ Complete the Placement Quiz to unlock your Quiz Journey level!
+                </>
+              )}
+              {currentProfile !== null && (
+                <>
+                  . Keep practicing to level up your skills!
+                  <br />
+                  💡 Points-based leveling: Level 0 (0-24pts) → Level 1 (25-49pts) → Level 2 (50-99pts) → Level 3 (100-199pts) → Level 4 (200-399pts) → Level 5 (400+pts)
+                </>
+              )}
             </div>
           </div>
         </div>

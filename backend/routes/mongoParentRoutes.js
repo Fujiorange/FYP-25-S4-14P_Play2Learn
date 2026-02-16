@@ -4,6 +4,7 @@
 // ✅ Phase 2.5: Skill Matrix
 // ✅ Phase 2.7: Performance Report with REAL DATA (NEW)
 // ✅ FIXED: Skill Matrix percentage calculation now matches student view
+// ✅ FIXED: Progress endpoint now includes placement_completed flag and debug logs
 
 const express = require('express');
 const router = express.Router();
@@ -60,6 +61,23 @@ function calculateLevelProgress(points) {
   const rangeSize = threshold.max - threshold.min;
   const progressInRange = points - threshold.min;
   return Math.min(100, Math.floor((progressInRange / rangeSize) * 100));
+}
+
+// Helper function to check if quiz is completed
+function isQuizCompleted(quiz) {
+  // NEW format: quiz.questions with nested student_answer
+  if (quiz.questions && quiz.questions.length > 0) {
+    return quiz.questions.some(q => 
+      q.student_answer !== null && q.student_answer !== undefined
+    );
+  }
+  
+  // OLD format: quiz.answers array
+  if (quiz.answers && quiz.answers.length > 0) {
+    return true;
+  }
+  
+  return false;
 }
 
 // ==================== SCHOOL SCHEMA ====================
@@ -1052,7 +1070,7 @@ router.get('/child/:studentId/performance', authenticateParent, async (req, res)
 
 
 // ========================================
-// PROGRESS ENDPOINTS (PHASE 2)
+// PROGRESS ENDPOINTS (PHASE 2) - FIXED WITH DEBUG LOGS
 // ========================================
 
 router.get('/child/:studentId/progress', authenticateParent, async (req, res) => {
@@ -1090,25 +1108,41 @@ router.get('/child/:studentId/progress', authenticateParent, async (req, res) =>
       });
     }
 
-    // ✅ FETCH REAL DATA FROM DATABASE
-    
-    // Get Math Profile data
+    // ✅ CRITICAL FIX: Fetch MathProfile to get placement status and level
     const mathProfile = await MathProfile.findOne({ student_id: studentId });
     
-    const currentLevel = mathProfile?.current_profile || 1;
+    // ✅ DEBUG: Log what we got from database
+    console.log('🔍 DEBUG - MathProfile from database:', {
+      student_id: studentId,
+      found: !!mathProfile,
+      current_profile: mathProfile?.current_profile,
+      adaptive_quiz_level: mathProfile?.adaptive_quiz_level,
+      placement_completed: mathProfile?.placement_completed,
+      total_points: mathProfile?.total_points,
+      streak: mathProfile?.streak
+    });
+    
+    // ✅ CRITICAL: Use adaptive_quiz_level (set by placement quiz)
+    const currentLevel = mathProfile?.adaptive_quiz_level || mathProfile?.current_profile || 0;
     const totalPoints = mathProfile?.total_points || 0;
     const streak = mathProfile?.streak || 0;
+    const placementCompleted = mathProfile?.placement_completed || false;
+
+    console.log('✅ Calculated values for parent view:', {
+      currentLevel,
+      placementCompleted,
+      totalPoints,
+      streak
+    });
 
     // Get recent quiz attempts (last 10 for activities)
-    // ✅ FIX: Query StudentQuiz collection (quiz attempts), not Quiz collection
     const allRecentQuizzes = await StudentQuiz.find({ 
       student_id: studentId,
       quiz_type: 'regular'
-    })
-    .sort({ completed_at: -1 });
+    }).sort({ completed_at: -1 });
 
-    // ✅ FIX: Filter out unsubmitted quizzes (only count completed ones with scores > 0)
-    const recentQuizzes = allRecentQuizzes.filter(quiz => quiz.score > 0 && quiz.percentage > 0).slice(0, 10);
+    // Filter out unsubmitted quizzes
+    const recentQuizzes = allRecentQuizzes.filter(isQuizCompleted).slice(0, 10);
 
     console.log('📈 Found', recentQuizzes.length, 'recent quizzes (filtered from', allRecentQuizzes.length, 'total)');
 
@@ -1123,22 +1157,20 @@ router.get('/child/:studentId/progress', authenticateParent, async (req, res) =>
       };
     });
 
-    // Calculate overall progress (simple percentage based on profile level)
-    const overallProgress = Math.round((currentLevel / 10) * 100);
+    // Calculate overall progress
+    const overallProgress = currentLevel > 0 ? Math.round((currentLevel / 10) * 100) : 0;
 
-
-    // ✅ NEW: Fetch student's earned badges
+    // ✅ Fetch student's earned badges
     const db = mongoose.connection.db;
     const studentEmail = student.email;
     
-    // Get student's earned badges from student_badges collection
     const earnedBadges = await db.collection('student_badges')
       .find({ student_email: studentEmail })
       .toArray();
     
     console.log('🏆 Found', earnedBadges.length, 'earned badges for', studentEmail);
     
-    // Get full badge details by looking up badge_id in badges collection
+    // Get full badge details
     const achievements = [];
     
     for (const earnedBadge of earnedBadges) {
@@ -1160,8 +1192,9 @@ router.get('/child/:studentId/progress', authenticateParent, async (req, res) =>
     }
     
     console.log('✅ Formatted', achievements.length, 'achievements for parent view');
-    console.log('✅ Sending progress data with', recentActivities.length, 'activities');
+    console.log('✅ Sending progress data with currentLevel:', currentLevel, 'placement_completed:', placementCompleted);
 
+    // ✅ CRITICAL: Return placement_completed flag
     res.json({
       success: true,
       student: {
@@ -1172,9 +1205,10 @@ router.get('/child/:studentId/progress', authenticateParent, async (req, res) =>
       },
       progress: {
         overallProgress: overallProgress,
-        currentLevel: currentLevel,
+        currentLevel: currentLevel,           // ✅ Should be > 0 if placement done
         totalPoints: totalPoints,
         streak: streak,
+        placement_completed: placementCompleted, // ✅ MUST BE INCLUDED!
         achievements: achievements,
         recentActivities: recentActivities,
         message: recentActivities.length === 0 ? 'Progress data will be available once student completes quizzes' : undefined

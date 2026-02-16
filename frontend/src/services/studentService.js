@@ -267,7 +267,7 @@ const studentService = {
         json.data = {
           points: json.dashboard.totalPoints ?? 0,
           quizzesTaken: json.dashboard.completedQuizzes ?? 0,
-          level: json.dashboard.currentProfile ?? 1,
+          level: json.dashboard.currentProfile ?? 0, // ✅ CHANGED: Show 0 if placement not completed
           gradeLevel: json.dashboard.gradeLevel,
         };
       }

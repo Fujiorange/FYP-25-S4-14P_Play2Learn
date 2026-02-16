@@ -1,11 +1,12 @@
-// backend/routes/mongoStudentRoutes.js - COMPLETE FIXED VERSION
+// backend/routes/mongoStudentRoutes.js - COMPLETE WITH LEVEL-FIRST LEADERBOARD
 // ✅ All endpoints match frontend expectations
 // ✅ Field names corrected for compatibility
-// ✅ Daily limit set to 2 quizzes (matching frontend)
 // ✅ Placement quizzes excluded from all statistics
 // ✅ Quiz model points to quiz_attempts collection (CRITICAL FIX!)
 // ✅ CRITICAL FIX: Placement quiz now sets adaptive_quiz_level for Quiz Journey!
-// ✅ STREAK FIX: Using shared utility - placement quiz does NOT update streak
+// ✅ STREAK FIX: Automatic midnight reset - simplified logic
+// ✅ NEW: Level 0 shown for users who haven't completed placement quiz
+// ✅ LEADERBOARD: Level-First Ranking (Level > Points > First Quiz Date)
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -13,12 +14,13 @@ const jwt = require("jsonwebtoken");
 
 const router = express.Router();
 
-// ✅ Import shared streak utilities
+// ✅ Import shared streak utilities (NOW WITH persistStreakReset)
 const { 
   getSingaporeTime, 
   getSgtMidnightTime, 
   updateStreakOnCompletion, 
   computeEffectiveStreak,
+  persistStreakReset, // NEW: Auto-reset helper
   MS_PER_DAY 
 } = require('../utils/streakUtils');
 
@@ -91,6 +93,19 @@ function calculateLevelProgress(points) {
   const rangeSize = threshold.max - threshold.min;
   const progressInRange = points - threshold.min;
   return Math.min(100, Math.floor((progressInRange / rangeSize) * 100));
+}
+
+// ✅ NEW: Helper function to get display level (0 if placement not completed)
+function getDisplayLevel(mathProfile) {
+  if (!mathProfile) return 0;
+  
+  // If placement quiz not completed, show Level 0
+  if (!mathProfile.placement_completed) {
+    return 0;
+  }
+  
+  // Otherwise, show the assigned level
+  return mathProfile.adaptive_quiz_level || mathProfile.current_profile || 1;
 }
 
 // ==================== PROFILE CONFIG ====================
@@ -358,10 +373,12 @@ router.get("/dashboard", async (req, res) => {
 
     let mathProfile = await MathProfile.findOne({ student_id: studentId });
     
+    // ✅ NEW: Create profile with level 0 if doesn't exist
     if (!mathProfile) {
       mathProfile = await MathProfile.create({
         student_id: studentId,
-        current_profile: 1,
+        current_profile: 0, // ✅ START AT LEVEL 0
+        adaptive_quiz_level: 0, // ✅ START AT LEVEL 0
         placement_completed: false,
         total_points: 0,
         consecutive_fails: 0,
@@ -369,6 +386,13 @@ router.get("/dashboard", async (req, res) => {
         last_reset_date: new Date(),
         streak: 0,
       });
+    }
+
+    // ✅ NEW: Check and persist automatic midnight streak reset
+    const { effective: effectiveStreak, shouldPersistReset } = computeEffectiveStreak(mathProfile);
+    
+    if (shouldPersistReset) {
+      await persistStreakReset(mathProfile);
     }
 
     // ✅ FIX: Get all regular quizzes, then filter out unsubmitted ones
@@ -390,7 +414,6 @@ router.get("/dashboard", async (req, res) => {
     const completedQuizzes = completedRegularQuizzes + completedAdaptiveQuizzes;
 
     const user = await User.findById(studentId);
-    const { effective: effectiveStreak } = computeEffectiveStreak(mathProfile);
 
     // ✅ NEW: Get earned badges count to show as achievements
     const db = mongoose.connection.db;
@@ -399,23 +422,26 @@ router.get("/dashboard", async (req, res) => {
       .toArray();
     const achievementsCount = earnedBadges.length || 0;
 
+    // ✅ NEW: Get display level (0 if placement not completed)
+    const displayLevel = getDisplayLevel(mathProfile);
+
     res.json({
       success: true,
       dashboard: {
         totalPoints: mathProfile.total_points || 0,
         completedQuizzes: completedQuizzes || 0,
-        currentProfile: mathProfile.current_profile || 1,
+        currentProfile: displayLevel, // ✅ SHOW LEVEL 0 IF NO PLACEMENT
         gradeLevel: user?.gradeLevel || 'Primary 1',
-        streak: effectiveStreak || 0,
+        streak: effectiveStreak || 0, // Use effective streak (0 if broken)
         placementCompleted: mathProfile.placement_completed || false,
         achievements: achievementsCount,
       },
       data: {
         points: mathProfile.total_points || 0,
         quizzesTaken: completedQuizzes || 0,
-        level: mathProfile.current_profile || 1,
+        level: displayLevel, // ✅ SHOW LEVEL 0 IF NO PLACEMENT
         gradeLevel: user?.gradeLevel || 'Primary 1',
-        streak: effectiveStreak || 0,
+        streak: effectiveStreak || 0, // Use effective streak (0 if broken)
         achievements: achievementsCount,
       }
     });
@@ -432,10 +458,12 @@ router.get("/math-profile", async (req, res) => {
 
     let mathProfile = await MathProfile.findOne({ student_id: studentId });
     
+    // ✅ NEW: Create profile with level 0 if doesn't exist
     if (!mathProfile) {
       mathProfile = await MathProfile.create({
         student_id: studentId,
-        current_profile: 1,
+        current_profile: 0, // ✅ START AT LEVEL 0
+        adaptive_quiz_level: 0, // ✅ START AT LEVEL 0
         placement_completed: false,
         total_points: 0,
         consecutive_fails: 0,
@@ -443,6 +471,13 @@ router.get("/math-profile", async (req, res) => {
         last_reset_date: new Date(),
         streak: 0,
       });
+    }
+
+    // ✅ NEW: Check and persist automatic midnight streak reset
+    const { effective: effectiveStreak, shouldPersistReset } = computeEffectiveStreak(mathProfile);
+    
+    if (shouldPersistReset) {
+      await persistStreakReset(mathProfile);
     }
 
     // Reset daily quizzes if needed
@@ -456,18 +491,20 @@ router.get("/math-profile", async (req, res) => {
       await mathProfile.save();
     }
 
-    const { effective: effectiveStreak } = computeEffectiveStreak(mathProfile);
     const dailyLimit = 2; // Frontend expects 2 quizzes per day
+
+    // ✅ NEW: Get display level (0 if placement not completed)
+    const displayLevel = getDisplayLevel(mathProfile);
 
     // ✅ FIXED: Return "mathProfile" to match frontend expectations
     res.json({
       success: true,
       mathProfile: {
-        current_profile: mathProfile.current_profile,
+        current_profile: displayLevel, // ✅ SHOW LEVEL 0 IF NO PLACEMENT
         placement_completed: mathProfile.placement_completed,
         total_points: mathProfile.total_points,
         consecutive_fails: mathProfile.consecutive_fails,
-        streak: effectiveStreak,
+        streak: effectiveStreak, // Use effective streak (0 if broken)
         quizzes_today: mathProfile.quizzes_today,
         quizzes_remaining: Math.max(0, dailyLimit - mathProfile.quizzes_today),
         attemptsToday: mathProfile.quizzes_today,
@@ -510,9 +547,12 @@ router.get("/math-skills", async (req, res) => {
       skills.push(...createdSkills);
     }
 
+    // ✅ NEW: Get display level (0 if placement not completed)
+    const displayLevel = getDisplayLevel(mathProfile);
+
     res.json({
       success: true,
-      currentProfile: mathProfile?.current_profile || 1,
+      currentProfile: displayLevel, // ✅ SHOW LEVEL 0 IF NO PLACEMENT
       skills: skills.map(s => ({
         skill_name: s.skill_name,
         current_level: s.current_level,
@@ -550,7 +590,7 @@ router.get("/placement-quiz/status", async (req, res) => {
       success: true,
       placementCompleted: mathProfile.placement_completed || false,
       placement_completed: mathProfile.placement_completed || false,
-      current_profile: mathProfile.current_profile
+      current_profile: getDisplayLevel(mathProfile) // ✅ SHOW LEVEL 0 IF NO PLACEMENT
     });
   } catch (error) {
     console.error("❌ Get placement status error:", error);
@@ -568,7 +608,8 @@ router.post("/placement-quiz/generate", async (req, res) => {
     if (!mathProfile) {
       mathProfile = await MathProfile.create({
         student_id: studentId,
-        current_profile: 1,
+        current_profile: 0, // ✅ START AT LEVEL 0
+        adaptive_quiz_level: 0, // ✅ START AT LEVEL 0
         placement_completed: false,
         total_points: 0,
       });
@@ -734,54 +775,75 @@ router.get("/math-progress", async (req, res) => {
   try {
     const studentId = req.user.userId;
 
-    const mathProfile = await MathProfile.findOne({ student_id: studentId });
+    let mathProfile = await MathProfile.findOne({ student_id: studentId });
 
-    // Get all quizzes (regular)
-    const allRegularQuizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" })
-      .sort({ completed_at: -1 })
-      .lean();
-    
-    const regularQuizzes = allRegularQuizzes.filter(isQuizCompleted);
+    // ✅ NEW: Check and persist automatic midnight streak reset
+    if (mathProfile) {
+      const { effective: effectiveStreak, shouldPersistReset } = computeEffectiveStreak(mathProfile);
+      
+      if (shouldPersistReset) {
+        await persistStreakReset(mathProfile);
+      }
 
-    // Get all adaptive quizzes
-    const adaptiveAttempts = await QuizAttempt.find({ 
-      userId: studentId, 
-      is_completed: true 
-    }).sort({ completedAt: -1 }).lean();
+      // Get all quizzes (regular)
+      const allRegularQuizzes = await StudentQuiz.find({ student_id: studentId, quiz_type: "regular" })
+        .sort({ completed_at: -1 })
+        .lean();
+      
+      const regularQuizzes = allRegularQuizzes.filter(isQuizCompleted);
 
-    // Get effective streak
-    const { effective: streak } = computeEffectiveStreak(mathProfile);
+      // Get all adaptive quizzes
+      const adaptiveAttempts = await QuizAttempt.find({ 
+        userId: studentId, 
+        is_completed: true 
+      }).sort({ completedAt: -1 }).lean();
 
-    const totalQuizzes = regularQuizzes.length + adaptiveAttempts.length;
-    const averageScore =
-      totalQuizzes > 0
-        ? Math.round(
-            (regularQuizzes.reduce((sum, q) => sum + q.percentage, 0) +
-              adaptiveAttempts.reduce((sum, a) => sum + ((a.correct_count / a.total_answered) * 100 || 0), 0)) /
-              totalQuizzes
-          )
-        : 0;
+      const totalQuizzes = regularQuizzes.length + adaptiveAttempts.length;
+      const averageScore =
+        totalQuizzes > 0
+          ? Math.round(
+              (regularQuizzes.reduce((sum, q) => sum + q.percentage, 0) +
+                adaptiveAttempts.reduce((sum, a) => sum + ((a.correct_count / a.total_answered) * 100 || 0), 0)) /
+                totalQuizzes
+            )
+          : 0;
 
-    const totalPoints = mathProfile ? (mathProfile.total_points || 0) : 0;
+      const totalPoints = mathProfile.total_points || 0;
 
-    res.json({
-      success: true,
-      progressData: {
-        currentProfile: mathProfile ? mathProfile.current_profile : 1,
-        totalQuizzes,
-        averageScore,
-        totalPoints,
-        streak,
-        recentQuizzes: regularQuizzes.slice(0, 10).map((q) => ({
-          date: q.completed_at.toLocaleDateString(),
-          time: q.completed_at.toLocaleTimeString(),
-          profile: q.profile_level,
-          score: q.score,
-          total: q.total_questions,
-          percentage: q.percentage,
-        })),
-      },
-    });
+      // ✅ NEW: Get display level (0 if placement not completed)
+      const displayLevel = getDisplayLevel(mathProfile);
+
+      res.json({
+        success: true,
+        progressData: {
+          currentProfile: displayLevel, // ✅ SHOW LEVEL 0 IF NO PLACEMENT
+          totalQuizzes,
+          averageScore,
+          totalPoints,
+          streak: effectiveStreak, // Use effective streak (0 if broken)
+          recentQuizzes: regularQuizzes.slice(0, 10).map((q) => ({
+            date: q.completed_at.toLocaleDateString(),
+            time: q.completed_at.toLocaleTimeString(),
+            profile: q.profile_level,
+            score: q.score,
+            total: q.total_questions,
+            percentage: q.percentage,
+          })),
+        },
+      });
+    } else {
+      res.json({
+        success: true,
+        progressData: {
+          currentProfile: 0, // ✅ SHOW LEVEL 0 IF NO PROFILE
+          totalQuizzes: 0,
+          averageScore: 0,
+          totalPoints: 0,
+          streak: 0,
+          recentQuizzes: [],
+        },
+      });
+    }
   } catch (error) {
     console.error("❌ Math progress error:", error);
     res.status(500).json({ success: false, error: "Failed to load progress data" });
@@ -892,11 +954,15 @@ router.get("/quiz-history", async (req, res) => {
   }
 });
 
-// ==================== LEADERBOARD ====================
+// ==================== LEADERBOARD (LEVEL-FIRST RANKING!) ====================
+// ✅ Ranks by: 1) Level (highest first), 2) Points, 3) First quiz date
 router.get("/leaderboard", async (req, res) => {
   try {
     const currentUserId = req.user.userId;
     const { schoolId, class: classId } = req.query;
+
+    console.log(`📊 Leaderboard request for user: ${currentUserId}`);
+    console.log(`   schoolId: ${schoolId}, classId: ${classId}`);
 
     // Get current user's school and class
     const currentUser = await User.findById(currentUserId).lean();
@@ -934,6 +1000,8 @@ router.get("/leaderboard", async (req, res) => {
       .select('_id name email schoolId class')
       .lean();
 
+    console.log(`✅ Found ${matchingStudents.length} matching students`);
+
     if (matchingStudents.length === 0) {
       return res.json({
         success: true,
@@ -948,16 +1016,43 @@ router.get("/leaderboard", async (req, res) => {
 
     const studentIds = matchingStudents.map(s => s._id);
 
+    // ✅ Ensure current user is in the list
+    if (!studentIds.some(id => id.toString() === currentUserId)) {
+      console.log(`⚠️ Current user not in filtered list - adding manually`);
+      matchingStudents.push(currentUser);
+      studentIds.push(currentUser._id);
+    }
+
     // Get math profiles for these students
     const profiles = await MathProfile.find({ student_id: { $in: studentIds } })
       .lean();
+
+    console.log(`📊 Found ${profiles.length} math profiles`);
+
+    // ✅ Create default profile for students without one
+    const profileMap = new Map(profiles.map(p => [p.student_id.toString(), p]));
+    const allProfiles = studentIds.map(studentId => {
+      const existingProfile = profileMap.get(studentId.toString());
+      if (existingProfile) {
+        return existingProfile;
+      } else {
+        console.log(`⚠️ Creating default profile for student: ${studentId}`);
+        return {
+          student_id: studentId,
+          total_points: 0,
+          placement_completed: false,
+          current_profile: 0,
+          adaptive_quiz_level: 0
+        };
+      }
+    });
 
     // Get earliest quiz completion date for each student (for tie-breaking)
     const db = mongoose.connection.db;
     const studentMap = new Map(matchingStudents.map(s => [s._id.toString(), s]));
     
     // Enrich profiles with student data and first quiz date
-    const enrichedProfiles = await Promise.all(profiles.map(async (p) => {
+    const enrichedProfiles = await Promise.all(allProfiles.map(async (p) => {
       const student = studentMap.get(p.student_id.toString());
       
       // Get earliest quiz completion for this student
@@ -990,30 +1085,45 @@ router.get("/leaderboard", async (req, res) => {
       const earnedBadges = await db.collection('student_badges')
         .countDocuments({ student_email: student?.email });
       
+      // ✅ Get display level (0 if placement not completed)
+      const displayLevel = getDisplayLevel(p);
+      
+      const isCurrentUser = p.student_id.toString() === currentUserId;
+      
+      if (isCurrentUser) {
+        console.log(`✅ Current user found in leaderboard:`, {
+          name: student?.name,
+          points: p.total_points || 0,
+          level: displayLevel,
+          placementCompleted: p.placement_completed
+        });
+      }
+      
       return {
         student_id: p.student_id,
         name: student ? student.name : "Unknown",
         points: p.total_points || 0,
-        level: p.current_profile || 1,
+        level: displayLevel,
         achievements: earnedBadges || 0,
         firstCompletionDate: firstCompletionDate,
-        isCurrentUser: p.student_id.toString() === currentUserId
+        isCurrentUser: isCurrentUser
       };
     }));
 
-    // Sort by: 1) Level (desc), 2) Points (desc), 3) First completion date (asc - earlier is better)
+    // ✅✅✅ LEVEL-FIRST RANKING SYSTEM ✅✅✅
+    // Sort by: 1) Level (desc), 2) Points (desc), 3) First completion date (asc)
     enrichedProfiles.sort((a, b) => {
-      // First sort by level (higher level = higher rank)
+      // 🥇 PRIMARY: Level (higher level = higher rank)
       if (a.level !== b.level) {
         return b.level - a.level;
       }
       
-      // If same level, sort by points (more points = higher rank)
+      // 🥈 SECONDARY: Points (more points = higher rank if same level)
       if (a.points !== b.points) {
         return b.points - a.points;
       }
       
-      // If same level and points, sort by first completion date (earlier = higher rank)
+      // 🥉 TIE-BREAKER: First completion date (earlier = higher rank)
       if (a.firstCompletionDate && b.firstCompletionDate) {
         return a.firstCompletionDate - b.firstCompletionDate;
       } else if (a.firstCompletionDate) {
@@ -1025,9 +1135,14 @@ router.get("/leaderboard", async (req, res) => {
       return 0; // Equal in all aspects
     });
 
-    // Assign ranks and limit to top 50
-    const leaderboard = enrichedProfiles.slice(0, 50).map((entry, idx) => ({
-      rank: idx + 1,
+    // Assign ranks
+    enrichedProfiles.forEach((entry, idx) => {
+      entry.rank = idx + 1;
+    });
+
+    // Limit to top 50
+    const leaderboard = enrichedProfiles.slice(0, 50).map(entry => ({
+      rank: entry.rank,
       name: entry.name,
       points: entry.points,
       level: entry.level,
@@ -1035,6 +1150,15 @@ router.get("/leaderboard", async (req, res) => {
       achievements: entry.achievements,
       isCurrentUser: entry.isCurrentUser
     }));
+
+    console.log(`✅ Leaderboard generated with ${leaderboard.length} entries (Level-First Ranking)`);
+    
+    const currentUserEntry = leaderboard.find(e => e.isCurrentUser);
+    if (currentUserEntry) {
+      console.log(`✅ Current user rank: #${currentUserEntry.rank} (Level ${currentUserEntry.level})`);
+    } else {
+      console.log(`⚠️ Current user NOT in top 50`);
+    }
 
     res.json({
       success: true,

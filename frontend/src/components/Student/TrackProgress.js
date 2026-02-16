@@ -1,4 +1,6 @@
 // src/components/Student/TrackProgress.js
+// ✅ FIXED: Shows "-" for level when no placement quiz completed
+
 import React, { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
@@ -24,20 +26,27 @@ export default function TrackProgress() {
       }
 
       try {
+        // ✅ Check placement status first
+        const placementStatus = await studentService.getPlacementStatus();
+        const isPlacementDone = placementStatus?.success && placementStatus?.placementCompleted;
+
         // ✅ Fetch adaptive quiz level from Quiz Journey API
-        let adaptiveLevel = 1;
-        try {
-          const levelResponse = await fetch(`${API_BASE_URL}/api/adaptive-quiz/student/current-level`, {
-            headers: { 'Authorization': `Bearer ${getToken()}` }
-          });
-          const levelData = await levelResponse.json();
-          
-          if (levelData.success) {
-            adaptiveLevel = levelData.currentLevel || 1;
-            console.log('✅ Quiz Journey level loaded:', adaptiveLevel);
+        let adaptiveLevel = null; // Start as null
+        if (isPlacementDone) {
+          try {
+            const levelResponse = await fetch(`${API_BASE_URL}/api/adaptive-quiz/student/current-level`, {
+              headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
+            const levelData = await levelResponse.json();
+            
+            if (levelData.success) {
+              adaptiveLevel = levelData.currentLevel || 1;
+              console.log('✅ Quiz Journey level loaded:', adaptiveLevel);
+            }
+          } catch (levelError) {
+            console.warn('⚠️ Could not fetch quiz journey level:', levelError);
+            adaptiveLevel = 1; // Fallback to 1 if placement done but API fails
           }
-        } catch (levelError) {
-          console.warn('⚠️ Could not fetch quiz journey level:', levelError);
         }
 
         // ✅ Fetch quiz history (SAME AS ViewResults.js)
@@ -64,7 +73,8 @@ export default function TrackProgress() {
         const progressDataObj = progressResult.success ? progressResult.progressData : {};
 
         setProgressData({
-          currentProfile: adaptiveLevel,
+          currentProfile: adaptiveLevel, // ✅ Can be null if no placement
+          placementCompleted: isPlacementDone, // ✅ Track placement status
           totalQuizzes,
           streak: progressDataObj.streak || 0,
           totalPoints: progressDataObj.totalPoints || 0,
@@ -74,7 +84,8 @@ export default function TrackProgress() {
         console.error('Load progress error:', err);
         setError('Failed to load progress data');
         setProgressData({
-          currentProfile: 1,
+          currentProfile: null,
+          placementCompleted: false,
           totalQuizzes: 0,
           streak: 0,
           totalPoints: 0,
@@ -89,6 +100,7 @@ export default function TrackProgress() {
   }, [navigate]);
 
   const getProfileColor = (profile) => {
+    if (!profile) return '#6b7280'; // Gray for undefined
     const colors = [
       '#ef4444',
       '#f97316',
@@ -263,7 +275,10 @@ export default function TrackProgress() {
           <div style={styles.statCard}>
             <div style={styles.statIcon}>🎯</div>
             <div style={styles.statLabel}>Current Level</div>
-            <div style={styles.statValue}>Level {progressData?.currentProfile || 1}</div>
+            {/* ✅ FIXED: Show "-" if no placement */}
+            <div style={styles.statValue}>
+              Level {progressData?.currentProfile !== null ? progressData.currentProfile : "-"}
+            </div>
           </div>
 
           <div style={styles.statCard}>
@@ -298,34 +313,41 @@ export default function TrackProgress() {
             <div
               style={{
                 ...styles.profileBadge,
-                background: `linear-gradient(135deg, ${getProfileColor(progressData?.currentProfile)} 0%, ${getProfileColor(
-                  progressData?.currentProfile
-                )}dd 100%)`,
+                background: progressData?.currentProfile 
+                  ? `linear-gradient(135deg, ${getProfileColor(progressData.currentProfile)} 0%, ${getProfileColor(progressData.currentProfile)}dd 100%)`
+                  : '#9ca3af',
               }}
             >
-              🎯 Level {progressData?.currentProfile || 1}
+              {/* ✅ FIXED: Show "-" if no placement */}
+              🎯 Level {progressData?.currentProfile !== null ? progressData.currentProfile : "-"}
             </div>
           </div>
 
-          <div style={styles.progressBarLarge}>
-            <div
-              style={{
-                ...styles.progressFillLarge,
-                width: `${((progressData?.currentProfile || 1) / 10) * 100}%`,
-                background: `linear-gradient(135deg, ${getProfileColor(progressData?.currentProfile)} 0%, ${getProfileColor(
-                  progressData?.currentProfile
-                )}dd 100%)`,
-              }}
-            >
-              {progressData?.currentProfile || 1}/10
-            </div>
-          </div>
+          {progressData?.placementCompleted ? (
+            <>
+              <div style={styles.progressBarLarge}>
+                <div
+                  style={{
+                    ...styles.progressFillLarge,
+                    width: `${((progressData?.currentProfile || 1) / 10) * 100}%`,
+                    background: `linear-gradient(135deg, ${getProfileColor(progressData?.currentProfile)} 0%, ${getProfileColor(progressData?.currentProfile)}dd 100%)`,
+                  }}
+                >
+                  {progressData?.currentProfile || 1}/10
+                </div>
+              </div>
 
-          <div style={styles.progressText}>
-            {progressData?.currentProfile === 10
-              ? '🏆 Maximum level reached! Excellent work!'
-              : `Keep practicing to reach Level ${(progressData?.currentProfile || 1) + 1}!`}
-          </div>
+              <div style={styles.progressText}>
+                {progressData?.currentProfile === 10
+                  ? '🏆 Maximum level reached! Excellent work!'
+                  : `Keep practicing to reach Level ${(progressData?.currentProfile || 1) + 1}!`}
+              </div>
+            </>
+          ) : (
+            <div style={styles.progressText}>
+              🔒 Complete the placement quiz to unlock your Quiz Journey level!
+            </div>
+          )}
         </div>
 
         {/* Recent Quizzes */}
@@ -333,7 +355,6 @@ export default function TrackProgress() {
           <h2 style={styles.cardTitle}>Recent Quiz Attempts</h2>
           {progressData?.recentQuizzes && progressData.recentQuizzes.length > 0 ? (
             progressData.recentQuizzes.map((quiz, idx) => {
-              // ✅ Use the same data structure as ViewResults.js
               const score = Number(quiz?.score) || 0;
               const total = Number(quiz?.totalQuestions) || 0;
               const percentage = Number(quiz?.percentage) || 0;

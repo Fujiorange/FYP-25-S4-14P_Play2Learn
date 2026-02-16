@@ -1,6 +1,6 @@
 // frontend/src/components/Parents/ViewChildPerformance.js
-// ✅ PARENT VIEW - Displays 5 stats matching student view
-// ✅ Stats: Current Profile, Quizzes Taken, Highest Score, Current Streak, Total Points
+// ✅ PARENT VIEW - Displays 4 stats (NO Current Level)
+// ✅ Stats: Quizzes Taken, Highest Score, Current Streak, Total Points
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -200,7 +200,7 @@ export default function ViewChildPerformance() {
     );
   }
 
-  // Extract the 4 essential stats (matching student view exactly)
+  // Extract the 4 essential stats (NO Current Level)
   const totalQuizzes = performanceData?.totalQuizzes || 0;
   const highestScore = performanceData?.highestScore || 0;
   const streak = performanceData?.streak || 0;
@@ -233,7 +233,7 @@ export default function ViewChildPerformance() {
           )}
         </div>
 
-        {/* Only 4 Stat Cards - Matching TrackProgress.js */}
+        {/* Only 4 Stat Cards - NO Current Level */}
         {hasData ? (
           <div style={styles.statsGrid}>
             <div 

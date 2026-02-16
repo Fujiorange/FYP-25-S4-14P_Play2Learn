@@ -1,5 +1,5 @@
 // frontend/src/components/Parents/ViewChildProgress.js
-// ✅ FIXED: Now correctly fetches child's quiz history
+// ✅ FIXED: Properly fetches child's placement status and shows correct level
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -36,24 +36,23 @@ export default function ViewChildProgress() {
       try {
         console.log('📈 Loading progress for student:', childInfo.studentId);
         
-        // ✅ Fetch child's Quiz Journey level
-        let adaptiveLevel = 1;
-        try {
-          const levelResponse = await fetch(
-            `${API_BASE_URL}/api/adaptive-quiz/student/${childInfo.studentId}/current-level`,
-            { headers: { 'Authorization': `Bearer ${getToken()}` } }
-          );
-          const levelData = await levelResponse.json();
-          
-          if (levelData.success) {
-            adaptiveLevel = levelData.currentLevel || 1;
-            console.log('✅ Child Quiz Journey level:', adaptiveLevel);
-          }
-        } catch (levelError) {
-          console.warn('⚠️ Could not fetch child quiz journey level:', levelError);
-        }
+        // ✅ STEP 1: Fetch progress data from parent service (includes level and placement status)
+        const progressResult = await parentService.getChildProgress(childInfo.studentId);
+        const progressDataObj = progressResult.success ? progressResult.progress : {};
         
-        // ✅ FIXED: Fetch child's quiz history using parentService
+        console.log('📊 Backend progress data:', progressDataObj);
+        
+        // ✅ STEP 2: Extract placement status and level from backend response
+        const placementCompleted = progressDataObj.placement_completed || false;
+        const currentLevel = progressDataObj.currentLevel || 0;
+        
+        console.log('✅ Placement Status:', { 
+          placementCompleted, 
+          currentLevel,
+          rawData: progressDataObj 
+        });
+        
+        // ✅ STEP 3: Fetch child's quiz history using parentService
         let recentQuizzes = [];
         try {
           const historyData = await parentService.getChildQuizHistory(childInfo.studentId);
@@ -74,21 +73,17 @@ export default function ViewChildProgress() {
           console.error('❌ Failed to fetch quiz history:', historyError);
         }
         
-        // ✅ Fetch progress data for stats
-        const progressResult = await parentService.getChildProgress(childInfo.studentId);
-        const progressDataObj = progressResult.success ? progressResult.progress : {};
-        
-        console.log('📊 Progress data:', progressDataObj);
-        
+        // ✅ STEP 4: Combine all data
         const combinedData = {
-          currentLevel: adaptiveLevel,
+          currentLevel: currentLevel,
+          placementCompleted: placementCompleted,
           totalPoints: progressDataObj.totalPoints || 0,
           streak: progressDataObj.streak || 0,
           achievements: progressDataObj.achievements || [],
           recentQuizzes
         };
         
-        console.log('✅ Final combined data:', combinedData);
+        console.log('✅ Final combined data for display:', combinedData);
         
         setProgressData(combinedData);
         setError(null);
@@ -169,6 +164,14 @@ export default function ViewChildProgress() {
       color: '#6b7280', 
       textTransform: 'uppercase', 
       fontWeight: '600' 
+    },
+    infoMessage: {
+      fontSize: '13px',
+      color: '#6b7280',
+      marginTop: '8px',
+      fontStyle: 'italic',
+      fontWeight: 'normal',
+      textTransform: 'none'
     },
     achievementsCard: { 
       background: 'white', 
@@ -310,15 +313,29 @@ export default function ViewChildProgress() {
 
         {/* Main Stats - 3 cards */}
         <div style={styles.statsGrid}>
+          {/* ✅ FIXED: Current Level Card */}
           <div 
             style={styles.statCard}
             onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            <div style={styles.statValue}>Level {progressData?.currentLevel || 1}</div>
-            <div style={styles.statLabel}>Current Level</div>
+            {progressData?.placementCompleted && progressData?.currentLevel > 0 ? (
+              <>
+                <div style={styles.statValue}>Level {progressData.currentLevel}</div>
+                <div style={styles.statLabel}>Current Level</div>
+              </>
+            ) : (
+              <>
+                <div style={{...styles.statValue, fontSize: '48px', color: '#d1d5db'}}>-</div>
+                <div style={styles.statLabel}>Current Level</div>
+                <div style={styles.infoMessage}>
+                  Waiting for placement quiz completion by child to determine level
+                </div>
+              </>
+            )}
           </div>
 
+          {/* Total Points Card */}
           <div 
             style={styles.statCard}
             onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
@@ -328,6 +345,7 @@ export default function ViewChildProgress() {
             <div style={styles.statLabel}>Total Points</div>
           </div>
 
+          {/* Streak Card */}
           <div 
             style={styles.statCard}
             onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
@@ -370,19 +388,16 @@ export default function ViewChildProgress() {
           )}
         </div>
 
-        {/* ✅ FIXED: Recent Quiz Attempts */}
+        {/* Recent Quiz Attempts */}
         <div style={styles.quizzesCard}>
           <h2 style={styles.sectionTitle}>📝 Recent Quiz Attempts</h2>
           {progressData?.recentQuizzes && progressData.recentQuizzes.length > 0 ? (
             <div>
               {progressData.recentQuizzes.map((quiz, idx) => {
-                // ✅ Use the same data structure as ViewResults.js
                 const score = Number(quiz?.score) || 0;
                 const total = Number(quiz?.totalQuestions) || 0;
                 const percentage = Number(quiz?.percentage) || 0;
                 const scoreColor = percentage >= 70 ? '#10b981' : percentage >= 50 ? '#f59e0b' : '#ef4444';
-
-                console.log('📊 Rendering quiz:', { score, total, percentage, quiz });
 
                 return (
                   <div key={idx} style={styles.quizItem}>

@@ -8,11 +8,13 @@ const mathProfileSchema = new mongoose.Schema({
     unique: true
   },
   
-  // Legacy field: Used by old quiz system (kept for backward compatibility)
+  // ✅ UPDATED: Now allows level 0 for students who haven't completed placement quiz
+  // Level 0 = Not yet placed (placement quiz not completed)
+  // Levels 1-10 = Assigned after placement quiz completion
   current_profile: { 
     type: Number, 
-    default: 1, 
-    min: 1, 
+    default: 0,  // ✅ CHANGED: Start at 0 instead of 1
+    min: 0,      // ✅ CHANGED: Allow 0 (was 1)
     max: 10 
   },
   
@@ -50,14 +52,14 @@ const mathProfileSchema = new mongoose.Schema({
     type: Date 
   },
   
-  // ✅ CRITICAL FIX: Adaptive Quiz Level field
-  // This field is set by the placement quiz and determines which levels are unlocked in Quiz Journey
-  // When placement quiz is completed, this field is set to the assigned level (1-10)
-  // When an adaptive quiz is completed, this field is updated to unlock the next level
+  // ✅ UPDATED: Adaptive Quiz Level - determines which levels are unlocked in Quiz Journey
+  // Level 0 = Quiz Journey locked (placement quiz not completed)
+  // Levels 1-10 = Unlocked levels in Quiz Journey
+  // This field is set by the placement quiz and updated as student progresses
   adaptive_quiz_level: {
     type: Number,
-    default: 1,
-    min: 1,
+    default: 0,  // ✅ CHANGED: Start at 0 instead of 1
+    min: 0,      // ✅ CHANGED: Allow 0 (was 1)
     max: 10
   },
   
@@ -78,26 +80,30 @@ mathProfileSchema.index({ total_points: -1 }); // For leaderboard sorting
 mathProfileSchema.index({ adaptive_quiz_level: 1 }); // For adaptive quiz filtering
 mathProfileSchema.index({ current_profile: 1 }); // For legacy quiz system
 
-// ✅ FIXED: Pre-save hook without next() callback
-// Mongoose 6+ doesn't use callbacks in pre/post hooks
+// ✅ Pre-save hook: Update timestamp
 mathProfileSchema.pre('save', function() {
   this.updatedAt = Date.now();
 });
 
-// ✅ ADDED: Virtual field to always sync adaptive_quiz_level with current_profile
-// This ensures that if only current_profile is set, adaptive_quiz_level gets the same value
+// ✅ UPDATED: Sync logic - only sync when both values are > 0
+// If either is 0, don't sync (student hasn't completed placement yet)
 mathProfileSchema.pre('save', function() {
-  // If adaptive_quiz_level is not set but current_profile is, sync them
-  if (!this.adaptive_quiz_level && this.current_profile) {
-    this.adaptive_quiz_level = this.current_profile;
-  }
-  
-  // If both are set and different, use the higher value (student benefit)
-  if (this.adaptive_quiz_level && this.current_profile) {
+  // Only sync if both fields are greater than 0 (placement completed)
+  if (this.adaptive_quiz_level > 0 && this.current_profile > 0) {
+    // Use the higher value (student benefit)
     const maxLevel = Math.max(this.adaptive_quiz_level, this.current_profile);
     this.adaptive_quiz_level = maxLevel;
     this.current_profile = maxLevel;
   }
+  // If adaptive_quiz_level is set but current_profile is 0, sync current_profile
+  else if (this.adaptive_quiz_level > 0 && this.current_profile === 0) {
+    this.current_profile = this.adaptive_quiz_level;
+  }
+  // If current_profile is set but adaptive_quiz_level is 0, sync adaptive_quiz_level
+  else if (this.current_profile > 0 && this.adaptive_quiz_level === 0) {
+    this.adaptive_quiz_level = this.current_profile;
+  }
+  // If both are 0, leave them at 0 (placement not completed)
 });
 
 module.exports = mongoose.model('MathProfile', mathProfileSchema);

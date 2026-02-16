@@ -35,89 +35,108 @@ export default function StudentDashboard() {
         setUser(result.user);
       }
 
-      // ✅ NEW: Fetch adaptive quiz level from Quiz Journey API
-      let adaptiveLevel = 1;
-      try {
-        const levelResponse = await fetch(`${API_BASE_URL}/api/adaptive-quiz/student/current-level`, {
-          headers: { 'Authorization': `Bearer ${getToken()}` }
-        });
-        const levelData = await levelResponse.json();
-        
-        if (levelData.success) {
-          adaptiveLevel = levelData.currentLevel || 1;
-          console.log('✅ Quiz Journey level loaded:', adaptiveLevel);
-        }
-      } catch (levelError) {
-        console.warn('⚠️ Could not fetch quiz journey level:', levelError);
-      }
-
-      // ✅ FIXED: Load dashboard data from MongoDB
+      // ✅ FIXED: Load dashboard data first to check placement status
       const dashData = await studentService.getDashboard();
       console.log('📊 Dashboard data loaded:', dashData);
 
       if (dashData.success) {
-        // Accept both shapes:
-        // - Preferred backend: dashData.dashboard (totalPoints, completedQuizzes, currentProfile)
-        // - Compat layer: dashData.data (points, quizzesTaken, level)
         const dashboardInfo = dashData.dashboard || dashData.data || {};
+        const placementCompleted = dashboardInfo.placementCompleted || false;
+
+        let adaptiveLevel = 0; // ✅ DEFAULT TO 0 FOR NEW USERS
+
+        // ✅ ONLY fetch quiz level if placement is completed
+        if (placementCompleted) {
+          try {
+            const levelResponse = await fetch(`${API_BASE_URL}/api/adaptive-quiz/student/current-level`, {
+              headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
+            const levelData = await levelResponse.json();
+            
+            if (levelData.success) {
+              adaptiveLevel = levelData.currentLevel || 1;
+              console.log('✅ Quiz Journey level loaded:', adaptiveLevel);
+            }
+          } catch (levelError) {
+            console.warn('⚠️ Could not fetch quiz journey level:', levelError);
+            adaptiveLevel = 1; // Default to 1 if fetch fails but placement is done
+          }
+        } else {
+          console.log('📌 Placement NOT completed - showing Level 0');
+        }
 
         const points = dashboardInfo.totalPoints ?? dashboardInfo.points ?? 0;
-
-        const completedQuizzes =
-          dashboardInfo.completedQuizzes ?? dashboardInfo.quizzesTaken ?? 0;
-
+        const completedQuizzes = dashboardInfo.completedQuizzes ?? dashboardInfo.quizzesTaken ?? 0;
         const gradeLevel = dashboardInfo.gradeLevel ?? 'Primary 1';
 
-        // Fetch leaderboard to get user's rank
+        // ✅ FIX 1: Only fetch rank if placement is completed
+        // ✅ FIX 2: Fetch CLASS leaderboard (not school-wide)
         let userRank = '#-';
-        try {
-          const leaderboardData = await studentService.getLeaderboard();
-          if (leaderboardData.success && leaderboardData.leaderboard) {
-            const currentUserRank = leaderboardData.leaderboard.find(
-              (entry) => entry.isCurrentUser
+        
+        if (placementCompleted) {
+          try {
+            // ✅ CRITICAL: Pass BOTH schoolId and classId to get class-only leaderboard
+            const leaderboardData = await studentService.getLeaderboard(
+              currentUser.schoolId,  // School ID
+              currentUser.class      // ✅ Class ID (not null!)
             );
-            if (currentUserRank) {
-              userRank = `#${currentUserRank.rank}`;
+            
+            console.log('📊 Class leaderboard data:', leaderboardData);
+            
+            if (leaderboardData.success && leaderboardData.leaderboard) {
+              const currentUserRank = leaderboardData.leaderboard.find(
+                (entry) => entry.isCurrentUser
+              );
+              if (currentUserRank) {
+                userRank = `#${currentUserRank.rank}`;
+                console.log('✅ Your class rank:', userRank);
+              } else {
+                console.warn('⚠️ Current user not found in class leaderboard');
+              }
             }
+          } catch (leaderboardError) {
+            console.warn('⚠️ Could not fetch class leaderboard:', leaderboardError);
           }
-        } catch (leaderboardError) {
-          console.warn('⚠️ Could not fetch leaderboard:', leaderboardError);
+        } else {
+          console.log('📌 Placement not completed - rank will show as "#-"');
         }
 
         setDashboardData({
           points,
-          level: adaptiveLevel, // ✅ USE ADAPTIVE QUIZ LEVEL
-          levelProgress: ((adaptiveLevel / 10) * 100), // ✅ PROGRESS OUT OF 10 LEVELS
+          level: adaptiveLevel, // ✅ WILL BE 0 IF PLACEMENT NOT DONE
+          levelProgress: placementCompleted ? ((adaptiveLevel / 10) * 100) : 0, // ✅ 0% if not placed
           achievements: dashboardInfo.achievements || 0,
-          rank: userRank,
+          rank: userRank, // ✅ WILL BE "#-" IF PLACEMENT NOT DONE
           completedQuizzes,
           grade_level: gradeLevel,
-          placementCompleted: dashboardInfo.placementCompleted || false,
+          placementCompleted: placementCompleted,
         });
-        console.log('✅ Dashboard data set successfully with adaptive level:', adaptiveLevel);
+        console.log('✅ Dashboard data set - Level:', adaptiveLevel, 'Placement:', placementCompleted, 'Rank:', userRank);
       } else {
         console.error('❌ Failed to load dashboard:', dashData.error);
         // Set default values
         setDashboardData({
           points: 0,
-          level: adaptiveLevel,
-          levelProgress: 10,
+          level: 0, // ✅ DEFAULT TO 0
+          levelProgress: 0,
           achievements: 0,
           rank: '#-',
           completedQuizzes: 0,
           grade_level: 'Primary 1',
+          placementCompleted: false,
         });
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
       setDashboardData({
         points: 0,
-        level: 1,
-        levelProgress: 10,
+        level: 0, // ✅ DEFAULT TO 0
+        levelProgress: 0,
         achievements: 0,
         rank: '#-',
         completedQuizzes: 0,
         grade_level: 'Primary 1',
+        placementCompleted: false,
       });
     } finally {
       setLoading(false);
@@ -163,9 +182,7 @@ export default function StudentDashboard() {
     );
   }
 
-  // ✅ FIXED: Removed duplicate Skill Matrix entry
   const menuItems = [
-    // 1️⃣ My Profile
     {
       id: 'profile',
       title: 'My Profile',
@@ -173,7 +190,6 @@ export default function StudentDashboard() {
       icon: '👤',
       action: () => navigate('/student/profile'),
     },
-    // 2️⃣ Adaptive Quizzes
     {
       id: 'adaptive-quiz',
       title: 'Quiz',
@@ -181,7 +197,6 @@ export default function StudentDashboard() {
       icon: '🎲',
       action: () => navigate('/student/quiz/attempt'),
     },
-    // 3️⃣ Skill Matrix (KEPT THIS ONE)
     {
       id: 'skills',
       title: 'Skill Matrix',
@@ -189,7 +204,6 @@ export default function StudentDashboard() {
       icon: '📊',
       action: () => navigate('/student/skills'),
     },
-    // 4️⃣ View Results
     {
       id: 'results',
       title: 'View Results',
@@ -197,7 +211,6 @@ export default function StudentDashboard() {
       icon: '📝',
       action: () => navigate('/student/results'),
     },
-    // 5️⃣ Track Progress
     {
       id: 'progress',
       title: 'Track Progress',
@@ -205,7 +218,6 @@ export default function StudentDashboard() {
       icon: '📈',
       action: () => navigate('/student/progress'),
     },
-    // 6️⃣ Leaderboard
     {
       id: 'leaderboard',
       title: 'Leaderboard',
@@ -213,7 +225,6 @@ export default function StudentDashboard() {
       icon: '🏆',
       action: () => navigate('/student/leaderboard'),
     },
-    // 7️⃣ School Announcements
     {
       id: 'announcements',
       title: 'School Announcements',
@@ -221,7 +232,6 @@ export default function StudentDashboard() {
       icon: '📢',
       action: () => navigate('/student/announcements'),
     },
-    // 7.5️⃣ News & Updates
     {
       id: 'news',
       title: 'News & Updates',
@@ -229,7 +239,6 @@ export default function StudentDashboard() {
       icon: '📰',
       action: () => navigate('/student/news'),
     },
-    // 8️⃣ Write Testimonial
     {
       id: 'testimonial',
       title: 'Write Testimonial',
@@ -237,7 +246,6 @@ export default function StudentDashboard() {
       icon: '💬',
       action: () => navigate('/student/testimonial'),
     },
-    // 🔟 Create Support Ticket
     {
       id: 'support',
       title: 'Create Support Ticket',
@@ -245,7 +253,6 @@ export default function StudentDashboard() {
       icon: '🛠️',
       action: () => navigate('/student/support'),
     },
-    // 1️⃣1️⃣ Track Support Ticket
     {
       id: 'trackTicket',
       title: 'Track Support Ticket',
@@ -253,7 +260,6 @@ export default function StudentDashboard() {
       icon: '📩',
       action: () => navigate('/student/support/tickets'),
     },
-    // 1️⃣2️⃣ Reward Shop
     {
       id: 'shop',
       title: 'Reward Shop',
@@ -261,7 +267,6 @@ export default function StudentDashboard() {
       icon: '🛒',
       action: () => navigate('/student/shop'),
     },
-    // 1️⃣3️⃣ Badges
     {
       id: 'badges',
       title: 'Badges',
@@ -281,7 +286,7 @@ export default function StudentDashboard() {
     {
       id: 'level',
       title: 'Current Level',
-      value: dashboardData.level, // ✅ SHOW QUIZ JOURNEY LEVEL
+      value: dashboardData.level === 0 ? '-' : dashboardData.level, // ✅ SHOW "-" IF LEVEL IS 0
       icon: '🎯',
     },
     {
@@ -292,7 +297,7 @@ export default function StudentDashboard() {
     },
     {
       id: 'rank',
-      title: 'Leaderboard Rank',
+      title: 'Class Rank', // ✅ CHANGED: Clarify it's CLASS rank
       value: dashboardData.rank,
       icon: '🏆',
     },
@@ -336,7 +341,10 @@ export default function StudentDashboard() {
           <p style={styles.gradeLevel}>{dashboardData.grade_level}</p>
           <div style={styles.progressContainer}>
             <div style={styles.progressText}>
-              Level {dashboardData.level} - {dashboardData.levelProgress.toFixed(0)}% Journey Completion
+              {/* ✅ SHOW DIFFERENT MESSAGE IF PLACEMENT NOT DONE */}
+              {dashboardData.level === 0 
+                ? 'Complete Placement Quiz to unlock your journey!' 
+                : `Level ${dashboardData.level} - ${dashboardData.levelProgress.toFixed(0)}% Journey Completion`}
             </div>
             <div style={styles.progressBar}>
               <div
