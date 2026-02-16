@@ -25,8 +25,21 @@
 }
 
 .user-info {
-  color: #666;
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+}
+
+.user-name {
   font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.user-role {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 2px;
 }
 
 .btn-logout {
