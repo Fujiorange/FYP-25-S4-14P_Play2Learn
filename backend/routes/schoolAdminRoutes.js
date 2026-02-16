@@ -1677,34 +1677,21 @@ router.post('/users/manual', authenticateSchoolAdmin, async (req, res) => {
       );
     }
     
-    // Auto-send credentials email
-    const emailSent = await autoSendCredentials(newUser, tempPassword, schoolAdmin.schoolId);
-    if (emailSent) {
-      // Update user to mark credentials as sent
-      await User.findByIdAndUpdate(newUser._id, {
-        credentialsSent: true,
-        credentialsSentAt: new Date(),
-        tempPassword: null // Clear temp password after sending
-      });
-    }
+    // NOTE: Email sending is disabled - credentials will be displayed on the Pending Credentials page
+    // The school admin can manually decide when to send credentials via that page
     
     res.status(201).json({
       success: true,
-      message: emailSent 
-        ? 'User created successfully and credentials sent via email.' 
-        : 'User created successfully. Credentials are available on the Pending Credentials page.',
+      message: 'User created successfully. Credentials are available on the Pending Credentials page.',
       user: {
         id: newUser._id,
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
-        tempPassword: emailSent ? undefined : tempPassword // Only return temp password if email wasn't sent
+        tempPassword: tempPassword // Always return temp password for display
       },
-      emailSent: emailSent,
-      credentialsPending: !emailSent,
-      info: emailSent 
-        ? 'Login credentials have been sent via email to the user.'
-        : 'Login credentials have been saved and are available on the Pending Credentials page. You can send the email from there when ready.'
+      credentialsPending: true,
+      info: 'Login credentials have been saved and are available on the Pending Credentials page. You can send the email from there when ready.'
     });
   } catch (error) {
     console.error('Create user error:', error);
@@ -1826,31 +1813,20 @@ router.post('/users/create-or-link-parent', authenticateSchoolAdmin, async (req,
       createdBy: 'school-admin'
     });
     
-    // Auto-send credentials email
-    const emailSent = await autoSendCredentials(newParent, tempPassword, schoolAdmin.schoolId);
-    if (emailSent) {
-      // Update user to mark credentials as sent
-      await User.findByIdAndUpdate(newParent._id, {
-        credentialsSent: true,
-        credentialsSentAt: new Date(),
-        tempPassword: null // Clear temp password after sending
-      });
-    }
+    // NOTE: Email sending is disabled - credentials will be displayed on the Pending Credentials page
+    // The school admin can manually decide when to send credentials via that page
     
     res.status(201).json({
       success: true,
       isExisting: false,
-      message: emailSent 
-        ? 'Parent account created, linked to student, and credentials sent via email.'
-        : 'Parent account created and linked to student. Credentials available on Pending Credentials page.',
+      message: 'Parent account created and linked to student. Credentials available on Pending Credentials page.',
       parent: {
         id: newParent._id,
         name: newParent.name,
         email: newParent.email,
-        tempPassword: emailSent ? undefined : tempPassword
+        tempPassword: tempPassword // Always return temp password for display
       },
-      emailSent: emailSent,
-      credentialsPending: !emailSent
+      credentialsPending: true
     });
     
   } catch (error) {
@@ -2044,25 +2020,15 @@ router.put('/users/:id/password', authenticateSchoolAdmin, async (req, res) => {
     user.credentialsSentAt = null;
     await user.save();
     
-    // Auto-send credentials email
-    const emailSent = await autoSendCredentials(user, tempPassword, schoolAdmin.schoolId);
-    if (emailSent) {
-      // Update user to mark credentials as sent
-      await User.findByIdAndUpdate(user._id, {
-        credentialsSent: true,
-        credentialsSentAt: new Date(),
-        tempPassword: null // Clear temp password after sending
-      });
-    }
+    // NOTE: Email sending is disabled - credentials will be displayed on the Pending Credentials page
+    // The school admin can manually decide when to send credentials via that page
     
     // Return temp password for one-time viewing by school admin
     res.json({ 
       success: true, 
-      message: emailSent 
-        ? 'Password reset successfully and credentials sent via email'
-        : 'Password reset successfully. Credentials available on Pending Credentials page.',
-      tempPassword: emailSent ? undefined : tempPassword,
-      emailSent: emailSent,
+      message: 'Password reset successfully. Credentials available on Pending Credentials page.',
+      tempPassword: tempPassword, // Always return temp password for display
+      credentialsPending: true,
       userId: user._id,
       email: user.email,
       name: user.name
