@@ -278,9 +278,6 @@ export default function ManualAddUser() {
       createParent: false,
       linkedStudents: [],
     });
-    setGeneratedPassword('');
-    setShowPassword(false);
-    setPasswordViewed(false);
     setCreatedUser(null);
     setMessage({ type: '', text: '' });
   };
