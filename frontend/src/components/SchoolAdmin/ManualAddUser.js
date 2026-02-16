@@ -499,7 +499,7 @@ export default function ManualAddUser() {
       <main style={styles.main}>
         <h1 style={styles.pageTitle}>Add New User</h1>
         <p style={styles.pageSubtitle}>
-          Create a new account for students, teachers, or parents. Platform scope: Primary 1 Mathematics only.
+          Create a new account for students, teachers, or parents.
         </p>
 
         {/* License Information Card */}

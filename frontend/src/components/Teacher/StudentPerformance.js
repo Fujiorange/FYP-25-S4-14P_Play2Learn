@@ -152,7 +152,7 @@ export default function StudentPerformance() {
                 {student?.name || 'Student'}
                 <span style={styles.classBadge}>{student?.displayClass || 'Primary 1'}</span>
               </h1>
-              <p style={styles.subtitle}>Primary 1 Mathematics</p>
+              <p style={styles.subtitle}>Mathematics</p>
             </div>
             <button style={styles.backBtn} onClick={() => navigate('/teacher/students')}>← Back to Students</button>
           </div>

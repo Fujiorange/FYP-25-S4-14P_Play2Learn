@@ -215,7 +215,7 @@ export default function ViewChildPerformance() {
         <div style={styles.header}>
           <div>
             <h1 style={styles.title}>📊 {childInfo?.studentName}'s Performance</h1>
-            <p style={styles.subtitle}>Primary 1 Mathematics</p>
+            <p style={styles.subtitle}>Mathematics</p>
           </div>
           <button 
             style={styles.backButton} 
