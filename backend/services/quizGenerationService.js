@@ -87,44 +87,48 @@ function shuffleArray(array) {
  * Generate a unique hash for quiz identification
  * @param {String} studentId - Student ID (optional)
  * @param {Number} quizLevel - Quiz level
+ * @param {String} topic - Topic (optional)
  * @param {Date} timestamp - Generation timestamp
  * @returns {String} - Unique hash
  */
-function generateUniqueHash(studentId, quizLevel, timestamp) {
-  const data = `${studentId || 'system'}-${quizLevel}-${timestamp.getTime()}-${Math.random()}`;
+function generateUniqueHash(studentId, quizLevel, topic, timestamp) {
+  const data = `${studentId || 'system'}-${topic || 'general'}-${quizLevel}-${timestamp.getTime()}-${Math.random()}`;
   return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16);
 }
 
 /**
  * Main quiz generation function
  * @param {Number} quizLevel - Quiz level (1-10)
+ * @param {String} topic - Topic for the quiz (required)
  * @param {String} studentId - Optional student ID for personalization
  * @param {String} triggerReason - Reason for generation (e.g., 'manual', 'enrollment', 'completion')
  * @param {Boolean} skipDuplicateCheck - Skip checking for existing quiz (default: false)
  * @returns {Object} - Generated quiz
  */
-async function generateQuiz(quizLevel, studentId = null, triggerReason = 'manual', skipDuplicateCheck = false) {
-  // Step 0: Check if quiz already exists for this level (unless skipDuplicateCheck is true)
+async function generateQuiz(quizLevel, topic = '', studentId = null, triggerReason = 'manual', skipDuplicateCheck = false) {
+  // Step 0: Check if quiz already exists for this level and topic (unless skipDuplicateCheck is true)
   if (!skipDuplicateCheck) {
     const existingQuiz = await Quiz.findOne({
       quiz_level: quizLevel,
+      topic: topic,
       is_auto_generated: true,
       is_active: true
     });
     
     if (existingQuiz) {
-      throw new Error(`Quiz for level ${quizLevel} already exists. Delete the existing quiz before generating a new one.`);
+      throw new Error(`Quiz for topic "${topic}" level ${quizLevel} already exists. Delete the existing quiz before generating a new one.`);
     }
   }
   
-  // Step 1: Verify criteria - need at least 1 question in quiz_level
+  // Step 1: Verify criteria - need at least 1 question in quiz_level and topic
   const questionsPool = await Question.find({
     quiz_level: quizLevel,
+    topic: topic,
     is_active: true
   });
   
   if (questionsPool.length === 0) {
-    throw new Error(`No questions found for quiz level ${quizLevel}. Please add questions to the question bank.`);
+    throw new Error(`No questions found for topic "${topic}" at quiz level ${quizLevel}. Please add questions to the question bank.`);
   }
   
   // Step 2: Calculate max time gap for freshness weighting
@@ -216,12 +220,13 @@ async function generateQuiz(quizLevel, studentId = null, triggerReason = 'manual
   
   // Step 6: Create quiz record
   const timestamp = new Date();
-  const uniqueHash = generateUniqueHash(studentId, quizLevel, timestamp);
+  const uniqueHash = generateUniqueHash(studentId, quizLevel, topic, timestamp);
   
   const quiz = new Quiz({
-    title: `Quiz Level ${quizLevel} - ${timestamp.toLocaleDateString()}`,
-    description: `Auto-generated quiz for level ${quizLevel}. Trigger: ${triggerReason}`,
+    title: `${topic ? topic + ' - ' : ''}Level ${quizLevel} - ${timestamp.toLocaleDateString()}`,
+    description: `Auto-generated quiz for ${topic ? 'topic: ' + topic + ', ' : ''}level ${quizLevel}. Trigger: ${triggerReason}`,
     quiz_level: quizLevel,
+    topic: topic,
     quiz_type: 'adaptive',
     questions: shuffledQuestions,
     is_adaptive: true,
@@ -243,13 +248,15 @@ async function generateQuiz(quizLevel, studentId = null, triggerReason = 'manual
 }
 
 /**
- * Check if quiz generation is possible for a given quiz level
+ * Check if quiz generation is possible for a given quiz level and topic
  * @param {Number} quizLevel - Quiz level to check
+ * @param {String} topic - Topic to check
  * @returns {Object} - Status object with availability info
  */
-async function checkGenerationAvailability(quizLevel) {
+async function checkGenerationAvailability(quizLevel, topic = '') {
   const questionCount = await Question.countDocuments({
     quiz_level: quizLevel,
+    topic: topic,
     is_active: true
   });
   
@@ -258,8 +265,8 @@ async function checkGenerationAvailability(quizLevel) {
     questionCount,
     required: 1,
     message: questionCount >= 1 
-      ? `${questionCount} questions available for level ${quizLevel}` 
-      : `No questions available for level ${quizLevel}. Please add questions to the question bank.`
+      ? `${questionCount} questions available for ${topic ? 'topic: ' + topic + ', ' : ''}level ${quizLevel}` 
+      : `No questions available for ${topic ? 'topic: ' + topic + ', ' : ''}level ${quizLevel}. Please add questions to the question bank.`
   };
 }
 

@@ -965,6 +965,29 @@ router.get('/questions-quiz-levels', authenticateP2LAdmin, async (req, res) => {
   }
 });
 
+// Get unique topics
+router.get('/questions-topics', authenticateP2LAdmin, async (req, res) => {
+  try {
+    const topics = await Question.distinct('topic');
+    
+    // Filter out empty and null topics, then sort alphabetically
+    const sortedTopics = topics
+      .filter(topic => topic && topic.trim() !== '')
+      .sort();
+    
+    res.json({
+      success: true,
+      data: sortedTopics
+    });
+  } catch (error) {
+    console.error('Get topics error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch topics' 
+    });
+  }
+});
+
 // Get question statistics (counts by difficulty)
 router.get('/questions-stats', authenticateP2LAdmin, async (req, res) => {
   try {
@@ -1377,7 +1400,7 @@ router.post('/quizzes', authenticateP2LAdmin, async (req, res) => {
 // Generate quiz automatically
 router.post('/quizzes/generate', authenticateP2LAdmin, async (req, res) => {
   try {
-    const { quiz_level, student_id, trigger_reason, force } = req.body;
+    const { quiz_level, topic, student_id, trigger_reason, force } = req.body;
     
     // Validate quiz_level
     if (!quiz_level || quiz_level < 1 || quiz_level > 10) {
@@ -1387,8 +1410,16 @@ router.post('/quizzes/generate', authenticateP2LAdmin, async (req, res) => {
       });
     }
     
+    // Validate topic
+    if (!topic || topic.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'Topic is required. Please specify a topic for the quiz.'
+      });
+    }
+    
     // Check if generation is possible
-    const availability = await checkGenerationAvailability(quiz_level);
+    const availability = await checkGenerationAvailability(quiz_level, topic);
     if (!availability.available) {
       return res.status(400).json({
         success: false,
@@ -1400,6 +1431,7 @@ router.post('/quizzes/generate', authenticateP2LAdmin, async (req, res) => {
     // Generate the quiz (skipDuplicateCheck if force=true)
     const quiz = await generateQuiz(
       quiz_level,
+      topic,
       student_id || null,
       trigger_reason || 'manual',
       !!force
@@ -1407,7 +1439,7 @@ router.post('/quizzes/generate', authenticateP2LAdmin, async (req, res) => {
     
     res.status(201).json({
       success: true,
-      message: `Quiz generated successfully for level ${quiz_level}`,
+      message: `Quiz generated successfully for topic "${topic}", level ${quiz_level}`,
       data: quiz
     });
   } catch (error) {
@@ -1419,10 +1451,11 @@ router.post('/quizzes/generate', authenticateP2LAdmin, async (req, res) => {
   }
 });
 
-// Check quiz generation availability for a level
+// Check quiz generation availability for a level and topic
 router.get('/quizzes/check-availability/:level', authenticateP2LAdmin, async (req, res) => {
   try {
     const level = parseInt(req.params.level);
+    const topic = req.query.topic || '';
     
     if (!level || level < 1 || level > 10) {
       return res.status(400).json({
@@ -1431,7 +1464,7 @@ router.get('/quizzes/check-availability/:level', authenticateP2LAdmin, async (re
       });
     }
     
-    const availability = await checkGenerationAvailability(level);
+    const availability = await checkGenerationAvailability(level, topic);
     
     res.json({
       success: true,

@@ -5,6 +5,7 @@ const quizSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   quiz_type: { type: String, enum: ['placement', 'adaptive'], default: 'adaptive' },
   quiz_level: { type: Number, min: 1, max: 10, default: null },
+  topic: { type: String, default: '' },
   questions: [{
     question_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
     text: { type: String },
@@ -44,6 +45,7 @@ quizSchema.pre('save', function() {
 quizSchema.index({ quiz_type: 1, is_active: 1 });
 quizSchema.index({ is_launched: 1, is_active: 1 });
 quizSchema.index({ quiz_level: 1, is_active: 1 });
+quizSchema.index({ topic: 1, quiz_level: 1, is_active: 1 });
 quizSchema.index({ is_auto_generated: 1 });
 
 module.exports = mongoose.model('Quiz', quizSchema);
