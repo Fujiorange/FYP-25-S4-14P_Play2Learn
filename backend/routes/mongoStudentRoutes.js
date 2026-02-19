@@ -1339,6 +1339,43 @@ router.get("/leaderboard/topics", async (req, res) => {
   }
 });
 
+// ==================== SKILL MATRIX ====================
+// Get student's own skill matrix (by topic)
+router.get("/my-skills", async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const MathSkill = require('../models/MathSkill');
+    const skills = await MathSkill.find({ student_id: userId })
+      .sort({ skill_name: 1 })
+      .lean();
+    
+    // Group skills by topic for easier display
+    const skillsByTopic = {};
+    skills.forEach(skill => {
+      const topic = skill.skill_name || 'General';
+      if (!skillsByTopic[topic]) {
+        skillsByTopic[topic] = {
+          topic: topic,
+          level: skill.current_level || 0,
+          xp: skill.xp || 0,
+          points: skill.points || 0,
+          unlocked: skill.unlocked !== false
+        };
+      }
+    });
+    
+    res.json({
+      success: true,
+      skills,
+      skillsByTopic
+    });
+  } catch (error) {
+    console.error("❌ Get student skills error:", error);
+    res.status(500).json({ success: false, error: "Failed to load skills" });
+  }
+});
+
 // ==================== SUPPORT TICKETS ====================
 router.post("/support-tickets", async (req, res) => {
   try {
