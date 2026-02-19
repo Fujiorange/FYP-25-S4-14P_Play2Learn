@@ -46,6 +46,9 @@ export default function QuizAssignment() {
 
       if (classesData.success) {
         // Normalize class data structure - ensure all items have class_name property
+        // The API may return either strings or objects depending on the data source:
+        // - Direct class names from teacher.assignedClasses (strings)
+        // - Full class objects from Class.find() (objects with class_name)
         const normalizedClasses = (classesData.classes || []).map(classItem => {
           if (typeof classItem === 'string') {
             return { class_name: classItem };

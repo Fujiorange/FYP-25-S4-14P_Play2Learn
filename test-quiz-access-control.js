@@ -25,7 +25,7 @@ async function runTests() {
     let allFieldsPresent = true;
     
     requiredFields.forEach(field => {
-      if (quizSchema[field] !== undefined) {
+      if (field in quizSchema) {
         console.log(`  ✅ ${field} field exists`);
       } else {
         console.log(`  ❌ ${field} field missing`);

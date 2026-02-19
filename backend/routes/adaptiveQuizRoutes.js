@@ -79,6 +79,25 @@ function calculateLevelFromPoints(points) {
   return 0;
 }
 
+// Helper function to check if a quiz is available for a specific student
+function isQuizAvailableForStudent(quiz, student) {
+  // Check if launched for student's specific class
+  const launchedForClass = student.class && 
+    quiz.launched_for_classes && 
+    quiz.launched_for_classes.includes(student.class);
+  
+  // Check if launched for student's school
+  const launchedForSchool = student.schoolId && 
+    quiz.launched_for_school && 
+    quiz.launched_for_school === student.schoolId.toString();
+  
+  // Check if launched globally (no specific class or school)
+  const launchedGlobally = !quiz.launched_for_classes?.length && 
+    !quiz.launched_for_school;
+  
+  return launchedForClass || launchedForSchool || launchedGlobally;
+}
+
 // Helper function to calculate progressive score
 function calculateProgressiveScore(attempt, quiz, timeElapsedSeconds) {
   const totalQuestions = 20;
@@ -616,16 +635,7 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
     }
 
     // Check if quiz is launched for student's class or school
-    const isLaunchedForStudent = (
-      // Launched for student's specific class (check class exists first)
-      (student.class && quiz.launched_for_classes && quiz.launched_for_classes.includes(student.class)) ||
-      // Launched for student's school (placement quizzes)
-      (student.schoolId && quiz.launched_for_school && quiz.launched_for_school === student.schoolId.toString()) ||
-      // Launched globally (empty arrays/null school)
-      (!quiz.launched_for_classes?.length && !quiz.launched_for_school)
-    );
-
-    if (!isLaunchedForStudent) {
+    if (!isQuizAvailableForStudent(quiz, student)) {
       return res.status(403).json({
         success: false,
         error: '🔒 This quiz has not been enabled for your class. Please ask your teacher to enable it.'
