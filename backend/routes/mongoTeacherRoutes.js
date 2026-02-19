@@ -655,7 +655,9 @@ router.get('/available-topics', async (req, res) => {
     const topics = await Quiz.distinct('topic', query);
     
     // Filter out empty topics and sort
-    const filteredTopics = topics.filter(t => t && t.trim() !== '').sort();
+    const filteredTopics = topics
+      .filter(t => t && t.trim() !== '')
+      .sort();
 
     res.json({ success: true, topics: filteredTopics });
   } catch (error) {

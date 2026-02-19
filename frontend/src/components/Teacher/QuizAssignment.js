@@ -233,6 +233,12 @@ export default function QuizAssignment() {
     return topicQuizzes.some(q => q.is_launched);
   };
 
+  // Helper to check if topic is partially launched (some quizzes launched, some not)
+  const isTopicPartiallyLaunched = (topicQuizzes) => {
+    const launched = topicQuizzes.filter(q => q.is_launched).length;
+    return launched > 0 && launched < topicQuizzes.length;
+  };
+
   const styles = {
     container: { minHeight: '100vh', background: 'linear-gradient(135deg, #e8eef5 0%, #dce4f0 100%)', padding: '32px' },
     content: { maxWidth: '1200px', margin: '0 auto' },
@@ -316,16 +322,43 @@ export default function QuizAssignment() {
             {Object.entries(getQuizzesByTopic()).map(([topic, topicQuizzes]) => {
               const isLaunched = isTopicLaunched(topicQuizzes);
               const launchedByMe = isTopicLaunchedByMe(topicQuizzes);
+              const isPartial = isTopicPartiallyLaunched(topicQuizzes);
               const quizLevels = topicQuizzes.map(q => q.quiz_level).filter(Boolean).sort((a, b) => a - b);
+              
+              // Format level display (e.g., "1-3, 5, 7-9" instead of "1, 2, 3, 5, 7, 8, 9")
+              const formatLevels = (levels) => {
+                if (levels.length === 0) return '';
+                const ranges = [];
+                let start = levels[0];
+                let end = levels[0];
+                
+                for (let i = 1; i <= levels.length; i++) {
+                  if (i < levels.length && levels[i] === end + 1) {
+                    end = levels[i];
+                  } else {
+                    ranges.push(start === end ? `${start}` : `${start}-${end}`);
+                    if (i < levels.length) {
+                      start = levels[i];
+                      end = levels[i];
+                    }
+                  }
+                }
+                return ranges.join(', ');
+              };
               
               return (
                 <div key={topic} style={styles.topicCard}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                       <span style={styles.topicBadge}>📚 {topic}</span>
                       <span style={{ ...styles.badge, ...(isLaunched ? styles.activeBadge : styles.inactiveBadge) }}>
                         {isLaunched ? '✓ Active' : '✗ Inactive'}
                       </span>
+                      {isPartial && (
+                        <span style={{ ...styles.badge, background: '#fef3c7', color: '#92400e' }}>
+                          ⚠️ Partial
+                        </span>
+                      )}
                     </div>
                   </div>
                   
@@ -335,7 +368,12 @@ export default function QuizAssignment() {
                     </p>
                     {quizLevels.length > 0 && (
                       <p style={{ margin: '4px 0' }}>
-                        Levels: {quizLevels.join(', ')}
+                        Levels: {formatLevels(quizLevels)}
+                      </p>
+                    )}
+                    {isPartial && (
+                      <p style={{ margin: '4px 0', color: '#d97706', fontSize: '13px' }}>
+                        Some quizzes are launched, some are not. View individual quizzes for details.
                       </p>
                     )}
                   </div>
@@ -373,15 +411,18 @@ export default function QuizAssignment() {
               return (
                 <div key={quiz._id} style={styles.card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h3 style={styles.cardTitle}>
-                      {quiz.topic && <span style={{ color: '#3b82f6' }}>{quiz.topic} - </span>}
-                      {quiz.quiz_level && <span style={styles.levelBadge}>Level {quiz.quiz_level}</span>}
-                    </h3>
+                    <div>
+                      <h3 style={styles.cardTitle}>
+                        {quiz.topic && <span style={{ color: '#3b82f6', marginRight: '8px' }}>{quiz.topic}</span>}
+                        {quiz.quiz_level && <span style={styles.levelBadge}>Level {quiz.quiz_level}</span>}
+                      </h3>
+                      <p style={{ fontSize: '12px', color: '#9ca3af', margin: '4px 0 0 0' }}>{quiz.title}</p>
+                    </div>
                     <span style={{ ...styles.badge, ...(isLaunched ? styles.activeBadge : styles.inactiveBadge) }}>
                       {isLaunched ? '✓ Active' : '✗ Inactive'}
                     </span>
                   </div>
-                  <p style={styles.cardDesc}>{quiz.description || quiz.title}</p>
+                  <p style={styles.cardDesc}>{quiz.description || 'Adaptive quiz'}</p>
                   <div style={{ fontSize: '13px', color: '#6b7280' }}>
                     <p style={{ margin: '4px 0' }}>Type: {quiz.quiz_type || 'adaptive'}</p>
                     <p style={{ margin: '4px 0' }}>Questions: {quiz.questions?.length || 0}</p>
