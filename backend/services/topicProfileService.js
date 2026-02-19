@@ -4,7 +4,7 @@
  */
 
 const TopicProfile = require('../models/TopicProfile');
-const { calculateQuizResults } = require('./scoringUtils');
+const { calculateQuizResults } = require('../utils/scoringUtils');
 
 /**
  * Update or create topic profile after quiz completion
