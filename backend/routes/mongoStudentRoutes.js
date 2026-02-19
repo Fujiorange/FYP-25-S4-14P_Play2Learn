@@ -862,6 +862,9 @@ router.post("/placement-quiz/submit", async (req, res) => {
     else if (quiz.percentage >= 10) startingProfile = 2;  // 10-19% → Level 2
     else startingProfile = 1;                             // 0-9% → Level 1
 
+    // ✅ CAP placement to maximum Level 3 (starting level 1 + 2)
+    startingProfile = Math.min(startingProfile, 3);
+
     // ✅ Track placement completion by topic
     if (!mathProfile.placement_by_topic) {
       mathProfile.placement_by_topic = new Map();
