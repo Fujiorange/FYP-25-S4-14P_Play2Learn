@@ -1,11 +1,12 @@
 // PlacementQuiz.js - Topic-Based Placement Quiz (First Time) - WITH TOPIC SELECTION
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import authService from '../../services/authService';
 import studentService from '../../services/studentService';
 
 export default function PlacementQuiz() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [quizData, setQuizData] = useState(null);
   const [answers, setAnswers] = useState([]);
@@ -28,6 +29,10 @@ export default function PlacementQuiz() {
 
       try {
         console.log('📡 Loading available placement topics...');
+        
+        // Check if topic was passed via URL
+        const topicFromUrl = searchParams.get('topic');
+        
         const result = await studentService.getPlacementTopics();
         console.log('📥 Topics result:', result);
 
@@ -42,6 +47,10 @@ export default function PlacementQuiz() {
               setError('⏳ No placement quizzes have been launched yet. Please ask your teacher.');
             }
             setTimeout(() => navigate('/student/quiz/attempt'), 3000);
+          } else if (topicFromUrl && result.availableTopics.includes(topicFromUrl)) {
+            // Auto-select topic from URL if it's available
+            console.log('🎯 Auto-selecting topic from URL:', topicFromUrl);
+            handleTopicSelect(topicFromUrl);
           }
         } else {
           setError(result.error || 'Failed to load topics');
@@ -55,7 +64,7 @@ export default function PlacementQuiz() {
     };
 
     loadTopics();
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   const handleTopicSelect = async (topic) => {
     setSelectedTopic(topic);

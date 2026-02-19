@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const API_BASE_URL =
   process.env.REACT_APP_API_URL ||
@@ -7,20 +7,28 @@ const API_BASE_URL =
 
 function QuizJourney() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentLevel, setCurrentLevel] = useState(1);
   const [unlockedLevels, setUnlockedLevels] = useState([1]);
   const [hoveredLevel, setHoveredLevel] = useState(null);
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [availableTopics, setAvailableTopics] = useState([]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    // Get topic from URL if present
+    const topicFromUrl = searchParams.get('topic');
+    if (topicFromUrl) {
+      setSelectedTopic(topicFromUrl);
+    }
+    fetchData(topicFromUrl);
+  }, [searchParams]);
 
   const getToken = () => localStorage.getItem('token');
 
-  const fetchData = async () => {
+  const fetchData = async (filterTopic = null) => {
     try {
       // Get student's current level
       const levelResponse = await fetch(`${API_BASE_URL}/api/adaptive-quiz/student/current-level`, {
@@ -43,8 +51,24 @@ function QuizJourney() {
       const quizzesData = await quizzesRes.json();
 
       if (quizzesData.success) {
-        const sortedQuizzes = quizzesData.data.sort((a, b) => a.quiz_level - b.quiz_level);
+        let quizList = quizzesData.data;
+        
+        // Filter by topic if specified
+        if (filterTopic) {
+          quizList = quizList.filter(q => q.topic === filterTopic);
+          console.log(`🎯 Filtered to topic: ${filterTopic}, ${quizList.length} quizzes`);
+        }
+        
+        // Get unique topics for dropdown
+        const topics = [...new Set(quizzesData.data.map(q => q.topic).filter(Boolean))];
+        setAvailableTopics(topics);
+        
+        const sortedQuizzes = quizList.sort((a, b) => a.quiz_level - b.quiz_level);
         setQuizzes(sortedQuizzes);
+        
+        if (sortedQuizzes.length === 0 && filterTopic) {
+          setError(`No quizzes available for ${filterTopic}`);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -334,19 +358,72 @@ function QuizJourney() {
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerContent}>
-          <h1 style={styles.title}>🎮 Quiz Journey</h1>
+          <h1 style={styles.title}>
+            🎮 Quiz Journey
+            {selectedTopic && (
+              <span style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                marginLeft: '12px',
+                padding: '8px 16px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: 'white',
+                borderRadius: '20px'
+              }}>
+                {selectedTopic === 'Addition' && '➕'}
+                {selectedTopic === 'Subtraction' && '➖'}
+                {selectedTopic === 'Multiplication' && '✖️'}
+                {selectedTopic === 'Division' && '➗'}
+                {' '}{selectedTopic}
+              </span>
+            )}
+          </h1>
           <p style={styles.subtitle}>
-            Complete each level to unlock the next adventure!
+            {selectedTopic 
+              ? `Complete each ${selectedTopic} level to unlock the next!`
+              : 'Complete each level to unlock the next adventure!'}
           </p>
         </div>
-        <button 
-          style={styles.backButton}
-          onClick={() => navigate('/student')}
-          onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-          onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-        >
-          ← Back to Dashboard
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {selectedTopic && availableTopics.length > 1 && (
+            <select
+              style={{
+                padding: '12px 20px',
+                background: 'white',
+                border: '2px solid #e5e7eb',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                color: '#1f2937'
+              }}
+              value={selectedTopic}
+              onChange={(e) => {
+                const newTopic = e.target.value;
+                setSelectedTopic(newTopic);
+                navigate(`/student/quiz-journey?topic=${encodeURIComponent(newTopic)}`);
+              }}
+            >
+              {availableTopics.map(topic => (
+                <option key={topic} value={topic}>
+                  {topic === 'Addition' && '➕ '}
+                  {topic === 'Subtraction' && '➖ '}
+                  {topic === 'Multiplication' && '✖️ '}
+                  {topic === 'Division' && '➗ '}
+                  {topic}
+                </option>
+              ))}
+            </select>
+          )}
+          <button 
+            style={styles.backButton}
+            onClick={() => navigate('/student/quiz/attempt')}
+            onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+          >
+            ← Back to Quizzes
+          </button>
+        </div>
       </div>
 
       {error && <div style={styles.errorMessage}>⚠️ {error}</div>}
