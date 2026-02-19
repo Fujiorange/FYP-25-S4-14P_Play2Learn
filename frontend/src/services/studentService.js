@@ -184,12 +184,16 @@ const studentService = {
       const token = localStorage.getItem('token');
       if (!token) return { success: false, error: 'Not authenticated' };
 
-      const response = await fetch(`${API_URL}/mongo/student/math-skills`, {
+      // ✅ Updated to use new my-skills endpoint
+      const response = await fetch(`${API_URL}/mongo/student/my-skills`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error('Failed to fetch math skills');
-      return await response.json();
+      const data = await response.json();
+      
+      // Return skills array from response
+      return { success: data.success, skills: data.skills || [] };
     } catch (error) {
       console.error('getMathSkills error:', error);
       return { success: false, error: 'Failed to load math skills' };
