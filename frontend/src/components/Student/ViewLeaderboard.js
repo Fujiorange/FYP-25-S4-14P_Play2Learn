@@ -316,25 +316,41 @@ export default function ViewLeaderboard() {
           </div>
 
           {/* Topic Selection (only for by-topic view) */}
-          {leaderboardType === 'by-topic' && availableTopics.length > 0 && (
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '16px' }}>
-              <span style={{ fontSize: '14px', fontWeight: '600', color: '#6b7280' }}>Topic:</span>
-              <select 
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  border: '2px solid #e5e7eb',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  background: 'white'
-                }}
-                value={selectedTopic}
-                onChange={(e) => setSelectedTopic(e.target.value)}
-              >
-                {availableTopics.map(topic => (
-                  <option key={topic} value={topic}>{topic}</option>
-                ))}
-              </select>
+          {leaderboardType === 'by-topic' && (
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '16px', padding: '12px', background: '#f9fafb', borderRadius: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Select Topic to View Rankings:
+              </span>
+              {availableTopics.length > 0 ? (
+                <select 
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '2px solid #e5e7eb',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    background: 'white',
+                    color: '#1f2937'
+                  }}
+                  value={selectedTopic}
+                  onChange={(e) => setSelectedTopic(e.target.value)}
+                >
+                  {availableTopics.map(topic => (
+                    <option key={topic} value={topic}>
+                      {topic === 'Addition' && '➕ Addition'}
+                      {topic === 'Subtraction' && '➖ Subtraction'}
+                      {topic === 'Multiplication' && '✖️ Multiplication'}
+                      {topic === 'Division' && '➗ Division'}
+                      {!['Addition', 'Subtraction', 'Multiplication', 'Division'].includes(topic) && `📚 ${topic}`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span style={{ fontSize: '14px', color: '#6b7280', fontStyle: 'italic' }}>
+                  No topics available yet
+                </span>
+              )}
             </div>
           )}
           
