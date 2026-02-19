@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const Quiz = require('../models/Quiz');
 const QuizAttempt = require('../models/QuizAttempt');
 const User = require('../models/User');
+const Class = require('../models/Class');
 const MathSkill = require('../models/MathSkill');
 const MathProfile = require('../models/MathProfile');
 const SkillPointsConfig = require('../models/SkillPointsConfig');
@@ -403,10 +404,41 @@ router.get('/quizzes', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
     
-    const quizzes = await Quiz.find({ 
+    // Get student info to check class and school
+    const student = await User.findById(userId);
+    if (!student) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Student not found' 
+      });
+    }
+
+    // Build query to get quizzes available for this student's class
+    let query = { 
       quiz_type: 'adaptive',
-      is_active: true
-    })
+      is_active: true,
+      is_launched: true  // Only show launched quizzes
+    };
+
+    // If student is in a class, filter by class or show quizzes launched for their school
+    if (student.class || student.schoolId) {
+      query.$or = [
+        // Quizzes launched for student's specific class
+        { launched_for_classes: student.class },
+        // Quizzes launched for student's school (placement quizzes)
+        { launched_for_school: student.schoolId?.toString() },
+        // Quizzes launched globally (empty launched_for_classes and launched_for_school)
+        { 
+          launched_for_classes: { $size: 0 },
+          $or: [
+            { launched_for_school: null },
+            { launched_for_school: { $exists: false } }
+          ]
+        }
+      ];
+    }
+    
+    const quizzes = await Quiz.find(query)
     .select('title description adaptive_config questions createdAt quiz_type is_launched launched_at launch_start_date launch_end_date launched_for_classes quiz_level')
     .sort({ quiz_level: 1 })
     .lean();
@@ -507,15 +539,93 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
       });
     }
 
+    // Get student info for class and school validation
+    const student = await User.findById(userId);
+    if (!student) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Student profile not found' 
+      });
+    }
+
+    // Validation for Placement Quiz (Level 1)
+    if (quizLevel === 1) {
+      console.log(`🎯 Placement quiz access check for student ${userId}`);
+      
+      // Check if student is in a class
+      if (!student.class) {
+        return res.status(403).json({
+          success: false,
+          error: '🔒 Placement quiz requires class enrollment. Please contact your school administrator to be assigned to a class.'
+        });
+      }
+
+      // Check if the class has an active teacher
+      const classDoc = await Class.findOne({ 
+        class_name: student.class,
+        school_id: student.schoolId 
+      });
+
+      if (!classDoc) {
+        return res.status(403).json({
+          success: false,
+          error: '🔒 Your class could not be found. Please contact your school administrator.'
+        });
+      }
+
+      // Check if class has active teachers
+      if (!classDoc.teachers || classDoc.teachers.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: '🔒 Placement quiz requires an active teacher. Your class does not have a teacher assigned yet. Please contact your school administrator.'
+        });
+      }
+
+      // Verify at least one teacher is active
+      const activeTeachers = await User.find({
+        _id: { $in: classDoc.teachers },
+        accountActive: true,
+        role: { $in: ['Teacher', 'Trial Teacher'] }
+      });
+
+      if (activeTeachers.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: '🔒 Placement quiz requires an active teacher. Your class teachers are not active. Please contact your school administrator.'
+        });
+      }
+
+      console.log(`✅ Placement quiz validation passed: Student in class "${student.class}" with ${activeTeachers.length} active teacher(s)`);
+    }
+
+    // Validation for Adaptive Quizzes (Level 2+)
+    // Check if quiz is launched/enabled for student's class
+    if (!quiz.is_launched) {
+      return res.status(403).json({
+        success: false,
+        error: '🔒 This quiz has not been enabled yet. Please ask your teacher to enable it for your class.'
+      });
+    }
+
+    // Check if quiz is launched for student's class or school
+    const isLaunchedForStudent = (
+      // Launched for student's specific class
+      (quiz.launched_for_classes && quiz.launched_for_classes.includes(student.class)) ||
+      // Launched for student's school (placement quizzes)
+      (quiz.launched_for_school && quiz.launched_for_school === student.schoolId?.toString()) ||
+      // Launched globally (empty arrays/null school)
+      (!quiz.launched_for_classes?.length && !quiz.launched_for_school)
+    );
+
+    if (!isLaunchedForStudent) {
+      return res.status(403).json({
+        success: false,
+        error: '🔒 This quiz has not been enabled for your class. Please ask your teacher to enable it.'
+      });
+    }
+
     console.log(`✅ Access GRANTED: Student can access Level ${quizLevel}`);
 
-    if (!quiz.is_launched) {
-      console.log(`🚀 Auto-launching quiz level ${quizLevel} for student ${userId}`);
-      quiz.is_launched = true;
-      quiz.launched_at = new Date();
-      quiz.launched_by = userId;
-      await quiz.save();
-    }
 
     const existingAttempt = await QuizAttempt.findOne({
       userId,

@@ -690,19 +690,16 @@ router.post('/launch-quiz', async (req, res) => {
       });
     }
 
-    // Step 3: Convert valid names back to IDs for storage
-    const validClassIds = validClassNames.map(name =>
-      nameToIdMap[name.toLowerCase()]
-    ).filter(id => id);
-
-    console.log('🎯 Valid class IDs for storage:', validClassIds);
+    // Step 3: Convert valid names to store (we'll store names, not IDs, for consistency)
+    console.log('✅ Valid class names for storage:', validClassNames);
     // === END FIX ===
 
     // Update quiz with launch info
     quiz.is_launched = true;
     quiz.launched_by = req.user.userId;
     quiz.launched_at = new Date();
-    quiz.launched_for_classes = validClassIds; // Store IDs
+    quiz.launched_for_classes = validClassNames; // Store class names for easy matching
+    quiz.launched_for_school = teacher.schoolId?.toString() || null; // Add school ID
     quiz.launch_start_date = startDate ? new Date(startDate) : new Date();
     quiz.launch_end_date = endDate ? new Date(endDate) : null;
 
@@ -715,6 +712,7 @@ router.post('/launch-quiz', async (req, res) => {
         _id: quiz._id,
         title: quiz.title,
         launched_for_classes: validClassNames,
+        launched_for_school: quiz.launched_for_school,
         launch_start_date: quiz.launch_start_date,
         launch_end_date: quiz.launch_end_date
       }
