@@ -1,12 +1,13 @@
 // Quiz Manager Component
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { getQuizzes, generateQuiz, updateQuiz, deleteQuiz, getQuestions } from '../../services/p2lAdminService';
+import { getQuizzes, generateQuiz, updateQuiz, deleteQuiz, getQuestions, getQuestionTopics } from '../../services/p2lAdminService';
 import './QuizManager.css';
 
 function QuizManager() {
   const [quizzes, setQuizzes] = useState([]);
   const [questions, setQuestions] = useState([]);
+  const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState(null);
@@ -16,6 +17,7 @@ function QuizManager() {
   });
   const [formData, setFormData] = useState({
     quiz_level: 1,
+    topic: '',
     student_id: null,
     trigger_reason: 'manual'
   });
@@ -26,12 +28,14 @@ function QuizManager() {
 
   const fetchData = async () => {
     try {
-      const [quizzesRes, questionsRes] = await Promise.all([
+      const [quizzesRes, questionsRes, topicsRes] = await Promise.all([
         getQuizzes(),
-        getQuestions()
+        getQuestions(),
+        getQuestionTopics()
       ]);
       setQuizzes(quizzesRes.data || []);
       setQuestions(questionsRes.data || []);
+      setTopics(topicsRes.data || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       alert('Failed to load data');
@@ -68,8 +72,15 @@ function QuizManager() {
     } else {
       // For generating new quiz
       try {
+        // Validate topic is selected
+        if (!formData.topic || formData.topic.trim() === '') {
+          alert('Please select a topic');
+          return;
+        }
+        
         const result = await generateQuiz({
           quiz_level: parseInt(formData.quiz_level),
+          topic: formData.topic,
           student_id: formData.student_id || null,
           trigger_reason: 'manual'
         });
@@ -78,6 +89,7 @@ function QuizManager() {
         setShowForm(false);
         setFormData({
           quiz_level: 1,
+          topic: '',
           student_id: null,
           trigger_reason: 'manual'
         });
@@ -114,6 +126,7 @@ function QuizManager() {
     setEditingQuiz(null);
     setFormData({
       quiz_level: 1,
+      topic: '',
       student_id: null,
       trigger_reason: 'manual'
     });
@@ -202,6 +215,26 @@ function QuizManager() {
             ) : (
               <form onSubmit={handleSubmit}>
                 <div className="form-group">
+                  <label>Topic *</label>
+                  <select
+                    name="topic"
+                    value={formData.topic}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Select a topic...</option>
+                    {topics.map((topic) => (
+                      <option key={topic} value={topic}>
+                        {topic}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="help-text">
+                    Select the topic for which to generate a quiz. Each topic should have questions at multiple levels.
+                  </p>
+                </div>
+
+                <div className="form-group">
                   <label>Quiz Level *</label>
                   <select
                     name="quiz_level"
@@ -221,14 +254,14 @@ function QuizManager() {
                     <option value={10}>Quiz Level 10</option>
                   </select>
                   <p className="help-text">
-                    Select the quiz level for which to generate a quiz. The system will automatically include ALL questions from the selected quiz level with adaptive difficulty progression.
+                    Select the quiz level for which to generate a quiz. The system will automatically include ALL questions from the selected topic and quiz level with adaptive difficulty progression.
                   </p>
                 </div>
 
                 <div className="info-box">
                   <h4>✨ Auto-Generation Features</h4>
                   <ul>
-                    <li>✅ All questions from the selected quiz level</li>
+                    <li>✅ All questions from the selected topic and quiz level</li>
                     <li>✅ Questions selected with freshness weighting</li>
                     <li>✅ Adaptive difficulty progression</li>
                     <li>✅ Unique sequence for each generation</li>
@@ -260,6 +293,9 @@ function QuizManager() {
                 {quiz.is_auto_generated && (
                   <span className="badge auto-generated-badge">✨ Auto-generated</span>
                 )}
+                {quiz.topic && (
+                  <span className="badge topic-badge">📚 {quiz.topic}</span>
+                )}
                 {quiz.quiz_level && (
                   <span className="badge level-badge">Level {quiz.quiz_level}</span>
                 )}
@@ -268,6 +304,9 @@ function QuizManager() {
               <p className="quiz-description">{quiz.description || 'No description'}</p>
               <div className="quiz-meta">
                 <p>Questions: {quiz.questions?.length || 0}</p>
+                {quiz.topic && (
+                  <p>Topic: {quiz.topic}</p>
+                )}
                 {quiz.generation_criteria && (
                   <p>Generated: {quiz.generation_criteria}</p>
                 )}
