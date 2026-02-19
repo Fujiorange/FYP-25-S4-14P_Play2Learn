@@ -5,6 +5,7 @@ const studentQuizSchema = new mongoose.Schema({
   quiz_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' }, // Reference to P2L Admin created quiz
   quiz_type: { type: String, enum: ['placement', 'regular'], required: true },
   profile_level: { type: Number, required: true },
+  topic: { type: String, default: '' }, // ✅ NEW: Topic for placement quiz (Addition, Subtraction, etc.)
   questions: [
     {
       question_text: String,

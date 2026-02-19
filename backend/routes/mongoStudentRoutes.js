@@ -577,9 +577,12 @@ router.get("/math-skills", async (req, res) => {
 });
 
 // ==================== PLACEMENT QUIZ - STATUS ====================
+// ==================== PLACEMENT QUIZ - STATUS ====================
+// ✅ NEW: Check placement status (supports topic-specific check)
 router.get("/placement-quiz/status", async (req, res) => {
   try {
     const studentId = req.user.userId;
+    const { topic } = req.query;
 
     let mathProfile = await MathProfile.findOne({ student_id: studentId });
     
@@ -588,16 +591,42 @@ router.get("/placement-quiz/status", async (req, res) => {
       return res.json({
         success: true,
         placementCompleted: false,
-        placement_completed: false
+        placement_completed: false,
+        byTopic: {}
       });
     }
 
-    // Return placement status
+    // If topic is specified, check that specific topic
+    if (topic) {
+      const topicPlacement = mathProfile.placement_by_topic?.get(topic.trim());
+      return res.json({
+        success: true,
+        placementCompleted: topicPlacement ? topicPlacement.completed : false,
+        placement_completed: topicPlacement ? topicPlacement.completed : false,
+        topic: topic.trim(),
+        level: topicPlacement ? topicPlacement.level : null,
+        completed_at: topicPlacement ? topicPlacement.completed_at : null
+      });
+    }
+
+    // Return overall placement status + breakdown by topic
+    const byTopic = {};
+    if (mathProfile.placement_by_topic && mathProfile.placement_by_topic.size > 0) {
+      for (const [topic, data] of mathProfile.placement_by_topic.entries()) {
+        byTopic[topic] = {
+          completed: data.completed,
+          level: data.level,
+          completed_at: data.completed_at
+        };
+      }
+    }
+
     res.json({
       success: true,
       placementCompleted: mathProfile.placement_completed || false,
       placement_completed: mathProfile.placement_completed || false,
-      current_profile: getDisplayLevel(mathProfile) // ✅ SHOW LEVEL 0 IF NO PLACEMENT
+      current_profile: getDisplayLevel(mathProfile), // ✅ SHOW LEVEL 0 IF NO PLACEMENT
+      byTopic: byTopic
     });
   } catch (error) {
     console.error("❌ Get placement status error:", error);
@@ -605,10 +634,87 @@ router.get("/placement-quiz/status", async (req, res) => {
   }
 });
 
+// ==================== PLACEMENT QUIZ - GET AVAILABLE TOPICS ====================
+// ✅ NEW: Get topics available for placement quiz (based on launched Level 1 quizzes)
+router.get("/placement-quiz/topics", async (req, res) => {
+  try {
+    const studentId = req.user.userId;
+    
+    // Get student info for class checking
+    const student = await User.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Student profile not found' 
+      });
+    }
+
+    // Get all unique topics from Quiz Level 1 questions
+    const Question = mongoose.model('Question');
+    const topics = await Question.distinct('topic', { 
+      is_active: true, 
+      quiz_level: 1,
+      topic: { $ne: '', $ne: null }  // Exclude empty topics
+    });
+
+    // Get launched quizzes for this student's class (Level 1 only)
+    const launchedQuizzes = await Quiz.find({
+      quiz_level: 1,
+      is_launched: true,
+      is_active: true,
+      $or: [
+        { launched_for_classes: student.class },
+        { launched_for_school: student.schoolId?.toString() }
+      ]
+    }).select('topic');
+
+    const launchedTopics = launchedQuizzes
+      .map(q => q.topic)
+      .filter(t => t && t.trim() !== '');
+
+    // Get placement status for topics
+    const mathProfile = await MathProfile.findOne({ student_id: studentId });
+    const completedTopics = [];
+    
+    if (mathProfile && mathProfile.placement_by_topic) {
+      for (const [topic, data] of mathProfile.placement_by_topic.entries()) {
+        if (data.completed) {
+          completedTopics.push(topic);
+        }
+      }
+    }
+
+    console.log(`📚 Available topics for placement: ${topics.length} total, ${launchedTopics.length} launched`);
+
+    res.json({
+      success: true,
+      allTopics: topics.sort(),
+      launchedTopics: [...new Set(launchedTopics)].sort(), // Remove duplicates
+      completedTopics: completedTopics.sort(),
+      availableTopics: launchedTopics.filter(t => !completedTopics.includes(t)).sort()
+    });
+  } catch (error) {
+    console.error("❌ Get placement topics error:", error);
+    res.status(500).json({ success: false, error: "Failed to get placement topics" });
+  }
+});
+
 // ==================== PLACEMENT QUIZ - GENERATE ====================
+// ✅ NEW: Topic-based placement quiz - only uses Quiz Level 1 questions
 router.post("/placement-quiz/generate", async (req, res) => {
   try {
     const studentId = req.user.userId;
+    const { topic } = req.body;
+
+    // ✅ Validate topic is provided
+    if (!topic || typeof topic !== 'string' || topic.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: "Topic is required. Please select a topic for the placement quiz.",
+      });
+    }
+
+    const normalizedTopic = topic.trim();
 
     let mathProfile = await MathProfile.findOne({ student_id: studentId });
 
@@ -618,37 +724,51 @@ router.post("/placement-quiz/generate", async (req, res) => {
         current_profile: 0, // ✅ START AT LEVEL 0
         adaptive_quiz_level: 0, // ✅ START AT LEVEL 0
         placement_completed: false,
+        placement_by_topic: {},
         total_points: 0,
       });
     }
 
-    // BLOCK: Only allow placement quiz once per student
-    if (mathProfile.placement_completed) {
+    // ✅ Check if placement already completed for this topic
+    const topicPlacement = mathProfile.placement_by_topic?.get(normalizedTopic);
+    if (topicPlacement && topicPlacement.completed) {
       return res.status(400).json({
         success: false,
-        error: "Placement quiz already completed",
+        error: `Placement quiz for "${normalizedTopic}" already completed`,
       });
     }
 
-    // Pull 20 random questions from the shared question bank
+    // ✅ CRITICAL FIX: Pull ONLY Quiz Level 1 questions for the specified topic
     const Question = mongoose.model('Question');
     const randomQuestions = await Question.aggregate([
-      { $match: { is_active: true } },
+      { 
+        $match: { 
+          is_active: true,
+          quiz_level: 1,  // ✅ ONLY Level 1 questions
+          topic: normalizedTopic  // ✅ ONLY questions for selected topic
+        } 
+      },
       { $sample: { size: 20 } }
     ]);
 
     if (!randomQuestions || randomQuestions.length === 0) {
       return res.status(404).json({
         success: false,
-        error: "No active questions found. Please contact your administrator.",
+        error: `No Quiz Level 1 questions found for topic "${normalizedTopic}". Please contact your administrator.`,
       });
     }
 
-    // Create a student quiz attempt record using random questions
+    // ✅ Warn if fewer than 20 questions available
+    if (randomQuestions.length < 20) {
+      console.warn(`⚠️ Only ${randomQuestions.length} Quiz Level 1 questions available for topic "${normalizedTopic}"`);
+    }
+
+    // Create a student quiz attempt record using filtered questions
     const quiz = await StudentQuiz.create({
       student_id: studentId,
       quiz_type: "placement",
-      profile_level: 5,
+      profile_level: 1, // Placement is always for level 1
+      topic: normalizedTopic, // ✅ Store topic
       questions: randomQuestions.map(q => ({
         question_text: q.text || q.question_text,
         operation: 'general',
@@ -660,9 +780,12 @@ router.post("/placement-quiz/generate", async (req, res) => {
       total_questions: randomQuestions.length,
     });
 
+    console.log(`✅ Generated placement quiz for topic "${normalizedTopic}" with ${randomQuestions.length} Quiz Level 1 questions`);
+
     res.json({
       success: true,
       quiz_id: quiz._id,
+      topic: normalizedTopic,
       questions: randomQuestions.map((q) => ({ 
         question_text: q.text || q.question_text, 
         choices: q.choices,
@@ -724,6 +847,7 @@ router.post("/placement-quiz/submit", async (req, res) => {
     await quiz.save();
 
     const mathProfile = await MathProfile.findOne({ student_id: studentId });
+    const quizTopic = quiz.topic || 'General';
 
     let startingProfile = 1;
     // Map percentage score to profile level (1-10)
@@ -738,9 +862,25 @@ router.post("/placement-quiz/submit", async (req, res) => {
     else if (quiz.percentage >= 10) startingProfile = 2;  // 10-19% → Level 2
     else startingProfile = 1;                             // 0-9% → Level 1
 
-    // ✅ Set BOTH fields for Quiz Journey unlocking
-    mathProfile.current_profile = startingProfile;
-    mathProfile.adaptive_quiz_level = startingProfile;
+    // ✅ Track placement completion by topic
+    if (!mathProfile.placement_by_topic) {
+      mathProfile.placement_by_topic = new Map();
+    }
+    
+    mathProfile.placement_by_topic.set(quizTopic, {
+      completed: true,
+      level: startingProfile,
+      completed_at: new Date()
+    });
+
+    // ✅ Set BOTH fields for Quiz Journey unlocking (use highest level from all topics)
+    const allTopicLevels = Array.from(mathProfile.placement_by_topic.values()).map(t => t.level);
+    const highestLevel = Math.max(startingProfile, ...allTopicLevels);
+    
+    mathProfile.current_profile = highestLevel;
+    mathProfile.adaptive_quiz_level = highestLevel;
+    
+    // Mark global placement_completed as true after first topic
     mathProfile.placement_completed = true;
     mathProfile.total_points += quiz.points_earned;
     
@@ -751,8 +891,10 @@ router.post("/placement-quiz/submit", async (req, res) => {
     await mathProfile.save();
 
     console.log(`✅ Placement quiz completed for student ${studentId}:`);
+    console.log(`   - Topic: ${quizTopic}`);
     console.log(`   - Score: ${score}/${totalQuestions} (${quiz.percentage}%)`);
-    console.log(`   - Assigned Level: ${startingProfile}`);
+    console.log(`   - Assigned Level for ${quizTopic}: ${startingProfile}`);
+    console.log(`   - Highest Level across topics: ${highestLevel}`);
     console.log(`   - current_profile: ${mathProfile.current_profile}`);
     console.log(`   - adaptive_quiz_level: ${mathProfile.adaptive_quiz_level}`);
     console.log(`   - Streak NOT updated (placement quiz doesn't count)`);

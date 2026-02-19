@@ -23,6 +23,17 @@ const mathProfileSchema = new mongoose.Schema({
     default: false 
   },
   
+  // ✅ NEW: Track placement completion per topic
+  placement_by_topic: {
+    type: Map,
+    of: {
+      completed: { type: Boolean, default: false },
+      level: { type: Number, min: 1, max: 10, default: 1 },
+      completed_at: { type: Date }
+    },
+    default: {}
+  },
+  
   total_points: { 
     type: Number, 
     default: 0 
