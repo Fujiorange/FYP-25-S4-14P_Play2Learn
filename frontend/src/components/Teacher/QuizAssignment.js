@@ -11,10 +11,11 @@ export default function QuizAssignment() {
   const [availableTopics, setAvailableTopics] = useState([]);
   const [myClasses, setMyClasses] = useState([]);
   const [showLaunchModal, setShowLaunchModal] = useState(false);
-  const [launchMode, setLaunchMode] = useState('topic'); // 'topic' or 'single'
+  const [launchMode, setLaunchMode] = useState('topic'); // 'topic', 'topic-levels', or 'single'
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [selectedClasses, setSelectedClasses] = useState([]);
+  const [selectedLevels, setSelectedLevels] = useState([]); // For level selection
   const [launching, setLaunching] = useState(false);
   const [viewMode, setViewMode] = useState('topics'); // 'topics' or 'quizzes'
 
@@ -90,12 +91,35 @@ export default function QuizAssignment() {
     setSelectedTopic(topic);
     setSelectedQuiz(null);
     setSelectedClasses([]);
+    setSelectedLevels([]);
     setShowLaunchModal(true);
+  };
+
+  const openTopicLevelsModal = (topic) => {
+    setLaunchMode('topic-levels');
+    setSelectedTopic(topic);
+    setSelectedQuiz(null);
+    setSelectedClasses([]);
+    setSelectedLevels([]);
+    setShowLaunchModal(true);
+  };
+
+  const toggleLevelSelection = (level) => {
+    setSelectedLevels(prev => 
+      prev.includes(level) 
+        ? prev.filter(l => l !== level)
+        : [...prev, level]
+    );
   };
 
   const handleLaunchQuiz = async () => {
     if (selectedClasses.length === 0) {
       alert('Please select at least one class');
+      return;
+    }
+
+    if (launchMode === 'topic-levels' && selectedLevels.length === 0) {
+      alert('Please select at least one level');
       return;
     }
 
@@ -113,6 +137,20 @@ export default function QuizAssignment() {
           },
           body: JSON.stringify({
             topic: selectedTopic,
+            classes: selectedClasses
+          })
+        });
+      } else if (launchMode === 'topic-levels') {
+        // Launch specific levels for a topic
+        response = await fetch(`${API_BASE_URL}/api/mongo/teacher/launch-topic-levels`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${getToken()}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            topic: selectedTopic,
+            levels: selectedLevels,
             classes: selectedClasses
           })
         });
@@ -379,12 +417,20 @@ export default function QuizAssignment() {
                   </div>
 
                   {!isLaunched ? (
-                    <button 
-                      style={styles.btnPrimary}
-                      onClick={() => openTopicLaunchModal(topic)}
-                    >
-                      Launch Topic (All Levels)
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                      <button 
+                        style={styles.btnPrimary}
+                        onClick={() => openTopicLaunchModal(topic)}
+                      >
+                        🚀 Launch All Levels (1-10)
+                      </button>
+                      <button 
+                        style={{ ...styles.btnPrimary, background: '#8b5cf6' }}
+                        onClick={() => openTopicLevelsModal(topic)}
+                      >
+                        🎯 Launch Specific Levels
+                      </button>
+                    </div>
                   ) : launchedByMe ? (
                     <button 
                       style={styles.btnDanger}
@@ -468,19 +514,62 @@ export default function QuizAssignment() {
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h2 style={styles.modalTitle}>
               {launchMode === 'topic' 
-                ? `Launch Topic: ${selectedTopic}` 
+                ? `🚀 Launch All Levels: ${selectedTopic}` 
+                : launchMode === 'topic-levels'
+                ? `🎯 Launch Specific Levels: ${selectedTopic}`
                 : `Launch Quiz: ${selectedQuiz?.title}`}
             </h2>
             <p style={{ marginBottom: '16px', color: '#6b7280' }}>
               {launchMode === 'topic'
                 ? `This will launch all quizzes (levels 1-10) for topic "${selectedTopic}" for the selected classes.`
+                : launchMode === 'topic-levels'
+                ? `Select specific levels to launch for topic "${selectedTopic}".`
                 : 'Select the classes you want to launch this quiz for:'}
             </p>
             
+            {/* Level Selection (only for topic-levels mode) */}
+            {launchMode === 'topic-levels' && (
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1f2937' }}>
+                  Select Levels to Launch:
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => (
+                    <button
+                      key={level}
+                      onClick={() => toggleLevelSelection(level)}
+                      style={{
+                        padding: '12px',
+                        border: selectedLevels.includes(level) ? '2px solid #3b82f6' : '2px solid #e5e7eb',
+                        background: selectedLevels.includes(level) ? '#dbeafe' : 'white',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '14px',
+                        color: selectedLevels.includes(level) ? '#1e40af' : '#6b7280',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      L{level}
+                    </button>
+                  ))}
+                </div>
+                {selectedLevels.length > 0 && (
+                  <p style={{ marginTop: '8px', fontSize: '13px', color: '#3b82f6' }}>
+                    ✓ Selected: Level {selectedLevels.sort((a, b) => a - b).join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+            
+            {/* Class Selection */}
             {myClasses.length === 0 ? (
               <p style={{ color: '#ef4444' }}>No classes assigned to you</p>
             ) : (
               <div>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1f2937' }}>
+                  Select Classes:
+                </h3>
                 {myClasses.map((classItem) => {
                   // Now all classes have class_name property due to normalization
                   const className = classItem.class_name;
