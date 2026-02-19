@@ -12,6 +12,13 @@ export default function StudentLeaderboard() {
   const [myClasses, setMyClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState('all');
   const [error, setError] = useState('');
+  
+  // ✅ NEW: Topic-based leaderboard state
+  const [viewMode, setViewMode] = useState('overall'); // 'overall', 'combined', 'by-topic'
+  const [availableTopics, setAvailableTopics] = useState([]);
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [topicLeaderboard, setTopicLeaderboard] = useState([]);
+  const [combinedLeaderboard, setCombinedLeaderboard] = useState([]);
 
   const getToken = () => localStorage.getItem('token');
 
@@ -77,6 +84,111 @@ export default function StudentLeaderboard() {
     finally { setLoading(false); }
   };
 
+  // ✅ NEW: Load available topics
+  const loadTopics = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/mongo/teacher/leaderboard/topics`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setAvailableTopics(data.topics || []);
+        if (data.topics && data.topics.length > 0 && !selectedTopic) {
+          setSelectedTopic(data.topics[0]);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load topics:', e);
+    }
+  };
+
+  // ✅ NEW: Load topic-specific leaderboard
+  const loadTopicLeaderboard = async (topic, className = 'all') => {
+    if (!topic) return;
+    
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({ topic });
+      if (className && className !== 'all') {
+        params.append('className', className);
+      }
+      
+      const res = await fetch(`${API_BASE_URL}/api/mongo/teacher/leaderboard/by-topic?${params}`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setTopicLeaderboard(data.leaderboard || []);
+      } else {
+        setError(data.error || 'Failed to load topic leaderboard');
+      }
+    } catch (e) {
+      console.error('Failed to load topic leaderboard:', e);
+      setError('Failed to connect');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ NEW: Load combined leaderboard across all topics
+  const loadCombinedLeaderboard = async (className = 'all') => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (className && className !== 'all') {
+        params.append('className', className);
+      }
+      
+      const res = await fetch(`${API_BASE_URL}/api/mongo/teacher/leaderboard/combined?${params}`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setCombinedLeaderboard(data.leaderboard || []);
+      } else {
+        setError(data.error || 'Failed to load combined leaderboard');
+      }
+    } catch (e) {
+      console.error('Failed to load combined leaderboard:', e);
+      setError('Failed to connect');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ NEW: Handle view mode change
+  useEffect(() => {
+    if (viewMode === 'overall') {
+      loadData();
+    } else if (viewMode === 'by-topic') {
+      loadTopics();
+      if (selectedTopic) {
+        loadTopicLeaderboard(selectedTopic, selectedClass);
+      }
+    } else if (viewMode === 'combined') {
+      loadCombinedLeaderboard(selectedClass);
+    }
+  }, [viewMode]);
+
+  // ✅ NEW: Handle topic change
+  useEffect(() => {
+    if (viewMode === 'by-topic' && selectedTopic) {
+      loadTopicLeaderboard(selectedTopic, selectedClass);
+    }
+  }, [selectedTopic]);
+
+  // ✅ NEW: Handle class filter change for topic leaderboards
+  useEffect(() => {
+    if (viewMode === 'by-topic' && selectedTopic) {
+      loadTopicLeaderboard(selectedTopic, selectedClass);
+    } else if (viewMode === 'combined') {
+      loadCombinedLeaderboard(selectedClass);
+    }
+  }, [selectedClass]);
+
   const getRankDisplay = (rank) => {
     if (rank === 1) return '🥇';
     if (rank === 2) return '🥈';
@@ -111,11 +223,20 @@ export default function StudentLeaderboard() {
     pointsCell: { fontWeight: '700', color: '#10b981', fontSize: '16px' },
     empty: { textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', color: '#6b7280' },
     error: { background: '#fee2e2', color: '#dc2626', padding: '16px', borderRadius: '12px', marginBottom: '24px', textAlign: 'center' },
+    // ✅ NEW: Tab styles
+    tabsContainer: { display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '2px solid #e5e7eb' },
+    tab: { padding: '12px 24px', background: 'transparent', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', fontWeight: '600', fontSize: '14px', color: '#6b7280', transition: 'all 0.2s' },
+    activeTab: { color: '#3b82f6', borderBottomColor: '#3b82f6' },
+    topicCard: { display: 'inline-block', padding: '6px 16px', background: '#e0e7ff', color: '#3730a3', borderRadius: '16px', fontSize: '14px', fontWeight: '600', marginBottom: '8px' },
   };
 
   if (loading) return <div style={styles.container}><div style={{ textAlign: 'center', marginTop: '100px', color: '#6b7280' }}>Loading leaderboard...</div></div>;
 
-  const top3 = filteredStudents.slice(0, 3);
+  // Determine current leaderboard data
+  const currentLeaderboard = viewMode === 'overall' ? filteredStudents : 
+                              viewMode === 'by-topic' ? topicLeaderboard :
+                              combinedLeaderboard;
+  const top3 = currentLeaderboard.slice(0, 3);
 
   return (
     <div style={styles.container}>
@@ -125,21 +246,56 @@ export default function StudentLeaderboard() {
             <h1 style={styles.title}>🏆 Class Leaderboard</h1>
             <button style={styles.backBtn} onClick={() => navigate('/teacher')}>← Back to Dashboard</button>
           </div>
+          
+          {/* ✅ NEW: View Mode Tabs */}
+          <div style={styles.tabsContainer}>
+            <button 
+              style={{...styles.tab, ...(viewMode === 'overall' ? styles.activeTab : {})}}
+              onClick={() => setViewMode('overall')}
+            >
+              📊 Overall Points
+            </button>
+            <button 
+              style={{...styles.tab, ...(viewMode === 'combined' ? styles.activeTab : {})}}
+              onClick={() => setViewMode('combined')}
+            >
+              📚 All Topics Combined
+            </button>
+            <button 
+              style={{...styles.tab, ...(viewMode === 'by-topic' ? styles.activeTab : {})}}
+              onClick={() => setViewMode('by-topic')}
+            >
+              🎯 By Topic
+            </button>
+          </div>
+          
+          {/* Filters Row */}
           <div style={styles.filterRow}>
             <span style={styles.filterLabel}>Filter by Class:</span>
             <select style={styles.select} value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
-              <option value="all">All Classes ({allStudents.length} students)</option>
-              {myClasses.map(cls => {
-                const count = allStudents.filter(s => s.className === cls).length;
-                return <option key={cls} value={cls}>{cls} ({count} students)</option>;
-              })}
+              <option value="all">All Classes</option>
+              {myClasses.map(cls => (
+                <option key={cls} value={cls}>{cls}</option>
+              ))}
             </select>
+            
+            {/* ✅ NEW: Topic selector for by-topic view */}
+            {viewMode === 'by-topic' && availableTopics.length > 0 && (
+              <>
+                <span style={styles.filterLabel}>Topic:</span>
+                <select style={styles.select} value={selectedTopic} onChange={(e) => setSelectedTopic(e.target.value)}>
+                  {availableTopics.map(topic => (
+                    <option key={topic} value={topic}>{topic}</option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
         </div>
 
         {error && <div style={styles.error}>⚠️ {error}</div>}
 
-        {!error && filteredStudents.length === 0 ? (
+        {!error && currentLeaderboard.length === 0 ? (
           <div style={styles.empty}>
             <p style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</p>
             <p style={{ fontSize: '18px', fontWeight: '500' }}>No students found</p>
@@ -154,24 +310,24 @@ export default function StudentLeaderboard() {
                   <div style={styles.podiumCard}>
                     <div style={styles.podiumRank}>🥈</div>
                     <div style={styles.podiumName}>{top3[1].name}</div>
-                    <div style={styles.podiumClass}>{top3[1].className}</div>
-                    <div style={styles.podiumPoints}>{top3[1].points || 0} pts</div>
+                    <div style={styles.podiumClass}>{top3[1].class || top3[1].className}</div>
+                    <div style={styles.podiumPoints}>{top3[1].totalPoints || top3[1].points || 0} pts</div>
                   </div>
                 )}
                 {top3[0] && (
                   <div style={{ ...styles.podiumCard, ...styles.podiumFirst }}>
                     <div style={styles.podiumRank}>🥇</div>
                     <div style={styles.podiumName}>{top3[0].name}</div>
-                    <div style={styles.podiumClass}>{top3[0].className}</div>
-                    <div style={styles.podiumPoints}>{top3[0].points || 0} pts</div>
+                    <div style={styles.podiumClass}>{top3[0].class || top3[0].className}</div>
+                    <div style={styles.podiumPoints}>{top3[0].totalPoints || top3[0].points || 0} pts</div>
                   </div>
                 )}
                 {top3[2] && (
                   <div style={styles.podiumCard}>
                     <div style={styles.podiumRank}>🥉</div>
                     <div style={styles.podiumName}>{top3[2].name}</div>
-                    <div style={styles.podiumClass}>{top3[2].className}</div>
-                    <div style={styles.podiumPoints}>{top3[2].points || 0} pts</div>
+                    <div style={styles.podiumClass}>{top3[2].class || top3[2].className}</div>
+                    <div style={styles.podiumPoints}>{top3[2].totalPoints || top3[2].points || 0} pts</div>
                   </div>
                 )}
               </div>
@@ -186,17 +342,41 @@ export default function StudentLeaderboard() {
                     <th style={styles.th}>Student</th>
                     <th style={styles.th}>Class</th>
                     <th style={styles.th}>Points</th>
-                    <th style={styles.th}>Level</th>
+                    {viewMode === 'overall' && <th style={styles.th}>Level</th>}
+                    {viewMode === 'by-topic' && (
+                      <>
+                        <th style={styles.th}>Accuracy</th>
+                        <th style={styles.th}>Quizzes</th>
+                      </>
+                    )}
+                    {viewMode === 'combined' && (
+                      <>
+                        <th style={styles.th}>Topics</th>
+                        <th style={styles.th}>Avg Accuracy</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStudents.map((s, i) => (
-                    <tr key={s._id}>
-                      <td style={{ ...styles.td, ...styles.rankCell }}>{getRankDisplay(i + 1)}</td>
+                  {currentLeaderboard.map((s, i) => (
+                    <tr key={s._id || s.userId}>
+                      <td style={{ ...styles.td, ...styles.rankCell }}>{getRankDisplay(s.rank || i + 1)}</td>
                       <td style={{ ...styles.td, ...styles.nameCell }}>{s.name}</td>
-                      <td style={styles.td}><span style={styles.classBadge}>{s.className}</span></td>
-                      <td style={{ ...styles.td, ...styles.pointsCell }}>{s.points || 0}</td>
-                      <td style={styles.td}>Lv {s.level || 1}</td>
+                      <td style={styles.td}><span style={styles.classBadge}>{s.class || s.className}</span></td>
+                      <td style={{ ...styles.td, ...styles.pointsCell }}>{s.totalPoints || s.points || 0}</td>
+                      {viewMode === 'overall' && <td style={styles.td}>Lv {s.level || 1}</td>}
+                      {viewMode === 'by-topic' && (
+                        <>
+                          <td style={styles.td}>{s.averageAccuracy?.toFixed(1) || 0}%</td>
+                          <td style={styles.td}>{s.quizzesTaken || 0}</td>
+                        </>
+                      )}
+                      {viewMode === 'combined' && (
+                        <>
+                          <td style={styles.td}>{s.topicCount || 0}</td>
+                          <td style={styles.td}>{s.averageAccuracy?.toFixed(1) || 0}%</td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
