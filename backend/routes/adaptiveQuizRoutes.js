@@ -422,20 +422,28 @@ router.get('/quizzes', authenticateToken, async (req, res) => {
 
     // If student is in a class, filter by class or show quizzes launched for their school
     if (student.class || student.schoolId) {
-      query.$or = [
-        // Quizzes launched for student's specific class
-        { launched_for_classes: student.class },
-        // Quizzes launched for student's school (placement quizzes)
-        { launched_for_school: student.schoolId?.toString() },
-        // Quizzes launched globally (empty launched_for_classes and launched_for_school)
-        { 
-          launched_for_classes: { $size: 0 },
-          $or: [
-            { launched_for_school: null },
-            { launched_for_school: { $exists: false } }
-          ]
-        }
-      ];
+      const orConditions = [];
+      
+      // Only add class filter if student has a class
+      if (student.class) {
+        orConditions.push({ launched_for_classes: student.class });
+      }
+      
+      // Only add school filter if student has a schoolId
+      if (student.schoolId) {
+        orConditions.push({ launched_for_school: student.schoolId.toString() });
+      }
+      
+      // Quizzes launched globally (empty launched_for_classes and launched_for_school)
+      orConditions.push({ 
+        launched_for_classes: { $size: 0 },
+        $or: [
+          { launched_for_school: null },
+          { launched_for_school: { $exists: false } }
+        ]
+      });
+      
+      query.$or = orConditions;
     }
     
     const quizzes = await Quiz.find(query)
@@ -609,10 +617,10 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
 
     // Check if quiz is launched for student's class or school
     const isLaunchedForStudent = (
-      // Launched for student's specific class
-      (quiz.launched_for_classes && quiz.launched_for_classes.includes(student.class)) ||
+      // Launched for student's specific class (check class exists first)
+      (student.class && quiz.launched_for_classes && quiz.launched_for_classes.includes(student.class)) ||
       // Launched for student's school (placement quizzes)
-      (quiz.launched_for_school && quiz.launched_for_school === student.schoolId?.toString()) ||
+      (student.schoolId && quiz.launched_for_school && quiz.launched_for_school === student.schoolId.toString()) ||
       // Launched globally (empty arrays/null school)
       (!quiz.launched_for_classes?.length && !quiz.launched_for_school)
     );

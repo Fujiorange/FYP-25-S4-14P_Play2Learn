@@ -45,7 +45,14 @@ export default function QuizAssignment() {
       }
 
       if (classesData.success) {
-        setMyClasses(classesData.classes || []);
+        // Normalize class data structure - ensure all items have class_name property
+        const normalizedClasses = (classesData.classes || []).map(classItem => {
+          if (typeof classItem === 'string') {
+            return { class_name: classItem };
+          }
+          return classItem;
+        });
+        setMyClasses(normalizedClasses);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -262,7 +269,8 @@ export default function QuizAssignment() {
             ) : (
               <div>
                 {myClasses.map((classItem) => {
-                  const className = classItem.class_name || classItem;
+                  // Now all classes have class_name property due to normalization
+                  const className = classItem.class_name;
                   return (
                     <label 
                       key={className} 
