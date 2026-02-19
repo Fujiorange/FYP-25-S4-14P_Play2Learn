@@ -591,8 +591,8 @@ router.get('/available-quizzes', async (req, res) => {
     }
 
     const quizzes = await Quiz.find(query)
-      .select('title description quiz_type adaptive_config is_launched launched_by launched_for_classes launched_for_school launch_start_date launch_end_date createdAt')
-      .sort({ createdAt: -1 });
+      .select('title description quiz_type topic quiz_level adaptive_config is_launched launched_by launched_for_classes launched_for_school launch_start_date launch_end_date createdAt')
+      .sort({ topic: 1, quiz_level: 1, createdAt: -1 });
 
     console.log('📚 Found', quizzes.length, 'quizzes for teacher');
 
@@ -606,6 +606,61 @@ router.get('/available-quizzes', async (req, res) => {
   } catch (error) {
     console.error('Get available quizzes error:', error);
     res.status(500).json({ success: false, error: 'Failed to load quizzes' });
+  }
+});
+
+// Get available topics from quizzes
+router.get('/available-topics', async (req, res) => {
+  try {
+    const teacher = req.teacher;
+    
+    // Build query similar to available-quizzes
+    let query = {
+      is_active: true,
+      quiz_type: 'adaptive'
+    };
+
+    // Get teacher's class names
+    let teacherClassNames = [];
+    if (teacher.assignedClasses?.length > 0) {
+      const firstClass = teacher.assignedClasses[0];
+      const isObjectId = /^[a-f\d]{24}$/i.test(firstClass.toString());
+      
+      if (isObjectId) {
+        const classDocs = await Class.find({
+          _id: { $in: teacher.assignedClasses }
+        }).select('class_name');
+        teacherClassNames = classDocs.map(c => c.class_name);
+      } else {
+        teacherClassNames = teacher.assignedClasses;
+      }
+    }
+
+    if (teacher.schoolId || teacherClassNames.length > 0) {
+      query.$or = [
+        { launched_for_school: teacher.schoolId?.toString() },
+        { launched_for_classes: { $in: teacherClassNames } },
+        { is_launched: false },
+        { 
+          is_launched: true,
+          $and: [
+            { $or: [{ launched_for_classes: { $size: 0 } }, { launched_for_classes: { $exists: false } }] },
+            { $or: [{ launched_for_school: null }, { launched_for_school: { $exists: false } }] }
+          ]
+        }
+      ];
+    }
+
+    // Get distinct topics from available quizzes
+    const topics = await Quiz.distinct('topic', query);
+    
+    // Filter out empty topics and sort
+    const filteredTopics = topics.filter(t => t && t.trim() !== '').sort();
+
+    res.json({ success: true, topics: filteredTopics });
+  } catch (error) {
+    console.error('Get available topics error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load topics' });
   }
 });
 
@@ -751,6 +806,130 @@ router.post('/revoke-quiz/:quizId', async (req, res) => {
   } catch (error) {
     console.error('Revoke quiz error:', error);
     res.status(500).json({ success: false, error: 'Failed to revoke quiz' });
+  }
+});
+
+// Launch all quizzes for a topic (all levels 1-10)
+router.post('/launch-topic', async (req, res) => {
+  try {
+    const { topic, classes, startDate, endDate } = req.body;
+    const teacher = req.teacher;
+
+    if (!topic) {
+      return res.status(400).json({ success: false, error: 'Topic is required' });
+    }
+
+    if (!classes || classes.length === 0) {
+      return res.status(400).json({ success: false, error: 'At least one class must be selected' });
+    }
+
+    // Get teacher's class names
+    const classDocs = await Class.find({
+      _id: { $in: teacher.assignedClasses || [] }
+    }).select('_id class_name');
+
+    const nameToIdMap = {};
+    const teacherClassNames = [];
+
+    classDocs.forEach(c => {
+      nameToIdMap[c.class_name.toLowerCase()] = c._id.toString();
+      teacherClassNames.push(c.class_name.toLowerCase());
+    });
+
+    // Validate requested classes
+    const requestedClasses = (classes || []).map(c => c.toString().toLowerCase().trim());
+    const validClassNames = requestedClasses.filter(c =>
+      teacherClassNames.includes(c)
+    );
+
+    if (validClassNames.length === 0) {
+      const teacherClassDisplayNames = classDocs.map(c => c.class_name).join(', ');
+      return res.status(400).json({
+        success: false,
+        error: `No valid classes selected. You teach: ${teacherClassDisplayNames || 'no classes'}`
+      });
+    }
+
+    // Find all quizzes for this topic (levels 1-10)
+    const quizzes = await Quiz.find({
+      topic: topic,
+      is_active: true,
+      quiz_type: 'adaptive'
+    });
+
+    if (quizzes.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: `No quizzes found for topic "${topic}". Please contact admin to create quizzes for this topic.` 
+      });
+    }
+
+    // Launch all quizzes for this topic
+    const launchResults = [];
+    for (const quiz of quizzes) {
+      quiz.is_launched = true;
+      quiz.launched_by = req.user.userId;
+      quiz.launched_at = new Date();
+      quiz.launched_for_classes = validClassNames;
+      quiz.launched_for_school = teacher.schoolId?.toString() || null;
+      quiz.launch_start_date = startDate ? new Date(startDate) : new Date();
+      quiz.launch_end_date = endDate ? new Date(endDate) : null;
+      
+      await quiz.save();
+      launchResults.push({
+        level: quiz.quiz_level,
+        title: quiz.title
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully launched ${launchResults.length} quiz(es) for topic "${topic}" across classes: ${validClassNames.join(', ')}`,
+      launchedQuizzes: launchResults
+    });
+  } catch (error) {
+    console.error('Launch topic error:', error);
+    res.status(500).json({ success: false, error: 'Failed to launch topic: ' + error.message });
+  }
+});
+
+// Revoke topic launch (all quizzes for a topic)
+router.post('/revoke-topic/:topic', async (req, res) => {
+  try {
+    const { topic } = req.params;
+
+    // Find all quizzes for this topic launched by this teacher
+    const quizzes = await Quiz.find({
+      topic: topic,
+      launched_by: req.user.userId,
+      is_launched: true
+    });
+
+    if (quizzes.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: `No launched quizzes found for topic "${topic}" by you` 
+      });
+    }
+
+    // Revoke all quizzes for this topic
+    for (const quiz of quizzes) {
+      quiz.is_launched = false;
+      quiz.launched_by = null;
+      quiz.launched_at = null;
+      quiz.launched_for_classes = [];
+      quiz.launch_start_date = null;
+      quiz.launch_end_date = null;
+      await quiz.save();
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Topic "${topic}" launch revoked (${quizzes.length} quiz(es))` 
+    });
+  } catch (error) {
+    console.error('Revoke topic error:', error);
+    res.status(500).json({ success: false, error: 'Failed to revoke topic' });
   }
 });
 
