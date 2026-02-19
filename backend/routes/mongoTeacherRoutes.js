@@ -1047,6 +1047,98 @@ router.post('/revoke-topic/:topic', async (req, res) => {
   }
 });
 
+// ✅ NEW: Launch specific levels for a topic (e.g., levels 1-3 or levels 2, 5, 7)
+router.post('/launch-topic-levels', async (req, res) => {
+  try {
+    const { topic, levels, classes, startDate, endDate } = req.body;
+    const teacher = req.teacher;
+
+    if (!topic) {
+      return res.status(400).json({ success: false, error: 'Topic is required' });
+    }
+
+    if (!levels || !Array.isArray(levels) || levels.length === 0) {
+      return res.status(400).json({ success: false, error: 'At least one level must be selected' });
+    }
+
+    if (!classes || classes.length === 0) {
+      return res.status(400).json({ success: false, error: 'At least one class must be selected' });
+    }
+
+    // Validate levels are between 1-10
+    const validLevels = levels.filter(l => l >= 1 && l <= 10);
+    if (validLevels.length === 0) {
+      return res.status(400).json({ success: false, error: 'Levels must be between 1 and 10' });
+    }
+
+    // Get teacher's class names
+    const classDocs = await Class.find({
+      _id: { $in: teacher.assignedClasses || [] }
+    }).select('_id class_name');
+
+    const teacherClassNames = [];
+    classDocs.forEach(c => {
+      teacherClassNames.push(c.class_name.toLowerCase());
+    });
+
+    // Validate requested classes
+    const requestedClasses = (classes || []).map(c => c.toString().toLowerCase().trim());
+    const validClassNames = requestedClasses.filter(c =>
+      teacherClassNames.includes(c)
+    );
+
+    if (validClassNames.length === 0) {
+      const teacherClassDisplayNames = classDocs.map(c => c.class_name).join(', ');
+      return res.status(400).json({
+        success: false,
+        error: `No valid classes selected. You teach: ${teacherClassDisplayNames || 'no classes'}`
+      });
+    }
+
+    // Find quizzes for this topic at the specified levels
+    const quizzes = await Quiz.find({
+      topic: topic,
+      quiz_level: { $in: validLevels },
+      is_active: true,
+      quiz_type: 'adaptive'
+    });
+
+    if (quizzes.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: `No quizzes found for topic "${topic}" at levels ${validLevels.join(', ')}. Please contact admin to create these quizzes.` 
+      });
+    }
+
+    // Launch selected quizzes
+    const launchResults = [];
+    for (const quiz of quizzes) {
+      quiz.is_launched = true;
+      quiz.launched_by = req.user.userId;
+      quiz.launched_at = new Date();
+      quiz.launched_for_classes = validClassNames;
+      quiz.launched_for_school = teacher.schoolId?.toString() || null;
+      quiz.launch_start_date = startDate ? new Date(startDate) : new Date();
+      quiz.launch_end_date = endDate ? new Date(endDate) : null;
+      
+      await quiz.save();
+      launchResults.push({
+        level: quiz.quiz_level,
+        title: quiz.title
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully launched ${launchResults.length} quiz(es) for topic "${topic}" levels ${validLevels.sort((a,b) => a-b).join(', ')} across classes: ${validClassNames.join(', ')}`,
+      launchedQuizzes: launchResults.sort((a, b) => a.level - b.level)
+    });
+  } catch (error) {
+    console.error('Launch topic levels error:', error);
+    res.status(500).json({ success: false, error: 'Failed to launch topic levels: ' + error.message });
+  }
+});
+
 // ==================== ASSIGNED CLASSES INFO ====================
 
 // Get assigned classes

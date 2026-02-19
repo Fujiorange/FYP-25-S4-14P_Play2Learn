@@ -625,24 +625,42 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
         });
       }
 
+      // ✅ NEW: Check if placement quiz is launched for this topic
+      if (!quiz.is_launched) {
+        return res.status(403).json({
+          success: false,
+          error: '🔒 This placement quiz has not been launched yet. Please ask your teacher to launch it for your class.'
+        });
+      }
+
+      // Check if quiz is launched for student's class or school
+      if (!isQuizAvailableForStudent(quiz, student)) {
+        return res.status(403).json({
+          success: false,
+          error: '🔒 This placement quiz has not been launched for your class. Please ask your teacher to launch it.'
+        });
+      }
+
       console.log(`✅ Placement quiz validation passed: Student in class "${student.class}" with ${activeTeachers.length} active teacher(s)`);
     }
 
     // Validation for Adaptive Quizzes (Level 2+)
     // Check if quiz is launched/enabled for student's class
-    if (!quiz.is_launched) {
-      return res.status(403).json({
-        success: false,
-        error: '🔒 This quiz has not been enabled yet. Please ask your teacher to enable it for your class.'
-      });
-    }
+    if (quizLevel > 1) {
+      if (!quiz.is_launched) {
+        return res.status(403).json({
+          success: false,
+          error: '🔒 This quiz has not been enabled yet. Please ask your teacher to enable it for your class.'
+        });
+      }
 
-    // Check if quiz is launched for student's class or school
-    if (!isQuizAvailableForStudent(quiz, student)) {
-      return res.status(403).json({
-        success: false,
-        error: '🔒 This quiz has not been enabled for your class. Please ask your teacher to enable it.'
-      });
+      // Check if quiz is launched for student's class or school
+      if (!isQuizAvailableForStudent(quiz, student)) {
+        return res.status(403).json({
+          success: false,
+          error: '🔒 This quiz has not been enabled for your class. Please ask your teacher to enable it.'
+        });
+      }
     }
 
     console.log(`✅ Access GRANTED: Student can access Level ${quizLevel}`);
