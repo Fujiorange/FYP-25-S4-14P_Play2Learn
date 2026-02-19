@@ -12,6 +12,9 @@ const SkillPointsConfig = require('../models/SkillPointsConfig');
 // ✅ Import shared streak utilities
 const { updateStreakOnCompletion } = require('../utils/streakUtils');
 
+// ✅ Import topic profile service
+const { updateTopicProfileAfterQuiz } = require('../services/topicProfileService');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
 
 // Middleware to authenticate users
@@ -772,6 +775,15 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
       await attempt.save();
       await updateSkillsFromAdaptiveQuiz(userId, attempt.answers);
       await updateStreakAndPointsOnQuizCompletion(userId, attempt); // ✅ Pass entire attempt
+      
+      // ✅ NEW: Update topic profile after quiz completion
+      try {
+        await updateTopicProfileAfterQuiz(userId, attempt, quiz);
+        console.log(`✅ Topic profile updated for quiz completion`);
+      } catch (error) {
+        console.error('❌ Failed to update topic profile:', error);
+        // Don't fail the quiz completion if topic profile update fails
+      }
 
       let confirmedLevel = currentLevel;
       try {

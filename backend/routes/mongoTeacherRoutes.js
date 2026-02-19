@@ -17,6 +17,9 @@ const MathSkill = require('../models/MathSkill');
 const SupportTicket = require('../models/SupportTicket');
 const Class = require('../models/Class');
 
+// ✅ Import topic profile service
+const { getTopicLeaderboard, getCombinedLeaderboard } = require('../services/topicProfileService');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-this-in-production';
 
 // ==================== MESSAGE SCHEMA ====================
@@ -498,6 +501,115 @@ router.get('/leaderboard', async (req, res) => {
   } catch (error) {
     console.error('Get leaderboard error:', error);
     res.status(500).json({ success: false, error: 'Failed to load leaderboard' });
+  }
+});
+
+// ✅ NEW: Get topic-based leaderboard
+router.get('/leaderboard/by-topic', async (req, res) => {
+  try {
+    const teacher = req.teacher;
+    const assignedClasses = teacher.assignedClasses || [];
+    const { className, topic } = req.query;
+
+    if (!topic) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Topic parameter is required' 
+      });
+    }
+
+    // Get student IDs based on class filter
+    let filter = {
+      role: 'Student',
+      class: { $in: assignedClasses }
+    };
+
+    if (className && className !== 'all' && assignedClasses.includes(className)) {
+      filter.class = className;
+    }
+
+    const students = await User.find(filter).select('_id');
+    const studentIds = students.map(s => s._id);
+
+    if (studentIds.length === 0) {
+      return res.json({ success: true, leaderboard: [] });
+    }
+
+    // Get topic leaderboard for these students
+    const leaderboard = await getTopicLeaderboard(topic, studentIds);
+
+    res.json({ success: true, topic, leaderboard });
+  } catch (error) {
+    console.error('Get topic leaderboard error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load topic leaderboard' });
+  }
+});
+
+// ✅ NEW: Get combined leaderboard across all topics
+router.get('/leaderboard/combined', async (req, res) => {
+  try {
+    const teacher = req.teacher;
+    const assignedClasses = teacher.assignedClasses || [];
+    const { className } = req.query;
+
+    // Get student IDs based on class filter
+    let filter = {
+      role: 'Student',
+      class: { $in: assignedClasses }
+    };
+
+    if (className && className !== 'all' && assignedClasses.includes(className)) {
+      filter.class = className;
+    }
+
+    const students = await User.find(filter).select('_id');
+    const studentIds = students.map(s => s._id);
+
+    if (studentIds.length === 0) {
+      return res.json({ success: true, leaderboard: [] });
+    }
+
+    // Get combined leaderboard for these students
+    const leaderboard = await getCombinedLeaderboard(studentIds);
+
+    res.json({ success: true, leaderboard });
+  } catch (error) {
+    console.error('Get combined leaderboard error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load combined leaderboard' });
+  }
+});
+
+// ✅ NEW: Get available topics for leaderboard filtering
+router.get('/leaderboard/topics', async (req, res) => {
+  try {
+    const TopicProfile = require('../models/TopicProfile');
+    const teacher = req.teacher;
+    const assignedClasses = teacher.assignedClasses || [];
+
+    // Get student IDs from assigned classes
+    const students = await User.find({
+      role: 'Student',
+      class: { $in: assignedClasses }
+    }).select('_id');
+    
+    const studentIds = students.map(s => s._id);
+
+    if (studentIds.length === 0) {
+      return res.json({ success: true, topics: [] });
+    }
+
+    // Get distinct topics for these students
+    const topics = await TopicProfile.distinct('topic', {
+      userId: { $in: studentIds }
+    });
+
+    // Filter out empty topics and sort
+    const filteredTopics = topics.filter(t => t && t.trim() !== '').sort();
+
+    res.json({ success: true, topics: filteredTopics });
+  } catch (error) {
+    console.error('Get leaderboard topics error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load topics' });
   }
 });
 

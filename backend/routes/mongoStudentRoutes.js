@@ -24,6 +24,13 @@ const {
   MS_PER_DAY 
 } = require('../utils/streakUtils');
 
+// ✅ Import topic profile service
+const { 
+  getUserTopicProfiles,
+  getTopicLeaderboard, 
+  getCombinedLeaderboard 
+} = require('../services/topicProfileService');
+
 // ==================== AUTH ====================
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
@@ -1172,6 +1179,163 @@ router.get("/leaderboard", async (req, res) => {
   } catch (error) {
     console.error("❌ Leaderboard error:", error);
     res.status(500).json({ success: false, error: "Failed to load leaderboard" });
+  }
+});
+
+// ✅ NEW: Get student's own topic profiles
+router.get("/my-topic-profiles", async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const profiles = await getUserTopicProfiles(userId);
+    
+    res.json({
+      success: true,
+      profiles
+    });
+  } catch (error) {
+    console.error("❌ Get topic profiles error:", error);
+    res.status(500).json({ success: false, error: "Failed to load topic profiles" });
+  }
+});
+
+// ✅ NEW: Get topic-based leaderboard for students
+router.get("/leaderboard/by-topic", async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+    const { topic, classId } = req.query;
+
+    if (!topic) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Topic parameter is required' 
+      });
+    }
+
+    // Get current user to determine school
+    const currentUser = await User.findById(currentUserId).lean();
+    
+    if (!currentUser) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Build filter for students in same school/class
+    const filterQuery = {
+      role: 'Student',
+      schoolId: currentUser.schoolId
+    };
+    
+    if (classId && classId !== 'all') {
+      filterQuery.class = classId;
+    } else if (currentUser.class) {
+      filterQuery.class = currentUser.class; // Default to current user's class
+    }
+
+    const students = await User.find(filterQuery).select('_id');
+    const studentIds = students.map(s => s._id);
+
+    if (studentIds.length === 0) {
+      return res.json({ success: true, topic, leaderboard: [] });
+    }
+
+    // Get topic leaderboard
+    const leaderboard = await getTopicLeaderboard(topic, studentIds);
+
+    res.json({ 
+      success: true, 
+      topic, 
+      leaderboard,
+      currentUserId 
+    });
+  } catch (error) {
+    console.error("❌ Topic leaderboard error:", error);
+    res.status(500).json({ success: false, error: "Failed to load topic leaderboard" });
+  }
+});
+
+// ✅ NEW: Get combined leaderboard across all topics for students
+router.get("/leaderboard/combined", async (req, res) => {
+  try {
+    const currentUserId = req.user.userId;
+    const { classId } = req.query;
+
+    // Get current user to determine school
+    const currentUser = await User.findById(currentUserId).lean();
+    
+    if (!currentUser) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Build filter for students in same school/class
+    const filterQuery = {
+      role: 'Student',
+      schoolId: currentUser.schoolId
+    };
+    
+    if (classId && classId !== 'all') {
+      filterQuery.class = classId;
+    } else if (currentUser.class) {
+      filterQuery.class = currentUser.class; // Default to current user's class
+    }
+
+    const students = await User.find(filterQuery).select('_id');
+    const studentIds = students.map(s => s._id);
+
+    if (studentIds.length === 0) {
+      return res.json({ success: true, leaderboard: [] });
+    }
+
+    // Get combined leaderboard
+    const leaderboard = await getCombinedLeaderboard(studentIds);
+
+    res.json({ 
+      success: true, 
+      leaderboard,
+      currentUserId 
+    });
+  } catch (error) {
+    console.error("❌ Combined leaderboard error:", error);
+    res.status(500).json({ success: false, error: "Failed to load combined leaderboard" });
+  }
+});
+
+// ✅ NEW: Get available topics for student leaderboard
+router.get("/leaderboard/topics", async (req, res) => {
+  try {
+    const TopicProfile = require('../models/TopicProfile');
+    const currentUserId = req.user.userId;
+
+    // Get current user to determine school
+    const currentUser = await User.findById(currentUserId).lean();
+    
+    if (!currentUser) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Get all students in same school
+    const students = await User.find({
+      role: 'Student',
+      schoolId: currentUser.schoolId
+    }).select('_id');
+    
+    const studentIds = students.map(s => s._id);
+
+    if (studentIds.length === 0) {
+      return res.json({ success: true, topics: [] });
+    }
+
+    // Get distinct topics
+    const topics = await TopicProfile.distinct('topic', {
+      userId: { $in: studentIds }
+    });
+
+    // Filter and sort
+    const filteredTopics = topics.filter(t => t && t.trim() !== '').sort();
+
+    res.json({ success: true, topics: filteredTopics });
+  } catch (error) {
+    console.error("❌ Get topics error:", error);
+    res.status(500).json({ success: false, error: "Failed to load topics" });
   }
 });
 
