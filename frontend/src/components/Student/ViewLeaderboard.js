@@ -17,6 +17,10 @@ export default function ViewLeaderboard() {
   const [currentUserLevel, setCurrentUserLevel] = useState(null);
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState('class');
+  const [leaderboardType, setLeaderboardType] = useState('overall'); // 'overall', 'combined', 'by-topic'
+  const [availableTopics, setAvailableTopics] = useState([]);
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [topicProfiles, setTopicProfiles] = useState([]);
 
   const getToken = () => localStorage.getItem('token');
 
@@ -100,9 +104,97 @@ export default function ViewLeaderboard() {
     }
   };
 
+  const loadTopics = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/mongo/student/leaderboard/topics`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setAvailableTopics(data.topics || []);
+        if (data.topics && data.topics.length > 0 && !selectedTopic) {
+          setSelectedTopic(data.topics[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading topics:', error);
+    }
+  };
+
+  const loadTopicLeaderboard = async (topic) => {
+    if (!topic) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/api/mongo/student/leaderboard/by-topic?topic=${encodeURIComponent(topic)}`,
+        { headers: { 'Authorization': `Bearer ${getToken()}` } }
+      );
+      const data = await response.json();
+      
+      if (data.success) {
+        setLeaderboard(data.leaderboard || []);
+      } else {
+        setError(data.error || 'Failed to load topic leaderboard');
+      }
+    } catch (error) {
+      console.error('Error loading topic leaderboard:', error);
+      setError('Failed to load topic leaderboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCombinedLeaderboard = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/mongo/student/leaderboard/combined`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setLeaderboard(data.leaderboard || []);
+      } else {
+        setError(data.error || 'Failed to load combined leaderboard');
+      }
+    } catch (error) {
+      console.error('Error loading combined leaderboard:', error);
+      setError('Failed to load combined leaderboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMyTopicProfiles = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/mongo/student/my-topic-profiles`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setTopicProfiles(data.profiles || []);
+      }
+    } catch (error) {
+      console.error('Error loading topic profiles:', error);
+    }
+  };
+
   useEffect(() => {
-    loadLeaderboard(viewMode);
-  }, [navigate, viewMode]);
+    if (leaderboardType === 'overall') {
+      loadLeaderboard(viewMode);
+    } else if (leaderboardType === 'by-topic') {
+      loadTopics();
+      if (selectedTopic) {
+        loadTopicLeaderboard(selectedTopic);
+      }
+    } else if (leaderboardType === 'combined') {
+      loadCombinedLeaderboard();
+      loadMyTopicProfiles();
+    }
+  }, [navigate, viewMode, leaderboardType, selectedTopic]);
 
   const getRankBadgeStyle = (rank) => {
     if (rank === 1) return { background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)', color: 'white' };
@@ -168,6 +260,83 @@ export default function ViewLeaderboard() {
               ← Back to Dashboard
             </button>
           </div>
+          
+          {/* Leaderboard Type Tabs */}
+          <div style={{ marginTop: '20px', borderBottom: '2px solid #e5e7eb' }}>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button 
+                style={{
+                  padding: '12px 24px',
+                  background: leaderboardType === 'overall' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderBottom: leaderboardType === 'overall' ? '3px solid #3b82f6' : '3px solid transparent',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  color: leaderboardType === 'overall' ? '#3b82f6' : '#6b7280',
+                  transition: 'all 0.2s'
+                }}
+                onClick={() => setLeaderboardType('overall')}
+              >
+                📊 Overall Points
+              </button>
+              <button 
+                style={{
+                  padding: '12px 24px',
+                  background: leaderboardType === 'combined' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderBottom: leaderboardType === 'combined' ? '3px solid #3b82f6' : '3px solid transparent',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  color: leaderboardType === 'combined' ? '#3b82f6' : '#6b7280',
+                  transition: 'all 0.2s'
+                }}
+                onClick={() => setLeaderboardType('combined')}
+              >
+                📚 All Topics Combined
+              </button>
+              <button 
+                style={{
+                  padding: '12px 24px',
+                  background: leaderboardType === 'by-topic' ? 'white' : 'transparent',
+                  border: 'none',
+                  borderBottom: leaderboardType === 'by-topic' ? '3px solid #3b82f6' : '3px solid transparent',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  color: leaderboardType === 'by-topic' ? '#3b82f6' : '#6b7280',
+                  transition: 'all 0.2s'
+                }}
+                onClick={() => setLeaderboardType('by-topic')}
+              >
+                🎯 By Topic
+              </button>
+            </div>
+          </div>
+
+          {/* Topic Selection (only for by-topic view) */}
+          {leaderboardType === 'by-topic' && availableTopics.length > 0 && (
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '16px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: '#6b7280' }}>Topic:</span>
+              <select 
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: '2px solid #e5e7eb',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  background: 'white'
+                }}
+                value={selectedTopic}
+                onChange={(e) => setSelectedTopic(e.target.value)}
+              >
+                {availableTopics.map(topic => (
+                  <option key={topic} value={topic}>{topic}</option>
+                ))}
+              </select>
+            </div>
+          )}
           
           <div style={styles.toggleContainer}>
             <span style={{ fontSize: '14px', fontWeight: '600', color: '#6b7280' }}>View:</span>
@@ -242,14 +411,26 @@ export default function ViewLeaderboard() {
                 <tr>
                   <th style={styles.th}>Rank</th>
                   <th style={styles.th}>Player</th>
-                  <th style={styles.th}>Level</th>
+                  {leaderboardType === 'overall' && <th style={styles.th}>Level</th>}
                   <th style={styles.th}>Points</th>
-                  <th style={styles.th}>Achievements</th>
+                  {leaderboardType === 'by-topic' && (
+                    <>
+                      <th style={styles.th}>Accuracy</th>
+                      <th style={styles.th}>Quizzes</th>
+                    </>
+                  )}
+                  {leaderboardType === 'combined' && (
+                    <>
+                      <th style={styles.th}>Topics</th>
+                      <th style={styles.th}>Avg Accuracy</th>
+                    </>
+                  )}
+                  {leaderboardType === 'overall' && <th style={styles.th}>Achievements</th>}
                 </tr>
               </thead>
               <tbody>
                 {leaderboard.map(player => (
-                  <tr key={player.rank} style={player.isCurrentUser ? styles.currentUserRow : {}}>
+                  <tr key={player.rank || player.userId} style={player.isCurrentUser ? styles.currentUserRow : {}}>
                     <td style={styles.td}>
                       <span style={{...styles.rankBadge, ...getRankBadgeStyle(player.rank)}}>
                         {player.rank <= 3 ? (player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉') : player.rank}
@@ -258,16 +439,29 @@ export default function ViewLeaderboard() {
                     <td style={styles.td}>
                       <strong>{player.name}</strong>{player.isCurrentUser && ' (You)'}
                     </td>
+                    {leaderboardType === 'overall' && (
+                      <td style={styles.td}>
+                        {player.isCurrentUser 
+                          ? (currentUserLevel === null ? '-' : `Level ${currentUserLevel}`)
+                          : `Level ${player.level || 0}`}
+                      </td>
+                    )}
                     <td style={styles.td}>
-                      {/* ✅ Show level (or "-" if placement not completed for current user) */}
-                      {player.isCurrentUser 
-                        ? (currentUserLevel === null ? '-' : `Level ${currentUserLevel}`)
-                        : `Level ${player.level || 0}`}
+                      <strong style={{ color: '#10b981' }}>{(player.totalPoints || player.points || 0).toLocaleString()}</strong>
                     </td>
-                    <td style={styles.td}>
-                      <strong style={{ color: '#10b981' }}>{player.points?.toLocaleString() || 0}</strong>
-                    </td>
-                    <td style={styles.td}>🏆 {player.achievements || 0}</td>
+                    {leaderboardType === 'by-topic' && (
+                      <>
+                        <td style={styles.td}>{player.averageAccuracy?.toFixed(1) || 0}%</td>
+                        <td style={styles.td}>{player.quizzesTaken || 0}</td>
+                      </>
+                    )}
+                    {leaderboardType === 'combined' && (
+                      <>
+                        <td style={styles.td}>{player.topicCount || 0}</td>
+                        <td style={styles.td}>{player.averageAccuracy?.toFixed(1) || 0}%</td>
+                      </>
+                    )}
+                    {leaderboardType === 'overall' && <td style={styles.td}>🏆 {player.achievements || 0}</td>}
                   </tr>
                 ))}
               </tbody>
