@@ -80,12 +80,16 @@ const studentService = {
      * Checks if the student has already completed the placement quiz.
      * Returns: { success: true, placementCompleted: true/false, ... }
      */
-    async getPlacementStatus() {
+    async getPlacementStatus(topic = null) {
       try {
         const token = localStorage.getItem('token');
         if (!token) return { success: false, error: 'Not authenticated' };
 
-        const response = await fetch(`${API_URL}/mongo/student/placement-quiz/status`, {
+        const url = topic 
+          ? `${API_URL}/mongo/student/placement-quiz/status?topic=${encodeURIComponent(topic)}`
+          : `${API_URL}/mongo/student/placement-quiz/status`;
+
+        const response = await fetch(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -96,10 +100,35 @@ const studentService = {
         return { success: false, error: 'Failed to load placement status' };
       }
     },
-  async generatePlacementQuiz() {
+    
+  /**
+   * Get available topics for placement quiz
+   */
+  async getPlacementTopics() {
     try {
       const token = localStorage.getItem('token');
       if (!token) return { success: false, error: 'Not authenticated' };
+
+      const response = await fetch(`${API_URL}/mongo/student/placement-quiz/topics`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch placement topics');
+      return await response.json();
+    } catch (error) {
+      console.error('getPlacementTopics error:', error);
+      return { success: false, error: 'Failed to load placement topics' };
+    }
+  },
+
+  async generatePlacementQuiz(topic) {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { success: false, error: 'Not authenticated' };
+
+      if (!topic) {
+        return { success: false, error: 'Topic is required' };
+      }
 
       const response = await fetch(
         `${API_URL}/mongo/student/placement-quiz/generate`,
@@ -109,6 +138,7 @@ const studentService = {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ topic })
         }
       );
 

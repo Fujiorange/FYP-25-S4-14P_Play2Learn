@@ -1,4 +1,4 @@
-// PlacementQuiz.js - Placement Quiz (First Time) - WITH COMPLETION CHECK
+// PlacementQuiz.js - Topic-Based Placement Quiz (First Time) - WITH TOPIC SELECTION
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
@@ -12,52 +12,99 @@ export default function PlacementQuiz() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
+  // ✅ NEW: Topic selection state
+  const [topics, setTopics] = useState([]);
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [showTopicSelection, setShowTopicSelection] = useState(true);
+  const [loadingTopics, setLoadingTopics] = useState(true);
 
   useEffect(() => {
-    const loadQuiz = async () => {
+    const loadTopics = async () => {
       if (!authService.isAuthenticated()) {
         navigate('/login');
         return;
       }
 
       try {
-        // ✅ FIRST: Check if placement is already completed
-        console.log('📡 Checking placement status...');
-        const statusResult = await studentService.getPlacementStatus();
-        console.log('📥 Placement status:', statusResult);
-
-        if (statusResult.success && statusResult.placementCompleted) {
-          setError('✅ You have already completed the placement quiz!');
-          setTimeout(() => navigate('/student/quiz/attempt'), 2000);
-          setLoading(false);
-          return;
-        }
-
-        // THEN: Generate placement quiz
-        console.log('📡 Generating placement quiz...');
-        const result = await studentService.generatePlacementQuiz();
-        console.log('📥 Quiz result:', result);
+        console.log('📡 Loading available placement topics...');
+        const result = await studentService.getPlacementTopics();
+        console.log('📥 Topics result:', result);
 
         if (result.success) {
-          setQuizData(result);
-          setAnswers(Array(result.total_questions).fill(''));
-        } else {
-          setError(result.error || 'Failed to load quiz');
-          // If placement already completed, redirect
-          if (result.error?.includes('already completed')) {
-            setTimeout(() => navigate('/student/quiz/attempt'), 2000);
+          setTopics(result);
+          
+          // If no available topics, show error
+          if (!result.availableTopics || result.availableTopics.length === 0) {
+            if (result.launchedTopics && result.launchedTopics.length > 0) {
+              setError('✅ You have completed all available placement quizzes!');
+            } else {
+              setError('⏳ No placement quizzes have been launched yet. Please ask your teacher.');
+            }
+            setTimeout(() => navigate('/student/quiz/attempt'), 3000);
           }
+        } else {
+          setError(result.error || 'Failed to load topics');
         }
       } catch (error) {
-        console.error('❌ Load quiz error:', error);
-        setError('Failed to load quiz. Please try again.');
+        console.error('❌ Load topics error:', error);
+        setError('Failed to load topics. Please try again.');
       } finally {
-        setLoading(false);
+        setLoadingTopics(false);
       }
     };
 
-    loadQuiz();
+    loadTopics();
   }, [navigate]);
+
+  const handleTopicSelect = async (topic) => {
+    setSelectedTopic(topic);
+    setShowTopicSelection(false);
+    setLoading(true);
+    setError('');
+
+    try {
+      // Check if placement is already completed for this topic
+      console.log('📡 Checking placement status for topic:', topic);
+      const statusResult = await studentService.getPlacementStatus(topic);
+      console.log('📥 Placement status:', statusResult);
+
+      if (statusResult.success && statusResult.placementCompleted) {
+        setError(`✅ You have already completed the placement quiz for ${topic}!`);
+        setTimeout(() => {
+          setShowTopicSelection(true);
+          setSelectedTopic('');
+        }, 2000);
+        setLoading(false);
+        return;
+      }
+
+      // Generate placement quiz for selected topic
+      console.log('📡 Generating placement quiz for topic:', topic);
+      const result = await studentService.generatePlacementQuiz(topic);
+      console.log('📥 Quiz result:', result);
+
+      if (result.success) {
+        setQuizData(result);
+        setAnswers(Array(result.total_questions).fill(''));
+      } else {
+        setError(result.error || 'Failed to load quiz');
+        setTimeout(() => {
+          setShowTopicSelection(true);
+          setSelectedTopic('');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('❌ Load quiz error:', error);
+      setError('Failed to load quiz. Please try again.');
+      setTimeout(() => {
+        setShowTopicSelection(true);
+        setSelectedTopic('');
+      }, 2000);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAnswerChange = (index, value) => {
     // Accept any value (for both numeric and multiple choice answers)
@@ -365,11 +412,119 @@ export default function PlacementQuiz() {
     },
   };
 
-  if (loading) return (
-    <div style={styles.loadingContainer}>
-      <div style={styles.loadingText}>Loading quiz...</div>
-    </div>
-  );
+  // ✅ Show loading state
+  if (loadingTopics) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingText}>Loading topics...</div>
+      </div>
+    );
+  }
+
+  // ✅ Show topic selection screen
+  if (showTopicSelection) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.content}>
+          <div style={styles.header}>
+            <div style={styles.headerTop}>
+              <h1 style={styles.title}>🎯 Placement Quiz - Select Topic</h1>
+            </div>
+            <p style={styles.subtitle}>
+              Choose a topic to start your placement quiz. This will determine your starting level (1-10) for that topic.
+            </p>
+          </div>
+
+          {error && (
+            <div style={error.includes('✅') || error.includes('⏳') ? styles.successMessage : styles.errorMessage}>
+              {error}
+            </div>
+          )}
+
+          {topics.availableTopics && topics.availableTopics.length > 0 && (
+            <div style={styles.allQuestionsCard}>
+              <h2 style={styles.sectionTitle}>Available Topics</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+                {topics.availableTopics.map((topic) => (
+                  <button
+                    key={topic}
+                    onClick={() => handleTopicSelect(topic)}
+                    style={{
+                      padding: '24px',
+                      background: 'white',
+                      border: '2px solid #3b82f6',
+                      borderRadius: '12px',
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      color: '#1f2937',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s',
+                      textAlign: 'center'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = '#f0f9ff';
+                      e.target.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'white';
+                      e.target.style.transform = 'scale(1)';
+                    }}
+                  >
+                    📚 {topic}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {topics.completedTopics && topics.completedTopics.length > 0 && (
+            <div style={styles.allQuestionsCard}>
+              <h2 style={styles.sectionTitle}>✅ Completed Topics</h2>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                {topics.completedTopics.map((topic) => (
+                  <div
+                    key={topic}
+                    style={{
+                      padding: '12px 20px',
+                      background: '#d1fae5',
+                      border: '2px solid #34d399',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#065f46'
+                    }}
+                  >
+                    ✓ {topic}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => navigate('/student')}
+            style={{
+              ...styles.navButton,
+              width: '200px',
+              margin: '0 auto',
+              display: 'block'
+            }}
+          >
+            ← Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Show loading while generating quiz
+  if (loading) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingText}>Loading quiz for {selectedTopic}...</div>
+      </div>
+    );
+  }
 
   if (!quizData) {
     return (
@@ -378,6 +533,21 @@ export default function PlacementQuiz() {
           <div style={error.includes('✅') ? styles.successMessage : styles.errorMessage}>
             {error || '⚠️ Failed to load quiz'}
           </div>
+          <button
+            onClick={() => {
+              setShowTopicSelection(true);
+              setSelectedTopic('');
+              setError('');
+            }}
+            style={{
+              ...styles.navButton,
+              width: '200px',
+              margin: '16px auto 0',
+              display: 'block'
+            }}
+          >
+            ← Back to Topics
+          </button>
         </div>
       </div>
     );
@@ -392,11 +562,11 @@ export default function PlacementQuiz() {
         {/* Header */}
         <div style={styles.header}>
           <div style={styles.headerTop}>
-            <h1 style={styles.title}>🎯 Placement Quiz</h1>
-            <div style={styles.badge}>Primary 1 Math</div>
+            <h1 style={styles.title}>🎯 Placement Quiz - {selectedTopic || quizData.topic}</h1>
+            <div style={styles.badge}>Quiz Level 1</div>
           </div>
           <p style={styles.subtitle}>
-            This quiz will determine your starting level (1-10) for the adaptive quiz journey. Take your time and do your best!
+            This quiz will determine your starting level (1-10) for {selectedTopic || quizData.topic}. Take your time and do your best!
           </p>
           <div style={styles.progressBar}>
             <div style={{...styles.progressFill, width: `${progress}%`}} />
