@@ -84,10 +84,10 @@ function calculateLevelFromPoints(points) {
 
 // Helper function to check if a quiz is available for a specific student
 function isQuizAvailableForStudent(quiz, student) {
-  // Check if launched for student's specific class
+  // Check if launched for student's specific class (case-insensitive)
   const launchedForClass = student.class && 
     quiz.launched_for_classes && 
-    quiz.launched_for_classes.includes(student.class);
+    quiz.launched_for_classes.some(c => c.toLowerCase() === student.class.toLowerCase());
   
   // Check if launched for student's school
   const launchedForSchool = student.schoolId && 
@@ -446,9 +446,9 @@ router.get('/quizzes', authenticateToken, async (req, res) => {
     if (student.class || student.schoolId) {
       const orConditions = [];
       
-      // Only add class filter if student has a class
+      // Only add class filter if student has a class (case-insensitive: stored as lowercase)
       if (student.class) {
-        orConditions.push({ launched_for_classes: student.class });
+        orConditions.push({ launched_for_classes: student.class.toLowerCase() });
       }
       
       // Only add school filter if student has a schoolId

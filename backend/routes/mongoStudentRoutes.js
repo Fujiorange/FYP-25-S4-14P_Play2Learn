@@ -657,13 +657,13 @@ router.get("/placement-quiz/topics", async (req, res) => {
       topic: { $ne: '', $ne: null }  // Exclude empty topics
     });
 
-    // Get launched quizzes for this student's class (Level 1 only)
+    // Get launched quizzes for this student's class (Level 1 only, case-insensitive)
     const launchedQuizzes = await Quiz.find({
       quiz_level: 1,
       is_launched: true,
       is_active: true,
       $or: [
-        { launched_for_classes: student.class },
+        { launched_for_classes: student.class ? student.class.toLowerCase() : null },
         { launched_for_school: student.schoolId?.toString() }
       ]
     }).select('topic');

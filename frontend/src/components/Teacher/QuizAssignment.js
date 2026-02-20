@@ -261,11 +261,6 @@ export default function QuizAssignment() {
     return grouped;
   };
 
-  // Helper to check if all quizzes in a topic are launched by this teacher
-  const isTopicLaunchedByMe = (topicQuizzes) => {
-    return topicQuizzes.length > 0 && topicQuizzes.every(q => q.launchedByMe && q.is_launched);
-  };
-
   // Helper to check if any quiz in a topic is launched
   const isTopicLaunched = (topicQuizzes) => {
     return topicQuizzes.some(q => q.is_launched);
@@ -328,7 +323,7 @@ export default function QuizAssignment() {
 
         <div style={styles.infoBox}>
           <p style={{ margin: 0, color: '#1e40af' }}>
-            ℹ️ Launch quizzes by topic (all levels 1-10) or individual quizzes. Students can only access quizzes that you've launched.
+            ℹ️ Launch quizzes by topic (all levels) or individual quizzes for your classes. Students can only access quizzes that you've launched for their class.
           </p>
         </div>
 
@@ -359,7 +354,6 @@ export default function QuizAssignment() {
           <div style={styles.grid}>
             {Object.entries(getQuizzesByTopic()).map(([topic, topicQuizzes]) => {
               const isLaunched = isTopicLaunched(topicQuizzes);
-              const launchedByMe = isTopicLaunchedByMe(topicQuizzes);
               const isPartial = isTopicPartiallyLaunched(topicQuizzes);
               const quizLevels = topicQuizzes.map(q => q.quiz_level).filter(Boolean).sort((a, b) => a - b);
               
@@ -416,33 +410,42 @@ export default function QuizAssignment() {
                     )}
                   </div>
 
-                  {!isLaunched ? (
-                    <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                {(() => {
+                    const myLaunchedCount = topicQuizzes.filter(q => q.launchedByMe).length;
+                    const allLaunchedByMe = myLaunchedCount === topicQuizzes.length && topicQuizzes.length > 0;
+                    const someByMe = myLaunchedCount > 0;
+                    return allLaunchedByMe ? (
                       <button 
-                        style={styles.btnPrimary}
-                        onClick={() => openTopicLaunchModal(topic)}
+                        style={styles.btnDanger}
+                        onClick={() => handleRevokeTopic(topic)}
                       >
-                        🚀 Launch All Levels (1-10)
+                        Disable Topic
                       </button>
-                      <button 
-                        style={{ ...styles.btnPrimary, background: '#8b5cf6' }}
-                        onClick={() => openTopicLevelsModal(topic)}
-                      >
-                        🎯 Launch Specific Levels
-                      </button>
-                    </div>
-                  ) : launchedByMe ? (
-                    <button 
-                      style={styles.btnDanger}
-                      onClick={() => handleRevokeTopic(topic)}
-                    >
-                      Disable Topic
-                    </button>
-                  ) : (
-                    <button style={styles.btnDisabled} disabled>
-                      Launched by Another Teacher
-                    </button>
-                  )}
+                    ) : (
+                      <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                        <button 
+                          style={styles.btnPrimary}
+                          onClick={() => openTopicLaunchModal(topic)}
+                        >
+                          🚀 Launch All Levels
+                        </button>
+                        <button 
+                          style={{ ...styles.btnPrimary, background: '#8b5cf6' }}
+                          onClick={() => openTopicLevelsModal(topic)}
+                        >
+                          🎯 Launch Specific Levels
+                        </button>
+                        {someByMe && (
+                          <button 
+                            style={styles.btnDanger}
+                            onClick={() => handleRevokeTopic(topic)}
+                          >
+                            🚫 Disable My Launches
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -482,14 +485,7 @@ export default function QuizAssignment() {
                     )}
                   </div>
                   
-                  {!isLaunched ? (
-                    <button 
-                      style={styles.btnPrimary}
-                      onClick={() => openLaunchModal(quiz)}
-                    >
-                      Launch Quiz
-                    </button>
-                  ) : launchedByMe ? (
+                  {launchedByMe ? (
                     <button 
                       style={styles.btnDanger}
                       onClick={() => handleRevokeQuiz(quiz._id)}
@@ -497,8 +493,11 @@ export default function QuizAssignment() {
                       Disable Quiz
                     </button>
                   ) : (
-                    <button style={styles.btnDisabled} disabled>
-                      Launched by Another Teacher
+                    <button 
+                      style={styles.btnPrimary}
+                      onClick={() => openLaunchModal(quiz)}
+                    >
+                      Launch Quiz
                     </button>
                   )}
                 </div>

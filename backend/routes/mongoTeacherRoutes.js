@@ -72,6 +72,33 @@ const authenticateTeacher = async (req, res, next) => {
 router.use(authenticateToken);
 router.use(authenticateTeacher);
 
+// ==================== HELPERS ====================
+
+/**
+ * Resolve teacher's class names from assignedClasses (handles both ObjectId and string values).
+ * Returns an array of lowercase class name strings.
+ */
+async function resolveTeacherClassNames(teacher) {
+  const assignedClasses = teacher.assignedClasses || [];
+  if (assignedClasses.length === 0) return [];
+
+  const isObjectId = /^[a-f\d]{24}$/i.test(assignedClasses[0].toString());
+  if (isObjectId) {
+    const classDocs = await Class.find({ _id: { $in: assignedClasses } }).select('class_name');
+    return classDocs.map(c => c.class_name.toLowerCase());
+  }
+  return assignedClasses.map(c => c.toLowerCase());
+}
+
+/**
+ * Merge newClassNames into quiz.launched_for_classes (deduplicates, all lowercase).
+ */
+function mergeClassesForLaunch(quiz, newClassNames) {
+  const existing = new Set((quiz.launched_for_classes || []).map(c => c.toLowerCase()));
+  newClassNames.forEach(cn => existing.add(cn.toLowerCase()));
+  quiz.launched_for_classes = [...existing];
+}
+
 // ==================== DASHBOARD ====================
 router.get('/dashboard', async (req, res) => {
   try {
@@ -650,57 +677,22 @@ router.get('/class-performance', async (req, res) => {
 
 // ==================== QUIZ MANAGEMENT ====================
 
-// Get available quizzes (created by P2L admin) - FIXED: Filter by teacher's school/classes
+// Get available quizzes (created by P2L admin)
 router.get('/available-quizzes', async (req, res) => {
   try {
     const teacher = req.teacher;
     
-    // Get teacher's class names (for matching launched_for_classes)
-    let teacherClassNames = [];
-    
-    if (teacher.assignedClasses?.length > 0) {
-      const firstClass = teacher.assignedClasses[0];
-      const isObjectId = /^[a-f\d]{24}$/i.test(firstClass.toString());
-      
-      if (isObjectId) {
-        const classDocs = await Class.find({
-          _id: { $in: teacher.assignedClasses }
-        }).select('class_name');
-        teacherClassNames = classDocs.map(c => c.class_name);
-      } else {
-        teacherClassNames = teacher.assignedClasses;
-      }
-    }
+    // Resolve teacher's class names using the helper
+    const teacherClassNames = await resolveTeacherClassNames(teacher);
 
     console.log('🎯 Teacher school:', teacher.schoolId);
     console.log('🎯 Teacher classes:', teacherClassNames);
 
-    // Build query - show quizzes that are relevant to this teacher
-    let query = {
+    // Show ALL active adaptive quizzes so teachers can launch any of them for their classes
+    const query = {
       is_active: true,
       quiz_type: 'adaptive'
     };
-
-    // If teacher has school/classes, filter by them
-    // Otherwise show all active quizzes
-    if (teacher.schoolId || teacherClassNames.length > 0) {
-      query.$or = [
-        // Launched for this teacher's school
-        { launched_for_school: teacher.schoolId?.toString() },
-        // Launched for teacher's classes (case-insensitive match)
-        { launched_for_classes: { $in: teacherClassNames } },
-        // Not launched yet (available to all)
-        { is_launched: false },
-        // Launched for ALL (empty arrays/null school means everyone)
-        { 
-          is_launched: true,
-          $and: [
-            { $or: [{ launched_for_classes: { $size: 0 } }, { launched_for_classes: { $exists: false } }] },
-            { $or: [{ launched_for_school: null }, { launched_for_school: { $exists: false } }] }
-          ]
-        }
-      ];
-    }
 
     const quizzes = await Quiz.find(query)
       .select('title description quiz_type topic quiz_level adaptive_config is_launched launched_by launched_for_classes launched_for_school launch_start_date launch_end_date createdAt')
@@ -708,11 +700,17 @@ router.get('/available-quizzes', async (req, res) => {
 
     console.log('📚 Found', quizzes.length, 'quizzes for teacher');
 
-    // Mark which ones are launched by this teacher
-    const quizzesWithStatus = quizzes.map(quiz => ({
-      ...quiz.toObject(),
-      launchedByMe: quiz.launched_by?.toString() === req.user.userId
-    }));
+    // launchedByMe = this teacher has launched this quiz for at least one of their classes
+    const quizzesWithStatus = quizzes.map(quiz => {
+      const launchedClassesLower = (quiz.launched_for_classes || []).map(c => c.toLowerCase());
+      const launchedByMe = quiz.is_launched &&
+        teacherClassNames.length > 0 &&
+        teacherClassNames.some(cn => launchedClassesLower.includes(cn));
+      return {
+        ...quiz.toObject(),
+        launchedByMe
+      };
+    });
 
     res.json({ success: true, quizzes: quizzesWithStatus });
   } catch (error) {
@@ -724,44 +722,11 @@ router.get('/available-quizzes', async (req, res) => {
 // Get available topics from quizzes
 router.get('/available-topics', async (req, res) => {
   try {
-    const teacher = req.teacher;
-    
-    // Build query similar to available-quizzes
-    let query = {
+    // Show ALL active adaptive quiz topics so teachers can launch any of them
+    const query = {
       is_active: true,
       quiz_type: 'adaptive'
     };
-
-    // Get teacher's class names
-    let teacherClassNames = [];
-    if (teacher.assignedClasses?.length > 0) {
-      const firstClass = teacher.assignedClasses[0];
-      const isObjectId = /^[a-f\d]{24}$/i.test(firstClass.toString());
-      
-      if (isObjectId) {
-        const classDocs = await Class.find({
-          _id: { $in: teacher.assignedClasses }
-        }).select('class_name');
-        teacherClassNames = classDocs.map(c => c.class_name);
-      } else {
-        teacherClassNames = teacher.assignedClasses;
-      }
-    }
-
-    if (teacher.schoolId || teacherClassNames.length > 0) {
-      query.$or = [
-        { launched_for_school: teacher.schoolId?.toString() },
-        { launched_for_classes: { $in: teacherClassNames } },
-        { is_launched: false },
-        { 
-          is_launched: true,
-          $and: [
-            { $or: [{ launched_for_classes: { $size: 0 } }, { launched_for_classes: { $exists: false } }] },
-            { $or: [{ launched_for_school: null }, { launched_for_school: { $exists: false } }] }
-          ]
-        }
-      ];
-    }
 
     // Get distinct topics from available quizzes
     const topics = await Quiz.distinct('topic', query);
@@ -814,61 +779,35 @@ router.post('/launch-quiz', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Only adaptive quizzes can be launched by teachers' });
     }
 
-    // === FIX: Convert class IDs to names ===
-    console.log('🔍 Teacher assignedClasses (IDs):', teacher.assignedClasses);
+    // === Resolve teacher's class names using the helper ===
+    console.log('🔍 Teacher assignedClasses:', teacher.assignedClasses);
     console.log('🔍 Request classes (names):', classes);
 
-    // Get the Class model
+    const teacherClassNames = await resolveTeacherClassNames(teacher);
 
-    // Step 1: Look up what classes these IDs represent
-    const classDocs = await Class.find({
-      _id: { $in: teacher.assignedClasses || [] }
-    }).select('_id class_name');
-
-    console.log('📚 Teacher classes from DB:', classDocs);
-
-    // Create map of Name -> ID (for storage) and collect teacher's class names
-    const nameToIdMap = {};
-    const teacherClassNames = [];
-
-    classDocs.forEach(c => {
-      nameToIdMap[c.class_name.toLowerCase()] = c._id.toString();
-      teacherClassNames.push(c.class_name.toLowerCase());
-    });
-
-    console.log('🗺️ Name -> ID map:', nameToIdMap);
-    console.log('👨‍🏫 Teacher class names:', teacherClassNames);
-
-    // Step 2: Check if requested classes match teacher's classes
+    // Validate requested classes against teacher's classes
     const requestedClasses = (classes || []).map(c => c.toString().toLowerCase().trim());
     console.log('🎯 Requested classes (normalized):', requestedClasses);
 
-    // Find which requested classes teacher actually teaches
-    const validClassNames = requestedClasses.filter(c =>
-      teacherClassNames.includes(c)
-    );
-
+    const validClassNames = requestedClasses.filter(c => teacherClassNames.includes(c));
     console.log('✅ Valid class names:', validClassNames);
 
     if (validClassNames.length === 0) {
-      // Show teacher's actual class NAMES (not IDs) in error message
-      const teacherClassDisplayNames = classDocs.map(c => c.class_name).join(', ');
       return res.status(400).json({
         success: false,
-        error: `No valid classes selected. You teach: ${teacherClassDisplayNames || 'no classes'}. You selected: ${classes?.join(', ') || 'none'}`
+        error: `No valid classes selected. You teach: ${teacherClassNames.join(', ') || 'no classes'}. You selected: ${classes?.join(', ') || 'none'}`
       });
     }
+    // === END class resolution ===
 
-    // Step 3: Convert valid names to store (we'll store names, not IDs, for consistency)
-    console.log('✅ Valid class names for storage:', validClassNames);
-    // === END FIX ===
+    // Merge new classes with existing launched_for_classes (so multiple teachers can independently launch)
+    mergeClassesForLaunch(quiz, validClassNames);
 
     // Update quiz with launch info
     quiz.is_launched = true;
     quiz.launched_by = req.user.userId;
     quiz.launched_at = new Date();
-    quiz.launched_for_classes = validClassNames; // Store class names for easy matching
-    quiz.launched_for_school = teacher.schoolId?.toString() || null; // Add school ID
+    quiz.launched_for_school = teacher.schoolId?.toString() || null;
     quiz.launch_start_date = startDate ? new Date(startDate) : new Date();
     quiz.launch_end_date = endDate ? new Date(endDate) : null;
 
@@ -896,27 +835,38 @@ router.post('/launch-quiz', async (req, res) => {
 router.post('/revoke-quiz/:quizId', async (req, res) => {
   try {
     const { quizId } = req.params;
+    const teacher = req.teacher;
 
     const quiz = await Quiz.findById(quizId);
     if (!quiz) {
       return res.status(404).json({ success: false, error: 'Quiz not found' });
     }
 
-    // Verify teacher launched this quiz
-    if (quiz.launched_by?.toString() !== req.user.userId) {
-      return res.status(403).json({ success: false, error: 'You can only revoke quizzes you launched' });
+    // Resolve teacher's class names using the helper
+    const teacherClassNames = await resolveTeacherClassNames(teacher);
+
+    // Only remove the teacher's own classes from launched_for_classes
+    const remaining = (quiz.launched_for_classes || []).filter(
+      cls => !teacherClassNames.includes(cls.toLowerCase())
+    );
+
+    // Verify teacher actually had classes in this quiz
+    if (remaining.length === (quiz.launched_for_classes || []).length) {
+      return res.status(403).json({ success: false, error: 'You have not launched this quiz for your classes' });
     }
 
-    quiz.is_launched = false;
-    quiz.launched_by = null;
-    quiz.launched_at = null;
-    quiz.launched_for_classes = [];
-    quiz.launch_start_date = null;
-    quiz.launch_end_date = null;
+    quiz.launched_for_classes = remaining;
+    if (remaining.length === 0) {
+      quiz.is_launched = false;
+      quiz.launched_by = null;
+      quiz.launched_at = null;
+      quiz.launch_start_date = null;
+      quiz.launch_end_date = null;
+    }
 
     await quiz.save();
 
-    res.json({ success: true, message: 'Quiz launch revoked' });
+    res.json({ success: true, message: 'Quiz disabled for your classes' });
   } catch (error) {
     console.error('Revoke quiz error:', error);
     res.status(500).json({ success: false, error: 'Failed to revoke quiz' });
@@ -937,34 +887,21 @@ router.post('/launch-topic', async (req, res) => {
       return res.status(400).json({ success: false, error: 'At least one class must be selected' });
     }
 
-    // Get teacher's class names
-    const classDocs = await Class.find({
-      _id: { $in: teacher.assignedClasses || [] }
-    }).select('_id class_name');
-
-    const nameToIdMap = {};
-    const teacherClassNames = [];
-
-    classDocs.forEach(c => {
-      nameToIdMap[c.class_name.toLowerCase()] = c._id.toString();
-      teacherClassNames.push(c.class_name.toLowerCase());
-    });
+    // Resolve teacher's class names using the helper
+    const teacherClassNames = await resolveTeacherClassNames(teacher);
 
     // Validate requested classes
     const requestedClasses = (classes || []).map(c => c.toString().toLowerCase().trim());
-    const validClassNames = requestedClasses.filter(c =>
-      teacherClassNames.includes(c)
-    );
+    const validClassNames = requestedClasses.filter(c => teacherClassNames.includes(c));
 
     if (validClassNames.length === 0) {
-      const teacherClassDisplayNames = classDocs.map(c => c.class_name).join(', ');
       return res.status(400).json({
         success: false,
-        error: `No valid classes selected. You teach: ${teacherClassDisplayNames || 'no classes'}`
+        error: `No valid classes selected. You teach: ${teacherClassNames.join(', ') || 'no classes'}`
       });
     }
 
-    // Find all quizzes for this topic (levels 1-10)
+    // Find all quizzes for this topic
     const quizzes = await Quiz.find({
       topic: topic,
       is_active: true,
@@ -978,13 +915,13 @@ router.post('/launch-topic', async (req, res) => {
       });
     }
 
-    // Launch all quizzes for this topic
+    // Launch all quizzes for this topic, merging classes
     const launchResults = [];
     for (const quiz of quizzes) {
+      mergeClassesForLaunch(quiz, validClassNames);
       quiz.is_launched = true;
       quiz.launched_by = req.user.userId;
       quiz.launched_at = new Date();
-      quiz.launched_for_classes = validClassNames;
       quiz.launched_for_school = teacher.schoolId?.toString() || null;
       quiz.launch_start_date = startDate ? new Date(startDate) : new Date();
       quiz.launch_end_date = endDate ? new Date(endDate) : null;
@@ -1007,39 +944,60 @@ router.post('/launch-topic', async (req, res) => {
   }
 });
 
-// Revoke topic launch (all quizzes for a topic)
+// Revoke topic launch (remove teacher's classes from all quizzes for a topic)
 router.post('/revoke-topic/:topic', async (req, res) => {
   try {
     const { topic } = req.params;
+    const teacher = req.teacher;
 
-    // Find all quizzes for this topic launched by this teacher
+    // Resolve teacher's class names using the helper
+    const teacherClassNames = await resolveTeacherClassNames(teacher);
+
+    // Find all active quizzes for this topic
     const quizzes = await Quiz.find({
       topic: topic,
-      launched_by: req.user.userId,
-      is_launched: true
+      is_active: true,
+      quiz_type: 'adaptive'
     });
 
     if (quizzes.length === 0) {
       return res.status(404).json({ 
         success: false, 
-        error: `No launched quizzes found for topic "${topic}" by you` 
+        error: `No quizzes found for topic "${topic}"`
       });
     }
 
-    // Revoke all quizzes for this topic
+    // Remove teacher's classes from each quiz
+    let revokedCount = 0;
     for (const quiz of quizzes) {
-      quiz.is_launched = false;
-      quiz.launched_by = null;
-      quiz.launched_at = null;
-      quiz.launched_for_classes = [];
-      quiz.launch_start_date = null;
-      quiz.launch_end_date = null;
-      await quiz.save();
+      if (!quiz.is_launched) continue;
+      const beforeCount = (quiz.launched_for_classes || []).length;
+      quiz.launched_for_classes = (quiz.launched_for_classes || []).filter(
+        cls => !teacherClassNames.includes(cls.toLowerCase())
+      );
+      if (quiz.launched_for_classes.length < beforeCount) {
+        if (quiz.launched_for_classes.length === 0) {
+          quiz.is_launched = false;
+          quiz.launched_by = null;
+          quiz.launched_at = null;
+          quiz.launch_start_date = null;
+          quiz.launch_end_date = null;
+        }
+        await quiz.save();
+        revokedCount++;
+      }
+    }
+
+    if (revokedCount === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        error: `You have not launched any quizzes for topic "${topic}" for your classes`
+      });
     }
 
     res.json({ 
       success: true, 
-      message: `Topic "${topic}" launch revoked (${quizzes.length} quiz(es))` 
+      message: `Topic "${topic}" disabled for your classes (${revokedCount} quiz(es))` 
     });
   } catch (error) {
     console.error('Revoke topic error:', error);
@@ -1047,7 +1005,7 @@ router.post('/revoke-topic/:topic', async (req, res) => {
   }
 });
 
-// ✅ NEW: Launch specific levels for a topic (e.g., levels 1-3 or levels 2, 5, 7)
+// Launch specific levels for a topic (e.g., levels 1-3 or levels 2, 5, 7)
 router.post('/launch-topic-levels', async (req, res) => {
   try {
     const { topic, levels, classes, startDate, endDate } = req.body;
@@ -1071,27 +1029,17 @@ router.post('/launch-topic-levels', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Levels must be between 1 and 10' });
     }
 
-    // Get teacher's class names
-    const classDocs = await Class.find({
-      _id: { $in: teacher.assignedClasses || [] }
-    }).select('_id class_name');
-
-    const teacherClassNames = [];
-    classDocs.forEach(c => {
-      teacherClassNames.push(c.class_name.toLowerCase());
-    });
+    // Resolve teacher's class names using the helper
+    const teacherClassNames = await resolveTeacherClassNames(teacher);
 
     // Validate requested classes
     const requestedClasses = (classes || []).map(c => c.toString().toLowerCase().trim());
-    const validClassNames = requestedClasses.filter(c =>
-      teacherClassNames.includes(c)
-    );
+    const validClassNames = requestedClasses.filter(c => teacherClassNames.includes(c));
 
     if (validClassNames.length === 0) {
-      const teacherClassDisplayNames = classDocs.map(c => c.class_name).join(', ');
       return res.status(400).json({
         success: false,
-        error: `No valid classes selected. You teach: ${teacherClassDisplayNames || 'no classes'}`
+        error: `No valid classes selected. You teach: ${teacherClassNames.join(', ') || 'no classes'}`
       });
     }
 
@@ -1110,13 +1058,13 @@ router.post('/launch-topic-levels', async (req, res) => {
       });
     }
 
-    // Launch selected quizzes
+    // Launch selected quizzes, merging classes
     const launchResults = [];
     for (const quiz of quizzes) {
+      mergeClassesForLaunch(quiz, validClassNames);
       quiz.is_launched = true;
       quiz.launched_by = req.user.userId;
       quiz.launched_at = new Date();
-      quiz.launched_for_classes = validClassNames;
       quiz.launched_for_school = teacher.schoolId?.toString() || null;
       quiz.launch_start_date = startDate ? new Date(startDate) : new Date();
       quiz.launch_end_date = endDate ? new Date(endDate) : null;
