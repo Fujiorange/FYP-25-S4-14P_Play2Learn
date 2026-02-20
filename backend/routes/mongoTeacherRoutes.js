@@ -700,15 +700,21 @@ router.get('/available-quizzes', async (req, res) => {
 
     console.log('📚 Found', quizzes.length, 'quizzes for teacher');
 
-    // launchedByMe = this teacher has launched this quiz for at least one of their classes
+    // Compute per-quiz launch status relative to this teacher's classes:
+    //   launchedByMe          = at least one of teacher's classes is launched
+    //   launchedForAllMyClasses = ALL of teacher's classes are launched (nothing more to launch)
+    //   myLaunchedClasses     = which of teacher's classes are already launched
     const quizzesWithStatus = quizzes.map(quiz => {
       const launchedClassesLower = (quiz.launched_for_classes || []).map(c => c.toLowerCase());
-      const launchedByMe = quiz.is_launched &&
-        teacherClassNames.length > 0 &&
-        teacherClassNames.some(cn => launchedClassesLower.includes(cn));
+      const myLaunchedClasses = teacherClassNames.filter(cn => launchedClassesLower.includes(cn));
+      const launchedByMe = myLaunchedClasses.length > 0;
+      const launchedForAllMyClasses = teacherClassNames.length > 0 &&
+        myLaunchedClasses.length === teacherClassNames.length;
       return {
         ...quiz.toObject(),
-        launchedByMe
+        launchedByMe,
+        launchedForAllMyClasses,
+        myLaunchedClasses
       };
     });
 
