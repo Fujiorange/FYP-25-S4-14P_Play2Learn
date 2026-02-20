@@ -96,7 +96,8 @@ function QuizJourney() {
       alert(`🔒 Level ${quiz.quiz_level} is locked!\n\nComplete Level ${currentLevel} to unlock the next level.`);
       return;
     }
-    navigate(`/student/adaptive-quiz/${quiz.quiz_level}`);
+    // Navigate using quiz _id so the exact (topic-correct) quiz is loaded
+    navigate(`/student/adaptive-quiz/${quiz._id}`);
   };
 
   const getLevelIcon = (quizLevel) => {

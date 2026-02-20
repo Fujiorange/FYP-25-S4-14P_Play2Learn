@@ -479,7 +479,7 @@ router.get('/quizzes', authenticateToken, async (req, res) => {
     }
     
     const quizzes = await Quiz.find(query)
-    .select('title description adaptive_config questions createdAt quiz_type is_launched launched_at launch_start_date launch_end_date launched_for_classes quiz_level')
+    .select('title description adaptive_config questions createdAt quiz_type is_launched launched_at launch_start_date launch_end_date launched_for_classes quiz_level topic')
     .sort({ quiz_level: 1 })
     .lean();
 
@@ -493,6 +493,7 @@ router.get('/quizzes', authenticateToken, async (req, res) => {
       return {
         _id: quiz._id,
         quiz_level: quiz.quiz_level,
+        topic: quiz.topic || '',
         title: quiz.title,
         description: quiz.description,
         total_questions: quiz.questions.length,
