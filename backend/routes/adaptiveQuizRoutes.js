@@ -4,7 +4,6 @@ const jwt = require('jsonwebtoken');
 const Quiz = require('../models/Quiz');
 const QuizAttempt = require('../models/QuizAttempt');
 const User = require('../models/User');
-const Class = require('../models/Class');
 const MathSkill = require('../models/MathSkill');
 const MathProfile = require('../models/MathProfile');
 const SkillPointsConfig = require('../models/SkillPointsConfig');
@@ -43,13 +42,15 @@ function getDefaultDifficultyPoints() {
   };
 }
 
-// ✅ NEW: Time multiplier function
+// ✅ Time multiplier function — more granular tiers up to >30s
 function getTimeMultiplier(timeSeconds) {
-  if (timeSeconds < 5) return 1.5;
-  if (timeSeconds >= 5 && timeSeconds < 10) return 1.4;
-  if (timeSeconds >= 10 && timeSeconds < 15) return 1.3;
-  if (timeSeconds >= 15 && timeSeconds < 20) return 1.2;
-  return 1.0; // >= 20 seconds
+  if (timeSeconds < 5)  return 2.0;   // Very fast: 2x
+  if (timeSeconds < 10) return 1.8;   // Fast: 1.8x
+  if (timeSeconds < 15) return 1.6;   // Good: 1.6x
+  if (timeSeconds < 20) return 1.4;   // Moderate: 1.4x
+  if (timeSeconds < 25) return 1.2;   // Slow: 1.2x
+  if (timeSeconds < 30) return 1.0;   // Very slow: 1x (no bonus)
+  return 0.5;                         // >30s: penalty multiplier
 }
 
 // ✅ NEW: Points calculation function
@@ -84,10 +85,10 @@ function calculateLevelFromPoints(points) {
 
 // Helper function to check if a quiz is available for a specific student
 function isQuizAvailableForStudent(quiz, student) {
-  // Check if launched for student's specific class
+  // Check if launched for student's specific class (case-insensitive)
   const launchedForClass = student.class && 
     quiz.launched_for_classes && 
-    quiz.launched_for_classes.includes(student.class);
+    quiz.launched_for_classes.some(c => c.toLowerCase() === student.class.toLowerCase());
   
   // Check if launched for student's school
   const launchedForSchool = student.schoolId && 
@@ -401,6 +402,14 @@ router.get('/student/current-level', authenticateToken, async (req, res) => {
       });
     }
     
+    // Build topicLevels map
+    const topicLevels = {};
+    if (mathProfile.topic_levels) {
+      for (const [topic, level] of mathProfile.topic_levels.entries()) {
+        topicLevels[topic] = level;
+      }
+    }
+
     const currentLevel = mathProfile.adaptive_quiz_level || mathProfile.current_profile || 1;
     const unlockedLevels = Array.from({ length: currentLevel }, (_, i) => i + 1);
     
@@ -410,7 +419,8 @@ router.get('/student/current-level', authenticateToken, async (req, res) => {
       success: true,
       currentLevel: currentLevel,
       unlockedLevels: unlockedLevels,
-      placementCompleted: mathProfile.placement_completed || false
+      placementCompleted: mathProfile.placement_completed || false,
+      topicLevels: topicLevels
     });
   } catch (error) {
     console.error('Error fetching student level:', error);
@@ -446,9 +456,9 @@ router.get('/quizzes', authenticateToken, async (req, res) => {
     if (student.class || student.schoolId) {
       const orConditions = [];
       
-      // Only add class filter if student has a class
+      // Only add class filter if student has a class (case-insensitive: stored as lowercase)
       if (student.class) {
-        orConditions.push({ launched_for_classes: student.class });
+        orConditions.push({ launched_for_classes: student.class.toLowerCase() });
       }
       
       // Only add school filter if student has a schoolId
@@ -469,7 +479,7 @@ router.get('/quizzes', authenticateToken, async (req, res) => {
     }
     
     const quizzes = await Quiz.find(query)
-    .select('title description adaptive_config questions createdAt quiz_type is_launched launched_at launch_start_date launch_end_date launched_for_classes quiz_level')
+    .select('title description adaptive_config questions createdAt quiz_type is_launched launched_at launch_start_date launch_end_date launched_for_classes quiz_level topic')
     .sort({ quiz_level: 1 })
     .lean();
 
@@ -483,6 +493,7 @@ router.get('/quizzes', authenticateToken, async (req, res) => {
       return {
         _id: quiz._id,
         quiz_level: quiz.quiz_level,
+        topic: quiz.topic || '',
         title: quiz.title,
         description: quiz.description,
         total_questions: quiz.questions.length,
@@ -581,51 +592,8 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
     // Validation for Placement Quiz (Level 1)
     if (quizLevel === 1) {
       console.log(`🎯 Placement quiz access check for student ${userId}`);
-      
-      // Check if student is in a class
-      if (!student.class) {
-        return res.status(403).json({
-          success: false,
-          error: '🔒 Placement quiz requires class enrollment. Please contact your school administrator to be assigned to a class.'
-        });
-      }
 
-      // Check if the class has an active teacher
-      const classDoc = await Class.findOne({ 
-        class_name: student.class,
-        school_id: student.schoolId 
-      });
-
-      if (!classDoc) {
-        return res.status(403).json({
-          success: false,
-          error: '🔒 Your class could not be found. Please contact your school administrator.'
-        });
-      }
-
-      // Check if class has active teachers
-      if (!classDoc.teachers || classDoc.teachers.length === 0) {
-        return res.status(403).json({
-          success: false,
-          error: '🔒 Placement quiz requires an active teacher. Your class does not have a teacher assigned yet. Please contact your school administrator.'
-        });
-      }
-
-      // Verify at least one teacher is active
-      const activeTeachers = await User.find({
-        _id: { $in: classDoc.teachers },
-        accountActive: true,
-        role: { $in: ['Teacher', 'Trial Teacher'] }
-      });
-
-      if (activeTeachers.length === 0) {
-        return res.status(403).json({
-          success: false,
-          error: '🔒 Placement quiz requires an active teacher. Your class teachers are not active. Please contact your school administrator.'
-        });
-      }
-
-      // ✅ NEW: Check if placement quiz is launched for this topic
+      // Check if placement quiz is launched
       if (!quiz.is_launched) {
         return res.status(403).json({
           success: false,
@@ -641,7 +609,7 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
         });
       }
 
-      console.log(`✅ Placement quiz validation passed: Student in class "${student.class}" with ${activeTeachers.length} active teacher(s)`);
+      console.log(`✅ Placement quiz validation passed (is_launched + availability checks) for student "${userId}"`);
     }
 
     // Validation for Adaptive Quizzes (Level 2+)
@@ -810,26 +778,64 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
         const mathProfile = await MathProfile.findOne({ student_id: userId });
         if (mathProfile) {
           const targetLevel = levelDecision.nextLevel;
-          
-          if (targetLevel !== mathProfile.adaptive_quiz_level) {
-            const direction = targetLevel > mathProfile.adaptive_quiz_level ? 'UP' : 'DOWN';
-            console.log(`🔄 Updating level ${direction}: ${mathProfile.adaptive_quiz_level} → ${targetLevel}`);
-            
-            mathProfile.adaptive_quiz_level = targetLevel;
-            mathProfile.current_profile = targetLevel;
-            await mathProfile.save();
-            
-            const verifiedProfile = await MathProfile.findOne({ student_id: userId });
-            confirmedLevel = verifiedProfile.adaptive_quiz_level;
-            
-            console.log(`✅ VERIFIED: Student quiz level updated to ${confirmedLevel}`);
-          } else {
-            confirmedLevel = mathProfile.adaptive_quiz_level;
-            console.log(`ℹ️ Student staying at level ${confirmedLevel} (no change)`);
+          const quizTopic = quiz.topic || null;
+
+          // === Per-topic level tracking (unlocked levels only increase) ===
+          if (quizTopic) {
+            if (!mathProfile.topic_levels) mathProfile.topic_levels = new Map();
+            const prevTopicLevel = mathProfile.topic_levels.get(quizTopic) || 0;
+            // Only advance topic level; never decrease (unlocked levels stay unlocked)
+            const newTopicLevel = Math.max(prevTopicLevel, targetLevel);
+            mathProfile.topic_levels.set(quizTopic, newTopicLevel);
+            console.log(`📚 Topic "${quizTopic}": ${prevTopicLevel} → ${newTopicLevel}`);
+
+            // Auto-mark placement complete when a level-1 quiz for this topic is finished
+            if (quiz.quiz_level === 1) {
+              if (!mathProfile.placement_by_topic) mathProfile.placement_by_topic = new Map();
+              const existing = mathProfile.placement_by_topic.get(quizTopic);
+              if (!existing || !existing.completed) {
+                mathProfile.placement_by_topic.set(quizTopic, {
+                  completed: true,
+                  level: newTopicLevel,
+                  completed_at: new Date()
+                });
+                mathProfile.placement_completed = true;
+                console.log(`✅ Placement marked complete for topic "${quizTopic}" at level ${newTopicLevel}`);
+              }
+            }
           }
+
+          // === Global level = max across all topic levels ===
+          const allTopicLevels = mathProfile.topic_levels
+            ? Array.from(mathProfile.topic_levels.values())
+            : [];
+          const globalLevel = allTopicLevels.length > 0
+            ? Math.max(...allTopicLevels)
+            : targetLevel;
+
+          mathProfile.adaptive_quiz_level = globalLevel;
+          mathProfile.current_profile = globalLevel;
+          await mathProfile.save();
+
+          const verifiedProfile = await MathProfile.findOne({ student_id: userId });
+          confirmedLevel = verifiedProfile.adaptive_quiz_level;
+          console.log(`✅ VERIFIED: Student quiz level updated to ${confirmedLevel}`);
         }
       } catch (error) {
         console.error('❌ Failed to update adaptive quiz level:', error);
+      }
+
+      // Build topicLevels map for the response so frontend can refresh per-topic state
+      let topicLevelsForResponse = {};
+      try {
+        const mp = await MathProfile.findOne({ student_id: userId });
+        if (mp && mp.topic_levels) {
+          for (const [t, lv] of mp.topic_levels.entries()) {
+            topicLevelsForResponse[t] = lv;
+          }
+        }
+      } catch (readErr) {
+        console.warn('⚠️ Could not read topic_levels for response (non-critical):', readErr.message);
       }
 
       return res.json({
@@ -849,7 +855,9 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
           nextQuizId: nextQuiz ? nextQuiz._id : null,
           nextQuizLevel: nextQuiz ? nextQuiz.quiz_level : null,
           nextQuizTitle: nextQuiz ? nextQuiz.title : null,
-          timeElapsedSeconds
+          timeElapsedSeconds,
+          topicLevels: topicLevelsForResponse,
+          quizTopic: quiz.topic || null
         }
       });
     }
@@ -1005,12 +1013,12 @@ router.post('/attempts/:attemptId/submit-answer', authenticateToken, async (req,
 
     console.log(`📊 Points: Level=${quizLevel} × Diff=${difficultyLevel} × Time=${timeSeconds}s = ${pointsEarned} pts`);
 
-    // Record the answer with points
+    // Record the answer with points; use quiz.topic as fallback (embedded questions lack topic field)
     attempt.answers.push({
       questionId: question._id,
       question_text: question.text,
       difficulty: question.difficulty,
-      topic: question.topic,
+      topic: question.topic || quiz.topic || 'General',
       answer: answer,
       correct_answer: question.answer,
       isCorrect: isCorrect,

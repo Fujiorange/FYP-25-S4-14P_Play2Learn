@@ -13,6 +13,7 @@ function QuizJourney() {
   const [error, setError] = useState('');
   const [currentLevel, setCurrentLevel] = useState(1);
   const [unlockedLevels, setUnlockedLevels] = useState([1]);
+  const [topicLevels, setTopicLevels] = useState({});
   const [hoveredLevel, setHoveredLevel] = useState(null);
   const [selectedTopic, setSelectedTopic] = useState('');
   const [availableTopics, setAvailableTopics] = useState([]);
@@ -40,7 +41,8 @@ function QuizJourney() {
       if (levelData.success) {
         setCurrentLevel(levelData.currentLevel);
         setUnlockedLevels(levelData.unlockedLevels);
-        console.log('✅ Student level:', levelData.currentLevel, 'Unlocked:', levelData.unlockedLevels);
+        setTopicLevels(levelData.topicLevels || {});
+        console.log('✅ Student level:', levelData.currentLevel, 'Unlocked:', levelData.unlockedLevels, 'Topics:', levelData.topicLevels);
       }
 
       // Get all quizzes
@@ -78,7 +80,14 @@ function QuizJourney() {
     }
   };
 
-  const isLevelUnlocked = (quizLevel) => unlockedLevels.includes(quizLevel);
+  // When a topic is selected, use that topic's specific level for unlock checks.
+  // Fall back to global unlockedLevels when no topic filter is active.
+  const isLevelUnlocked = (quizLevel) => {
+    if (selectedTopic && topicLevels[selectedTopic] !== undefined) {
+      return quizLevel <= topicLevels[selectedTopic];
+    }
+    return unlockedLevels.includes(quizLevel);
+  };
   const isLevelCurrent = (quizLevel) => quizLevel === currentLevel;
   const isLevelCompleted = (quizLevel) => quizLevel < currentLevel;
 
@@ -87,7 +96,8 @@ function QuizJourney() {
       alert(`🔒 Level ${quiz.quiz_level} is locked!\n\nComplete Level ${currentLevel} to unlock the next level.`);
       return;
     }
-    navigate(`/student/adaptive-quiz/${quiz.quiz_level}`);
+    // Navigate using quiz _id so the exact (topic-correct) quiz is loaded
+    navigate(`/student/adaptive-quiz/${quiz._id}`);
   };
 
   const getLevelIcon = (quizLevel) => {

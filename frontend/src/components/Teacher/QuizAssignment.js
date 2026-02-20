@@ -82,7 +82,12 @@ export default function QuizAssignment() {
     setLaunchMode('single');
     setSelectedQuiz(quiz);
     setSelectedTopic(null);
-    setSelectedClasses([]);
+    // Pre-select classes that haven't been launched for this quiz yet
+    const alreadyLaunched = (quiz.myLaunchedClasses || []).map(c => c.toLowerCase());
+    const notYetLaunched = myClasses
+      .map(c => c.class_name)
+      .filter(cn => !alreadyLaunched.includes(cn.toLowerCase()));
+    setSelectedClasses(notYetLaunched.length > 0 ? notYetLaunched : []);
     setShowLaunchModal(true);
   };
 
@@ -261,11 +266,6 @@ export default function QuizAssignment() {
     return grouped;
   };
 
-  // Helper to check if all quizzes in a topic are launched by this teacher
-  const isTopicLaunchedByMe = (topicQuizzes) => {
-    return topicQuizzes.length > 0 && topicQuizzes.every(q => q.launchedByMe && q.is_launched);
-  };
-
   // Helper to check if any quiz in a topic is launched
   const isTopicLaunched = (topicQuizzes) => {
     return topicQuizzes.some(q => q.is_launched);
@@ -328,7 +328,7 @@ export default function QuizAssignment() {
 
         <div style={styles.infoBox}>
           <p style={{ margin: 0, color: '#1e40af' }}>
-            ℹ️ Launch quizzes by topic (all levels 1-10) or individual quizzes. Students can only access quizzes that you've launched.
+            ℹ️ Launch quizzes by topic (all levels) or individual quizzes for your classes. Students can only access quizzes that you've launched for their class.
           </p>
         </div>
 
@@ -359,7 +359,6 @@ export default function QuizAssignment() {
           <div style={styles.grid}>
             {Object.entries(getQuizzesByTopic()).map(([topic, topicQuizzes]) => {
               const isLaunched = isTopicLaunched(topicQuizzes);
-              const launchedByMe = isTopicLaunchedByMe(topicQuizzes);
               const isPartial = isTopicPartiallyLaunched(topicQuizzes);
               const quizLevels = topicQuizzes.map(q => q.quiz_level).filter(Boolean).sort((a, b) => a - b);
               
@@ -416,33 +415,43 @@ export default function QuizAssignment() {
                     )}
                   </div>
 
-                  {!isLaunched ? (
-                    <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                {(() => {
+                    // allLaunchedByMe = every quiz in topic is launched for ALL of teacher's classes
+                    const myFullyLaunchedCount = topicQuizzes.filter(q => q.launchedForAllMyClasses).length;
+                    const allLaunchedByMe = myFullyLaunchedCount === topicQuizzes.length && topicQuizzes.length > 0;
+                    const someByMe = topicQuizzes.some(q => q.launchedByMe);
+                    return allLaunchedByMe ? (
                       <button 
-                        style={styles.btnPrimary}
-                        onClick={() => openTopicLaunchModal(topic)}
+                        style={styles.btnDanger}
+                        onClick={() => handleRevokeTopic(topic)}
                       >
-                        🚀 Launch All Levels (1-10)
+                        🚫 Disable Topic
                       </button>
-                      <button 
-                        style={{ ...styles.btnPrimary, background: '#8b5cf6' }}
-                        onClick={() => openTopicLevelsModal(topic)}
-                      >
-                        🎯 Launch Specific Levels
-                      </button>
-                    </div>
-                  ) : launchedByMe ? (
-                    <button 
-                      style={styles.btnDanger}
-                      onClick={() => handleRevokeTopic(topic)}
-                    >
-                      Disable Topic
-                    </button>
-                  ) : (
-                    <button style={styles.btnDisabled} disabled>
-                      Launched by Another Teacher
-                    </button>
-                  )}
+                    ) : (
+                      <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                        <button 
+                          style={styles.btnPrimary}
+                          onClick={() => openTopicLaunchModal(topic)}
+                        >
+                          🚀 Launch All Levels
+                        </button>
+                        <button 
+                          style={{ ...styles.btnPrimary, background: '#8b5cf6' }}
+                          onClick={() => openTopicLevelsModal(topic)}
+                        >
+                          🎯 Launch Specific Levels
+                        </button>
+                        {someByMe && (
+                          <button 
+                            style={styles.btnDanger}
+                            onClick={() => handleRevokeTopic(topic)}
+                          >
+                            🚫 Disable My Launches
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -482,24 +491,30 @@ export default function QuizAssignment() {
                     )}
                   </div>
                   
-                  {!isLaunched ? (
-                    <button 
-                      style={styles.btnPrimary}
-                      onClick={() => openLaunchModal(quiz)}
-                    >
-                      Launch Quiz
-                    </button>
-                  ) : launchedByMe ? (
+                  {quiz.launchedForAllMyClasses ? (
                     <button 
                       style={styles.btnDanger}
                       onClick={() => handleRevokeQuiz(quiz._id)}
                     >
-                      Disable Quiz
+                      🚫 Disable Quiz
                     </button>
                   ) : (
-                    <button style={styles.btnDisabled} disabled>
-                      Launched by Another Teacher
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button 
+                        style={styles.btnPrimary}
+                        onClick={() => openLaunchModal(quiz)}
+                      >
+                        {launchedByMe ? '🚀 Launch for More Classes' : 'Launch Quiz'}
+                      </button>
+                      {launchedByMe && (
+                        <button 
+                          style={styles.btnDanger}
+                          onClick={() => handleRevokeQuiz(quiz._id)}
+                        >
+                          🚫 Disable My Launches
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -521,46 +536,74 @@ export default function QuizAssignment() {
             </h2>
             <p style={{ marginBottom: '16px', color: '#6b7280' }}>
               {launchMode === 'topic'
-                ? `This will launch all quizzes (levels 1-10) for topic "${selectedTopic}" for the selected classes.`
+                ? `This will launch all available quiz levels for topic "${selectedTopic}" for the selected classes.`
                 : launchMode === 'topic-levels'
                 ? `Select specific levels to launch for topic "${selectedTopic}".`
                 : 'Select the classes you want to launch this quiz for:'}
             </p>
             
             {/* Level Selection (only for topic-levels mode) */}
-            {launchMode === 'topic-levels' && (
+            {launchMode === 'topic-levels' && (() => {
+              const topicQuizzes = getQuizzesByTopic()[selectedTopic] || [];
+              const existingLevels = topicQuizzes
+                .map(q => q.quiz_level)
+                .filter(Boolean)
+                .sort((a, b) => a - b);
+              return (
               <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1f2937' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1f2937' }}>
                   Select Levels to Launch:
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => (
-                    <button
-                      key={level}
-                      onClick={() => toggleLevelSelection(level)}
-                      style={{
-                        padding: '12px',
-                        border: selectedLevels.includes(level) ? '2px solid #3b82f6' : '2px solid #e5e7eb',
-                        background: selectedLevels.includes(level) ? '#dbeafe' : 'white',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                        fontSize: '14px',
-                        color: selectedLevels.includes(level) ? '#1e40af' : '#6b7280',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      L{level}
-                    </button>
-                  ))}
-                </div>
-                {selectedLevels.length > 0 && (
-                  <p style={{ marginTop: '8px', fontSize: '13px', color: '#3b82f6' }}>
-                    ✓ Selected: Level {selectedLevels.sort((a, b) => a - b).join(', ')}
-                  </p>
+                {existingLevels.length === 0 ? (
+                  <p style={{ color: '#ef4444', fontSize: '13px' }}>No levels found for this topic.</p>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                      {existingLevels.map(level => {
+                        const q = topicQuizzes.find(x => x.quiz_level === level);
+                        const fullyLaunched = q?.launchedForAllMyClasses;
+                        const partLaunched = q?.launchedByMe && !fullyLaunched;
+                        const selected = selectedLevels.includes(level);
+                        return (
+                          <button
+                            key={level}
+                            onClick={() => toggleLevelSelection(level)}
+                            style={{
+                              padding: '10px 4px',
+                              border: selected ? '2px solid #3b82f6' : fullyLaunched ? '2px solid #10b981' : partLaunched ? '2px solid #f59e0b' : '2px solid #e5e7eb',
+                              background: selected ? '#dbeafe' : fullyLaunched ? '#d1fae5' : partLaunched ? '#fef3c7' : 'white',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              fontSize: '13px',
+                              color: selected ? '#1e40af' : fullyLaunched ? '#065f46' : partLaunched ? '#92400e' : '#6b7280',
+                              transition: 'all 0.2s',
+                              textAlign: 'center',
+                              lineHeight: '1.2'
+                            }}
+                          >
+                            L{level}
+                            {fullyLaunched && <div style={{ fontSize: '9px', marginTop: '2px' }}>✓ All</div>}
+                            {partLaunched && <div style={{ fontSize: '9px', marginTop: '2px', color: '#d97706' }}>⚠ Part</div>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#6b7280', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      <span>🟦 Selected to launch</span>
+                      <span style={{ color: '#065f46' }}>🟩 Launched (all classes)</span>
+                      <span style={{ color: '#92400e' }}>🟨 Launched (some classes)</span>
+                    </div>
+                    {selectedLevels.length > 0 && (
+                      <p style={{ marginTop: '8px', fontSize: '13px', color: '#3b82f6' }}>
+                        ✓ Selected: Level {selectedLevels.sort((a, b) => a - b).join(', ')}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
-            )}
+              );
+            })()}
             
             {/* Class Selection */}
             {myClasses.length === 0 ? (
