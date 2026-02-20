@@ -73,6 +73,15 @@ const mathProfileSchema = new mongoose.Schema({
     min: 0,      // ✅ CHANGED: Allow 0 (was 1)
     max: 10
   },
+
+  // Per-topic quiz level tracking
+  // Maps topic name → highest unlocked quiz level for that topic
+  // Example: { 'Addition': 3, 'Subtraction': 1 }
+  topic_levels: {
+    type: Map,
+    of: Number,
+    default: {}
+  },
   
   createdAt: { 
     type: Date, 

@@ -43,13 +43,15 @@ function getDefaultDifficultyPoints() {
   };
 }
 
-// ✅ NEW: Time multiplier function
+// ✅ Time multiplier function — more granular tiers up to >30s
 function getTimeMultiplier(timeSeconds) {
-  if (timeSeconds < 5) return 1.5;
-  if (timeSeconds >= 5 && timeSeconds < 10) return 1.4;
-  if (timeSeconds >= 10 && timeSeconds < 15) return 1.3;
-  if (timeSeconds >= 15 && timeSeconds < 20) return 1.2;
-  return 1.0; // >= 20 seconds
+  if (timeSeconds < 5)  return 2.0;   // Very fast: 2x
+  if (timeSeconds < 10) return 1.8;   // Fast: 1.8x
+  if (timeSeconds < 15) return 1.6;   // Good: 1.6x
+  if (timeSeconds < 20) return 1.4;   // Moderate: 1.4x
+  if (timeSeconds < 25) return 1.2;   // Slow: 1.2x
+  if (timeSeconds < 30) return 1.0;   // Very slow: 1x (no bonus)
+  return 0.5;                         // >30s: penalty multiplier
 }
 
 // ✅ NEW: Points calculation function
@@ -401,6 +403,14 @@ router.get('/student/current-level', authenticateToken, async (req, res) => {
       });
     }
     
+    // Build topicLevels map
+    const topicLevels = {};
+    if (mathProfile.topic_levels) {
+      for (const [topic, level] of mathProfile.topic_levels.entries()) {
+        topicLevels[topic] = level;
+      }
+    }
+
     const currentLevel = mathProfile.adaptive_quiz_level || mathProfile.current_profile || 1;
     const unlockedLevels = Array.from({ length: currentLevel }, (_, i) => i + 1);
     
@@ -410,7 +420,8 @@ router.get('/student/current-level', authenticateToken, async (req, res) => {
       success: true,
       currentLevel: currentLevel,
       unlockedLevels: unlockedLevels,
-      placementCompleted: mathProfile.placement_completed || false
+      placementCompleted: mathProfile.placement_completed || false,
+      topicLevels: topicLevels
     });
   } catch (error) {
     console.error('Error fetching student level:', error);
@@ -810,26 +821,64 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
         const mathProfile = await MathProfile.findOne({ student_id: userId });
         if (mathProfile) {
           const targetLevel = levelDecision.nextLevel;
-          
-          if (targetLevel !== mathProfile.adaptive_quiz_level) {
-            const direction = targetLevel > mathProfile.adaptive_quiz_level ? 'UP' : 'DOWN';
-            console.log(`🔄 Updating level ${direction}: ${mathProfile.adaptive_quiz_level} → ${targetLevel}`);
-            
-            mathProfile.adaptive_quiz_level = targetLevel;
-            mathProfile.current_profile = targetLevel;
-            await mathProfile.save();
-            
-            const verifiedProfile = await MathProfile.findOne({ student_id: userId });
-            confirmedLevel = verifiedProfile.adaptive_quiz_level;
-            
-            console.log(`✅ VERIFIED: Student quiz level updated to ${confirmedLevel}`);
-          } else {
-            confirmedLevel = mathProfile.adaptive_quiz_level;
-            console.log(`ℹ️ Student staying at level ${confirmedLevel} (no change)`);
+          const quizTopic = quiz.topic || null;
+
+          // === Per-topic level tracking (unlocked levels only increase) ===
+          if (quizTopic) {
+            if (!mathProfile.topic_levels) mathProfile.topic_levels = new Map();
+            const prevTopicLevel = mathProfile.topic_levels.get(quizTopic) || 0;
+            // Only advance topic level; never decrease (unlocked levels stay unlocked)
+            const newTopicLevel = Math.max(prevTopicLevel, targetLevel);
+            mathProfile.topic_levels.set(quizTopic, newTopicLevel);
+            console.log(`📚 Topic "${quizTopic}": ${prevTopicLevel} → ${newTopicLevel}`);
+
+            // Auto-mark placement complete when a level-1 quiz for this topic is finished
+            if (quiz.quiz_level === 1) {
+              if (!mathProfile.placement_by_topic) mathProfile.placement_by_topic = new Map();
+              const existing = mathProfile.placement_by_topic.get(quizTopic);
+              if (!existing || !existing.completed) {
+                mathProfile.placement_by_topic.set(quizTopic, {
+                  completed: true,
+                  level: newTopicLevel,
+                  completed_at: new Date()
+                });
+                mathProfile.placement_completed = true;
+                console.log(`✅ Placement marked complete for topic "${quizTopic}" at level ${newTopicLevel}`);
+              }
+            }
           }
+
+          // === Global level = max across all topic levels ===
+          const allTopicLevels = mathProfile.topic_levels
+            ? Array.from(mathProfile.topic_levels.values())
+            : [];
+          const globalLevel = allTopicLevels.length > 0
+            ? Math.max(...allTopicLevels)
+            : targetLevel;
+
+          mathProfile.adaptive_quiz_level = globalLevel;
+          mathProfile.current_profile = globalLevel;
+          await mathProfile.save();
+
+          const verifiedProfile = await MathProfile.findOne({ student_id: userId });
+          confirmedLevel = verifiedProfile.adaptive_quiz_level;
+          console.log(`✅ VERIFIED: Student quiz level updated to ${confirmedLevel}`);
         }
       } catch (error) {
         console.error('❌ Failed to update adaptive quiz level:', error);
+      }
+
+      // Build topicLevels map for the response so frontend can refresh per-topic state
+      let topicLevelsForResponse = {};
+      try {
+        const mp = await MathProfile.findOne({ student_id: userId });
+        if (mp && mp.topic_levels) {
+          for (const [t, lv] of mp.topic_levels.entries()) {
+            topicLevelsForResponse[t] = lv;
+          }
+        }
+      } catch (readErr) {
+        console.warn('⚠️ Could not read topic_levels for response (non-critical):', readErr.message);
       }
 
       return res.json({
@@ -849,7 +898,9 @@ router.get('/attempts/:attemptId/next-question', authenticateToken, async (req, 
           nextQuizId: nextQuiz ? nextQuiz._id : null,
           nextQuizLevel: nextQuiz ? nextQuiz.quiz_level : null,
           nextQuizTitle: nextQuiz ? nextQuiz.title : null,
-          timeElapsedSeconds
+          timeElapsedSeconds,
+          topicLevels: topicLevelsForResponse,
+          quizTopic: quiz.topic || null
         }
       });
     }
@@ -1005,12 +1056,12 @@ router.post('/attempts/:attemptId/submit-answer', authenticateToken, async (req,
 
     console.log(`📊 Points: Level=${quizLevel} × Diff=${difficultyLevel} × Time=${timeSeconds}s = ${pointsEarned} pts`);
 
-    // Record the answer with points
+    // Record the answer with points; use quiz.topic as fallback (embedded questions lack topic field)
     attempt.answers.push({
       questionId: question._id,
       question_text: question.text,
       difficulty: question.difficulty,
-      topic: question.topic,
+      topic: question.topic || quiz.topic || 'General',
       answer: answer,
       correct_answer: question.answer,
       isCorrect: isCorrect,

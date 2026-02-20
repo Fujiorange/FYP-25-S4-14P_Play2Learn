@@ -645,3 +645,13 @@
     font-size: 20px;
   }
 }
+.placement-quiz-badge {
+  text-align: center;
+  padding: 8px 16px;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  font-size: 14px;
+}

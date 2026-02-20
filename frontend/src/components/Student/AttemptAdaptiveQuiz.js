@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import './AttemptAdaptiveQuiz.css';
 
 const API_BASE_URL =
@@ -40,7 +40,12 @@ function QuestionTimer({ startTime }) {
 function AttemptAdaptiveQuiz() {
   const { quizId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
+  // Detect placement mode from URL params (?placement=true&topic=Addition)
+  const isPlacement = searchParams.get('placement') === 'true';
+  const placementTopic = searchParams.get('topic') || '';
+
   const [loading, setLoading] = useState(true);
   const [quiz, setQuiz] = useState(null);
   const [attemptId, setAttemptId] = useState(null);
@@ -442,6 +447,11 @@ function AttemptAdaptiveQuiz() {
   return (
     <div className="adaptive-quiz-container">
       <div className="quiz-header">
+        {isPlacement && (
+          <div className="placement-quiz-badge">
+            🎯 Placement Quiz — {placementTopic} (Level 1 · Adaptive Difficulty)
+          </div>
+        )}
         <div className="progress-info">
           <div className="progress-bar-container">
             <div 

@@ -699,6 +699,87 @@ router.get("/placement-quiz/topics", async (req, res) => {
   }
 });
 
+// ==================== PLACEMENT QUIZ - FIND QUIZ ====================
+// Returns the launched Quiz Level 1 (adaptive) for the given topic, for this student's class.
+// Used by the placement quiz frontend to get the quiz ID, then start an adaptive attempt.
+
+// Simple per-user rate limit middleware: max 20 find-quiz calls per minute per user
+const _findQuizRateMap = new Map();
+function findQuizRateLimit(req, res, next) {
+  const userId = req.user.userId;
+  const now = Date.now();
+  const windowMs = 60_000;
+  const maxCalls = 20;
+  const record = _findQuizRateMap.get(userId) || { count: 0, windowStart: now };
+  if (now - record.windowStart > windowMs) { record.count = 0; record.windowStart = now; }
+  record.count += 1;
+  _findQuizRateMap.set(userId, record);
+  if (record.count > maxCalls) {
+    return res.status(429).json({ success: false, error: 'Too many requests. Please wait a moment.' });
+  }
+  next();
+}
+
+router.get("/placement-quiz/find-quiz", findQuizRateLimit, async (req, res) => {
+  try {
+    const { topic } = req.query;
+    const studentId = req.user.userId;
+
+    if (!topic || typeof topic !== 'string' || topic.trim() === '') {
+      return res.status(400).json({ success: false, error: 'Topic is required' });
+    }
+
+    const student = await User.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student not found' });
+    }
+
+    const normalizedTopic = topic.trim();
+
+    // Find the launched adaptive quiz at level 1 for this topic and student's class
+    const orConditions = [];
+    if (student.class) {
+      orConditions.push({ launched_for_classes: student.class.toLowerCase() });
+    }
+    if (student.schoolId) {
+      orConditions.push({ launched_for_school: student.schoolId.toString() });
+    }
+    // Globally launched (no class or school restriction)
+    orConditions.push({
+      $and: [
+        { $or: [{ launched_for_classes: { $size: 0 } }, { launched_for_classes: { $exists: false } }] },
+        { $or: [{ launched_for_school: null }, { launched_for_school: { $exists: false } }] }
+      ]
+    });
+
+    const quiz = await Quiz.findOne({
+      quiz_level: 1,
+      quiz_type: 'adaptive',
+      topic: normalizedTopic,
+      is_launched: true,
+      is_active: true,
+      $or: orConditions
+    }).sort({ createdAt: -1 });
+
+    if (!quiz) {
+      return res.status(404).json({
+        success: false,
+        error: `No placement quiz available for topic "${normalizedTopic}". Please ask your teacher to launch one.`
+      });
+    }
+
+    res.json({
+      success: true,
+      quizId: quiz._id,
+      topic: normalizedTopic,
+      quizTitle: quiz.title
+    });
+  } catch (error) {
+    console.error('❌ Find placement quiz error:', error);
+    res.status(500).json({ success: false, error: 'Failed to find placement quiz' });
+  }
+});
+
 // ==================== PLACEMENT QUIZ - GENERATE ====================
 // ✅ NEW: Topic-based placement quiz - only uses Quiz Level 1 questions
 router.post("/placement-quiz/generate", async (req, res) => {
