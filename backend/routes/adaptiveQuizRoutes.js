@@ -4,7 +4,6 @@ const jwt = require('jsonwebtoken');
 const Quiz = require('../models/Quiz');
 const QuizAttempt = require('../models/QuizAttempt');
 const User = require('../models/User');
-const Class = require('../models/Class');
 const MathSkill = require('../models/MathSkill');
 const MathProfile = require('../models/MathProfile');
 const SkillPointsConfig = require('../models/SkillPointsConfig');
@@ -592,51 +591,8 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
     // Validation for Placement Quiz (Level 1)
     if (quizLevel === 1) {
       console.log(`🎯 Placement quiz access check for student ${userId}`);
-      
-      // Check if student is in a class
-      if (!student.class) {
-        return res.status(403).json({
-          success: false,
-          error: '🔒 Placement quiz requires class enrollment. Please contact your school administrator to be assigned to a class.'
-        });
-      }
 
-      // Check if the class has an active teacher
-      const classDoc = await Class.findOne({ 
-        class_name: student.class,
-        school_id: student.schoolId 
-      });
-
-      if (!classDoc) {
-        return res.status(403).json({
-          success: false,
-          error: '🔒 Your class could not be found. Please contact your school administrator.'
-        });
-      }
-
-      // Check if class has active teachers
-      if (!classDoc.teachers || classDoc.teachers.length === 0) {
-        return res.status(403).json({
-          success: false,
-          error: '🔒 Placement quiz requires an active teacher. Your class does not have a teacher assigned yet. Please contact your school administrator.'
-        });
-      }
-
-      // Verify at least one teacher is active
-      const activeTeachers = await User.find({
-        _id: { $in: classDoc.teachers },
-        accountActive: true,
-        role: { $in: ['Teacher', 'Trial Teacher'] }
-      });
-
-      if (activeTeachers.length === 0) {
-        return res.status(403).json({
-          success: false,
-          error: '🔒 Placement quiz requires an active teacher. Your class teachers are not active. Please contact your school administrator.'
-        });
-      }
-
-      // ✅ NEW: Check if placement quiz is launched for this topic
+      // Check if placement quiz is launched
       if (!quiz.is_launched) {
         return res.status(403).json({
           success: false,
@@ -652,7 +608,7 @@ router.post('/quizzes/:quizId/start', authenticateToken, async (req, res) => {
         });
       }
 
-      console.log(`✅ Placement quiz validation passed: Student in class "${student.class}" with ${activeTeachers.length} active teacher(s)`);
+      console.log(`✅ Placement quiz validation passed (is_launched + availability checks) for student "${userId}"`);
     }
 
     // Validation for Adaptive Quizzes (Level 2+)
